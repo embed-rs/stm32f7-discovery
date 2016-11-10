@@ -1,0 +1,6 @@
+[package]
+name = "novemb-rs-stm32f7"
+version = "0.1.0"
+authors = ["Philipp Oppermann <dev@phil-opp.com>"]
+
+[dependencies]
