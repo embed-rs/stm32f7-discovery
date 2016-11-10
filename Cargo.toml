@@ -5,4 +5,5 @@ version = "0.1.0"
 
 [dependencies]
 compiler-builtins-snapshot = "0.0.20161008+c56faf22abb39724008148d58f12bcd43b6d236b"
+r0 = "0.1.0"
 rlibc = "1.0.0"
