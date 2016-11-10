@@ -1,6 +1,8 @@
 [package]
+authors = ["Philipp Oppermann <dev@phil-opp.com>"]
 name = "novemb-rs-stm32f7"
 version = "0.1.0"
-authors = ["Philipp Oppermann <dev@phil-opp.com>"]
 
 [dependencies]
+compiler-builtins-snapshot = "0.0.20161008+c56faf22abb39724008148d58f12bcd43b6d236b"
+rlibc = "1.0.0"
