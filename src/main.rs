@@ -1,4 +1,5 @@
 #![feature(lang_items)]
+#![feature(const_fn)]
 
 #![no_std]
 #![no_main]
@@ -18,6 +19,7 @@ extern crate cortex_m;
 use svd_board::Hardware;
 
 pub mod exceptions;
+mod system_clock;
 
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
@@ -46,7 +48,9 @@ pub unsafe extern "C" fn reset() -> ! {
 }
 
 fn main(hw: Hardware) -> ! {
-    let Hardware { rcc, gpioi, .. } = hw;
+    let Hardware { rcc, gpioi, pwr, flash, .. } = hw;
+
+    system_clock::init(rcc, pwr, flash);
 
     // enable gpio port i
     rcc.ahb1enr.update(|r| r.set_gpioien(true));

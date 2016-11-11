@@ -1,3 +1,4 @@
+use system_clock;
 
 #[link_section = ".exceptions"]
 pub static EXCEPTIONS: VectorTable = VectorTable {
@@ -9,7 +10,7 @@ pub static EXCEPTIONS: VectorTable = VectorTable {
     svcall: None,
     debug_monitor: None,
     pendsv: None,
-    sys_tick: None,
+    sys_tick: Some(system_clock::systick),
     reserved_0: [0; 4],
     reserved_1: 0,
 };
