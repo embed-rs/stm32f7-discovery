@@ -12,6 +12,8 @@ extern crate rlibc;
 extern crate r0;
 // hardware register structs with accessor methods
 extern crate svd_board;
+// low level access to the cortex-m cpu
+extern crate cortex_m;
 
 use svd_board::Hardware;
 
