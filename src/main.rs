@@ -15,6 +15,8 @@ extern crate svd_board;
 
 use svd_board::Hardware;
 
+pub mod exceptions;
+
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
     extern "C" {
