@@ -13,6 +13,8 @@ extern crate r0;
 // hardware register structs with accessor methods
 extern crate svd_board;
 
+use svd_board::Hardware;
+
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
     extern "C" {
@@ -31,15 +33,26 @@ pub unsafe extern "C" fn reset() -> ! {
     let bss_start = &mut __BSS_START;
     let bss_end = &__BSS_END;
 
-    // initializes the .data section (Copy the data segment initializers from flash to SRAM)
+    // initializes the .data section (copy the data segment initializers from flash to RAM)
     r0::init_data(data_start, data_end, data_load);
     // zeroes the .bss section
     r0::zero_bss(bss_start, bss_end);
 
-    main();
+    main(svd_board::hw());
 }
 
-fn main() -> ! {
+fn main(hw: Hardware) -> ! {
+    let Hardware { rcc, gpioi, .. } = hw;
+
+    // enable gpio port i
+    rcc.ahb1enr.update(|r| r.set_gpioien(true));
+
+    // configure led pin as output pin
+    gpioi.moder.update(|r| r.set_moder1(1));
+
+    // turn led on
+    gpioi.odr.update(|r| r.set_odr1(true));
+
     loop {}
 }
 
