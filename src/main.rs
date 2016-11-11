@@ -10,6 +10,8 @@ extern crate compiler_builtins_snapshot;
 extern crate rlibc;
 // initialization routines for .data and .bss
 extern crate r0;
+// hardware register structs with accessor methods
+extern crate svd_board;
 
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
