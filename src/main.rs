@@ -61,7 +61,14 @@ fn main(hw: Hardware) -> ! {
     // turn led on
     gpioi.odr.update(|r| r.set_odr1(true));
 
-    loop {}
+    loop {
+        system_clock::wait(500); // wait 0.5 seconds
+        gpioi.odr.update(|r| {
+            // toggle led
+            let value = r.odr1();
+            r.set_odr1(!value);
+        });
+    }
 }
 
 #[lang = "panic_fmt"]
