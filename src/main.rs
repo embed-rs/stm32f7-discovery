@@ -20,6 +20,7 @@ use svd_board::Hardware;
 
 pub mod exceptions;
 mod system_clock;
+mod sdram;
 
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
@@ -48,18 +49,29 @@ pub unsafe extern "C" fn reset() -> ! {
 }
 
 fn main(hw: Hardware) -> ! {
-    let Hardware { rcc, gpioi, pwr, flash, .. } = hw;
+    let Hardware { rcc, pwr, flash, fmc, gpioc, gpiod, gpioe, gpiof, gpiog, gpioh, gpioi, .. } = hw;
 
     system_clock::init(rcc, pwr, flash);
 
-    // enable gpio port i
-    rcc.ahb1enr.update(|r| r.set_gpioien(true));
+    // enable gpio port c-i
+    rcc.ahb1enr.update(|r| {
+        r.set_gpiocen(true);
+        r.set_gpioden(true);
+        r.set_gpioeen(true);
+        r.set_gpiofen(true);
+        r.set_gpiogen(true);
+        r.set_gpiohen(true);
+        r.set_gpioien(true);
+    });
 
     // configure led pin as output pin
     gpioi.moder.update(|r| r.set_moder1(1));
 
     // turn led on
     gpioi.odr.update(|r| r.set_odr1(true));
+
+    // init sdram (needed for display buffer)
+    sdram::init(rcc, fmc, gpioc, gpiod, gpioe, gpiof, gpiog, gpioh, gpioi);
 
     loop {
         system_clock::wait(500); // wait 0.5 seconds
