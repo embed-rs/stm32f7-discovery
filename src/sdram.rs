@@ -1,25 +1,10 @@
 use svd_board::rcc::Rcc;
 use svd_board::fmc::Fmc;
-use svd_board::gpioc::Gpioc;
-use svd_board::gpiod::Gpiod;
-use svd_board::gpioe::Gpioe;
-use svd_board::gpiof::Gpiof;
-use svd_board::gpiog::Gpiog;
-use svd_board::gpioh::Gpioh;
-use svd_board::gpioi::Gpioi;
 use system_clock;
+use gpio::{self, GpioController};
 
-pub fn init(rcc: &mut Rcc,
-            fmc: &mut Fmc,
-            gpio_c: &mut Gpioc,
-            gpio_d: &mut Gpiod,
-            gpio_e: &mut Gpioe,
-            gpio_f: &mut Gpiof,
-            gpio_g: &mut Gpiog,
-            gpio_h: &mut Gpioh,
-            gpio_i: &mut Gpioi) {
-
-    config_pins(gpio_c, gpio_d, gpio_e, gpio_f, gpio_g, gpio_h, gpio_i);
+pub fn init(rcc: &mut Rcc, fmc: &mut Fmc, gpio: &mut GpioController) {
+    config_pins(gpio);
 
     // Enable FMC clock
     rcc.ahb3enr.update(|r| r.set_fmcen(true));
@@ -27,8 +12,6 @@ pub fn init(rcc: &mut Rcc,
     // Reset FMC module
     rcc.ahb3rstr.update(|r| r.set_fmcrst(true));
     rcc.ahb3rstr.update(|r| r.set_fmcrst(false));
-
-    // init2();
 
     // SDRAM contol register
     fmc.sdcr1.update(|r| {
@@ -95,205 +78,99 @@ pub fn init(rcc: &mut Rcc,
     }
 }
 
-fn config_pins(gpio_c: &mut Gpioc,
-               gpio_d: &mut Gpiod,
-               gpio_e: &mut Gpioe,
-               gpio_f: &mut Gpiof,
-               gpio_g: &mut Gpiog,
-               gpio_h: &mut Gpioh,
-               gpio_i: &mut Gpioi) {
+fn config_pins(gpio: &mut GpioController) {
+    let t = gpio::Type::PushPull;
+    let s = gpio::Speed::High;
+    let a = gpio::AlternateFunction::AF12;
+    let r = gpio::Resistor::PullUp;
 
-    // configure sdram pins
-    const ALTERNATE_FN: u8 = 0b10;
-    const ALTERNATE_FN_NUMBER: u8 = 12;
-    const SPEED_HIGH: u8 = 0b10;
+    let sdclk = gpio.pins.g.8.take().unwrap();
+    let sdcke0 = gpio.pins.c.3.take().unwrap();
+    let sdcke1 = gpio.pins.h.7.take().unwrap();
+    let sdne0 = gpio.pins.h.3.take().unwrap();
+    let sdne1 = gpio.pins.h.6.take().unwrap();
+    let a0 = gpio.pins.f.0.take().unwrap();
+    let a1 = gpio.pins.f.1.take().unwrap();
+    let a2 = gpio.pins.f.2.take().unwrap();
+    let a3 = gpio.pins.f.3.take().unwrap();
+    let a4 = gpio.pins.f.4.take().unwrap();
+    let a5 = gpio.pins.f.5.take().unwrap();
+    let a6 = gpio.pins.f.12.take().unwrap();
+    let a7 = gpio.pins.f.13.take().unwrap();
+    let a8 = gpio.pins.f.14.take().unwrap();
+    let a9 = gpio.pins.f.15.take().unwrap();
+    let a10 = gpio.pins.g.0.take().unwrap();
+    let a11 = gpio.pins.g.1.take().unwrap();
+    let a12 = gpio.pins.g.2.take().unwrap();
+    let d0 = gpio.pins.d.14.take().unwrap();
+    let d1 = gpio.pins.d.15.take().unwrap();
+    let d2 = gpio.pins.d.0.take().unwrap();
+    let d3 = gpio.pins.d.1.take().unwrap();
+    let d4 = gpio.pins.e.7.take().unwrap();
+    let d5 = gpio.pins.e.8.take().unwrap();
+    let d6 = gpio.pins.e.9.take().unwrap();
+    let d7 = gpio.pins.e.10.take().unwrap();
+    let d8 = gpio.pins.e.11.take().unwrap();
+    let d9 = gpio.pins.e.12.take().unwrap();
+    let d10 = gpio.pins.e.13.take().unwrap();
+    let d11 = gpio.pins.e.14.take().unwrap();
+    let d12 = gpio.pins.e.15.take().unwrap();
+    let d13 = gpio.pins.d.8.take().unwrap();
+    let d14 = gpio.pins.d.9.take().unwrap();
+    let d15 = gpio.pins.d.10.take().unwrap();
+    let ba0 = gpio.pins.g.4.take().unwrap();
+    let ba1 = gpio.pins.g.5.take().unwrap();
+    let nras = gpio.pins.f.11.take().unwrap();
+    let ncas = gpio.pins.g.15.take().unwrap();
+    let sdnwe = gpio.pins.h.5.take().unwrap();
+    let nbl0 = gpio.pins.e.0.take().unwrap();
+    let nbl1 = gpio.pins.e.1.take().unwrap();
+    let nbl2 = gpio.pins.i.4.take().unwrap();
+    let nbl3 = gpio.pins.i.5.take().unwrap();
 
-    gpio_c.moder.update(|r| {
-        r.set_moder3(ALTERNATE_FN); // SDRAM Bank 1 Clock Enable pin (SDCKE0)
-    });
-    gpio_c.ospeedr.update(|r| {
-        r.set_ospeedr3(SPEED_HIGH); // SDRAM Bank 1 Clock Enable pin (SDCKE0)
-    });
-    gpio_c.afrl.update(|r| {
-        r.set_afrl3(ALTERNATE_FN_NUMBER); // SDRAM Bank 1 Clock Enable pin (SDCKE0)
-    });
-
-    gpio_d.moder.update(|r| {
-        r.set_moder0(ALTERNATE_FN); // data pin D2
-        r.set_moder1(ALTERNATE_FN); // data pin D3
-        r.set_moder8(ALTERNATE_FN); // data pin D13
-        r.set_moder9(ALTERNATE_FN); // data pin D14
-        r.set_moder10(ALTERNATE_FN); // data pin D15
-        r.set_moder14(ALTERNATE_FN); // data pin D0
-        r.set_moder15(ALTERNATE_FN); // data pin D1
-    });
-    gpio_d.ospeedr.update(|r| {
-        r.set_ospeedr0(SPEED_HIGH); // data pin D2
-        r.set_ospeedr1(SPEED_HIGH); // data pin D3
-        r.set_ospeedr8(SPEED_HIGH); // data pin D13
-        r.set_ospeedr9(SPEED_HIGH); // data pin D14
-        r.set_ospeedr10(SPEED_HIGH); // data pin D15
-        r.set_ospeedr14(SPEED_HIGH); // data pin D0
-        r.set_ospeedr15(SPEED_HIGH); // data pin D1
-    });
-    gpio_d.afrl.update(|r| {
-        r.set_afrl0(ALTERNATE_FN_NUMBER); // data pin D2
-        r.set_afrl1(ALTERNATE_FN_NUMBER); // data pin D3
-    });
-    gpio_d.afrh.update(|r| {
-        r.set_afrh8(ALTERNATE_FN_NUMBER); // data pin D13
-        r.set_afrh9(ALTERNATE_FN_NUMBER); // data pin D14
-        r.set_afrh10(ALTERNATE_FN_NUMBER); // data pin D15
-        r.set_afrh14(ALTERNATE_FN_NUMBER); // data pin D0
-        r.set_afrh15(ALTERNATE_FN_NUMBER); // data pin D1
-    });
-
-    gpio_e.moder.update(|r| {
-        r.set_moder0(ALTERNATE_FN); // NBL0
-        r.set_moder1(ALTERNATE_FN); // NBL1
-        r.set_moder7(ALTERNATE_FN); // data pin D4
-        r.set_moder8(ALTERNATE_FN); // data pin D5
-        r.set_moder9(ALTERNATE_FN); // data pin D6
-        r.set_moder10(ALTERNATE_FN); // data pin D7
-        r.set_moder11(ALTERNATE_FN); // data pin D8
-        r.set_moder12(ALTERNATE_FN); // data pin D9
-        r.set_moder13(ALTERNATE_FN); // data pin D10
-        r.set_moder14(ALTERNATE_FN); // data pin D11
-        r.set_moder15(ALTERNATE_FN); // data pin D12
-    });
-    gpio_e.ospeedr.update(|r| {
-        r.set_ospeedr0(SPEED_HIGH); // NBL0
-        r.set_ospeedr1(SPEED_HIGH); // NBL1
-        r.set_ospeedr7(SPEED_HIGH); // data pin D4
-        r.set_ospeedr8(SPEED_HIGH); // data pin D5
-        r.set_ospeedr9(SPEED_HIGH); // data pin D6
-        r.set_ospeedr10(SPEED_HIGH); // data pin D7
-        r.set_ospeedr11(SPEED_HIGH); // data pin D8
-        r.set_ospeedr12(SPEED_HIGH); // data pin D9
-        r.set_ospeedr13(SPEED_HIGH); // data pin D10
-        r.set_ospeedr14(SPEED_HIGH); // data pin D11
-        r.set_ospeedr15(SPEED_HIGH); // data pin D12
-    });
-    gpio_e.afrl.update(|r| {
-        r.set_afrl0(ALTERNATE_FN_NUMBER); // NBL0
-        r.set_afrl1(ALTERNATE_FN_NUMBER); // NBL1
-        r.set_afrl7(ALTERNATE_FN_NUMBER); // data pin D4
-    });
-    gpio_e.afrh.update(|r| {
-        r.set_afrh8(ALTERNATE_FN_NUMBER); // data pin D5
-        r.set_afrh9(ALTERNATE_FN_NUMBER); // data pin D6
-        r.set_afrh10(ALTERNATE_FN_NUMBER); // data pin D7
-        r.set_afrh11(ALTERNATE_FN_NUMBER); // data pin D8
-        r.set_afrh12(ALTERNATE_FN_NUMBER); // data pin D9
-        r.set_afrh13(ALTERNATE_FN_NUMBER); // data pin D10
-        r.set_afrh14(ALTERNATE_FN_NUMBER); // data pin D11
-        r.set_afrh15(ALTERNATE_FN_NUMBER); // data pin D12
-    });
-
-    gpio_f.moder.update(|r| {
-        r.set_moder0(ALTERNATE_FN); // address pin A0
-        r.set_moder1(ALTERNATE_FN); // address pin A1
-        r.set_moder2(ALTERNATE_FN); // address pin A2
-        r.set_moder3(ALTERNATE_FN); // address pin A3
-        r.set_moder4(ALTERNATE_FN); // address pin A4
-        r.set_moder5(ALTERNATE_FN); // address pin A5
-        r.set_moder11(ALTERNATE_FN); // row address strobe pin (NRAS)
-        r.set_moder12(ALTERNATE_FN); // address pin A6
-        r.set_moder13(ALTERNATE_FN); // address pin A7
-        r.set_moder14(ALTERNATE_FN); // address pin A8
-        r.set_moder15(ALTERNATE_FN); // address pin A9
-    });
-    gpio_f.ospeedr.update(|r| {
-        r.set_ospeedr0(SPEED_HIGH); // address pin A0
-        r.set_ospeedr1(SPEED_HIGH); // address pin A1
-        r.set_ospeedr2(SPEED_HIGH); // address pin A2
-        r.set_ospeedr3(SPEED_HIGH); // address pin A3
-        r.set_ospeedr4(SPEED_HIGH); // address pin A4
-        r.set_ospeedr5(SPEED_HIGH); // address pin A5
-        r.set_ospeedr11(SPEED_HIGH); // row address strobe pin (NRAS)
-        r.set_ospeedr12(SPEED_HIGH); // address pin A6
-        r.set_ospeedr13(SPEED_HIGH); // address pin A7
-        r.set_ospeedr14(SPEED_HIGH); // address pin A8
-        r.set_ospeedr15(SPEED_HIGH); // address pin A9
-    });
-    gpio_f.afrl.update(|r| {
-        r.set_afrl0(ALTERNATE_FN_NUMBER); // address pin A0
-        r.set_afrl1(ALTERNATE_FN_NUMBER); // address pin A1
-        r.set_afrl2(ALTERNATE_FN_NUMBER); // address pin A2
-        r.set_afrl3(ALTERNATE_FN_NUMBER); // address pin A3
-        r.set_afrl4(ALTERNATE_FN_NUMBER); // address pin A4
-        r.set_afrl5(ALTERNATE_FN_NUMBER); // address pin A5
-    });
-    gpio_f.afrh.update(|r| {
-        r.set_afrh11(ALTERNATE_FN_NUMBER); // row address strobe pin (NRAS)
-        r.set_afrh12(ALTERNATE_FN_NUMBER); // address pin A6
-        r.set_afrh13(ALTERNATE_FN_NUMBER); // address pin A7
-        r.set_afrh14(ALTERNATE_FN_NUMBER); // address pin A8
-        r.set_afrh15(ALTERNATE_FN_NUMBER); // address pin A9
-    });
-
-    gpio_g.moder.update(|r| {
-        r.set_moder0(ALTERNATE_FN); // address pin 10 (A10)
-        r.set_moder1(ALTERNATE_FN); // address pin 11 (A11)
-        r.set_moder2(ALTERNATE_FN); // address pin 12 (A12)
-        r.set_moder4(ALTERNATE_FN); // bank address pin 0 (BA0)
-        r.set_moder5(ALTERNATE_FN); // bank address pin 1 (BA1)
-        r.set_moder8(ALTERNATE_FN); // SDRAM clock pin (SDCLK)
-        r.set_moder15(ALTERNATE_FN); // row address strobe pin (NCAS)
-    });
-    gpio_g.ospeedr.update(|r| {
-        r.set_ospeedr0(SPEED_HIGH); // address pin 10 (A10)
-        r.set_ospeedr1(SPEED_HIGH); // address pin 11 (A11)
-        r.set_ospeedr2(SPEED_HIGH); // address pin 12 (A12)
-        r.set_ospeedr4(SPEED_HIGH); // bank address pin 0 (BA0)
-        r.set_ospeedr5(SPEED_HIGH); // bank address pin 1 (BA1)
-        r.set_ospeedr8(SPEED_HIGH); // SDRAM clock pin (SDCLK)
-        r.set_ospeedr15(SPEED_HIGH); // row address strobe pin (NCAS)
-    });
-    gpio_g.afrl.update(|r| {
-        r.set_afrl0(ALTERNATE_FN_NUMBER); // address pin 10 (A10)
-        r.set_afrl1(ALTERNATE_FN_NUMBER); // address pin 11 (A11)
-        r.set_afrl2(ALTERNATE_FN_NUMBER); // address pin 12 (A12)
-        r.set_afrl4(ALTERNATE_FN_NUMBER); // bank address pin 0 (BA0)
-        r.set_afrl5(ALTERNATE_FN_NUMBER); // bank address pin 1 (BA1)
-    });
-    gpio_g.afrh.update(|r| {
-        r.set_afrh8(ALTERNATE_FN_NUMBER); // SDRAM clock pin (SDCLK)
-        r.set_afrh15(ALTERNATE_FN_NUMBER); // row address strobe pin (NCAS)
-    });
-
-    gpio_h.moder.update(|r| {
-        r.set_moder3(ALTERNATE_FN); // SDRAM Bank 1 Chip Enable (SDNE0)
-        r.set_moder5(ALTERNATE_FN); // write enable pin (SDNWE)
-        r.set_moder6(ALTERNATE_FN); // SDRAM Bank 2 Chip Enable (SDNE1)
-        r.set_moder7(ALTERNATE_FN); // SDRAM Bank 2 Clock Enable pin (SDCKE1)
-    });
-    gpio_h.ospeedr.update(|r| {
-        r.set_ospeedr3(SPEED_HIGH); // SDRAM Bank 1 Chip Enable (SDNE0)
-        r.set_ospeedr5(SPEED_HIGH); // write enable pin (SDNWE)
-        r.set_ospeedr6(SPEED_HIGH); // SDRAM Bank 2 Chip Enable (SDNE1)
-        r.set_ospeedr7(SPEED_HIGH); // SDRAM Bank 2 Clock Enable pin (SDCKE1)
-    });
-    gpio_h.afrl.update(|r| {
-        r.set_afrl3(ALTERNATE_FN_NUMBER); // SDRAM Bank 1 Chip Enable (SDNE0)
-        r.set_afrl5(ALTERNATE_FN_NUMBER); // write enable pin (SDNWE)
-        r.set_afrl6(ALTERNATE_FN_NUMBER); // SDRAM Bank 2 Chip Enable (SDNE1)
-        r.set_afrl7(ALTERNATE_FN_NUMBER); // SDRAM Bank 2 Clock Enable pin (SDCKE1)
-    });
-
-    gpio_i.moder.update(|r| {
-        // output Byte Mask for write accesses pins
-        r.set_moder4(ALTERNATE_FN); // NBL2
-        r.set_moder5(ALTERNATE_FN); // NBL3
-    });
-    gpio_i.ospeedr.update(|r| {
-        r.set_ospeedr4(SPEED_HIGH); // NBL2
-        r.set_ospeedr5(SPEED_HIGH); // NBL3
-    });
-    gpio_i.afrl.update(|r| {
-        r.set_afrl4(ALTERNATE_FN_NUMBER); // NBL2
-        r.set_afrl5(ALTERNATE_FN_NUMBER); // NBL3
-    });
+    gpio.to_alternate_function(sdclk, t, s, a, r);
+    gpio.to_alternate_function(sdcke0, t, s, a, r);
+    gpio.to_alternate_function(sdcke1, t, s, a, r);
+    gpio.to_alternate_function(sdne0, t, s, a, r);
+    gpio.to_alternate_function(sdne1, t, s, a, r);
+    gpio.to_alternate_function(a0, t, s, a, r);
+    gpio.to_alternate_function(a1, t, s, a, r);
+    gpio.to_alternate_function(a2, t, s, a, r);
+    gpio.to_alternate_function(a3, t, s, a, r);
+    gpio.to_alternate_function(a4, t, s, a, r);
+    gpio.to_alternate_function(a5, t, s, a, r);
+    gpio.to_alternate_function(a6, t, s, a, r);
+    gpio.to_alternate_function(a7, t, s, a, r);
+    gpio.to_alternate_function(a8, t, s, a, r);
+    gpio.to_alternate_function(a9, t, s, a, r);
+    gpio.to_alternate_function(a10, t, s, a, r);
+    gpio.to_alternate_function(a11, t, s, a, r);
+    gpio.to_alternate_function(a12, t, s, a, r);
+    gpio.to_alternate_function(d0, t, s, a, r);
+    gpio.to_alternate_function(d1, t, s, a, r);
+    gpio.to_alternate_function(d2, t, s, a, r);
+    gpio.to_alternate_function(d3, t, s, a, r);
+    gpio.to_alternate_function(d4, t, s, a, r);
+    gpio.to_alternate_function(d5, t, s, a, r);
+    gpio.to_alternate_function(d6, t, s, a, r);
+    gpio.to_alternate_function(d7, t, s, a, r);
+    gpio.to_alternate_function(d8, t, s, a, r);
+    gpio.to_alternate_function(d9, t, s, a, r);
+    gpio.to_alternate_function(d10, t, s, a, r);
+    gpio.to_alternate_function(d11, t, s, a, r);
+    gpio.to_alternate_function(d12, t, s, a, r);
+    gpio.to_alternate_function(d13, t, s, a, r);
+    gpio.to_alternate_function(d14, t, s, a, r);
+    gpio.to_alternate_function(d15, t, s, a, r);
+    gpio.to_alternate_function(ba0, t, s, a, r);
+    gpio.to_alternate_function(ba1, t, s, a, r);
+    gpio.to_alternate_function(nras, t, s, a, r);
+    gpio.to_alternate_function(ncas, t, s, a, r);
+    gpio.to_alternate_function(sdnwe, t, s, a, r);
+    gpio.to_alternate_function(nbl0, t, s, a, r);
+    gpio.to_alternate_function(nbl1, t, s, a, r);
+    gpio.to_alternate_function(nbl2, t, s, a, r);
+    gpio.to_alternate_function(nbl3, t, s, a, r);
 }
 
 #[allow(dead_code)]

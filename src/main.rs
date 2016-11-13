@@ -106,6 +106,9 @@ fn main(hw: Hardware) -> ! {
     // turn led on
     led.set(true);
 
+    // init sdram (needed for display buffer)
+    sdram::init(rcc, fmc, &mut gpio);
+
     loop {
         system_clock::wait(500); // wait 0.5 seconds
         let led_on = led.current();
