@@ -15,11 +15,14 @@ extern crate r0;
 extern crate svd_board;
 // low level access to the cortex-m cpu
 extern crate cortex_m;
+// volatile wrapper types
+extern crate volatile;
 
 use svd_board::Hardware;
 
 pub mod exceptions;
 mod system_clock;
+mod gpio;
 mod sdram;
 
 #[no_mangle]
@@ -49,7 +52,36 @@ pub unsafe extern "C" fn reset() -> ! {
 }
 
 fn main(hw: Hardware) -> ! {
-    let Hardware { rcc, pwr, flash, fmc, gpioc, gpiod, gpioe, gpiof, gpiog, gpioh, gpioi, .. } = hw;
+    let Hardware { rcc,
+                   pwr,
+                   flash,
+                   fmc,
+                   gpioa,
+                   gpiob,
+                   gpioc,
+                   gpiod,
+                   gpioe,
+                   gpiof,
+                   gpiog,
+                   gpioh,
+                   gpioi,
+                   gpioj,
+                   gpiok,
+                   .. } = hw;
+
+    let mut gpio = unsafe {
+        gpio::GpioController::new(gpioa,
+                                  gpiob,
+                                  gpioc,
+                                  gpiod,
+                                  gpioe,
+                                  gpiof,
+                                  gpiog,
+                                  gpioh,
+                                  gpioi,
+                                  gpioj,
+                                  gpiok)
+    };
 
     system_clock::init(rcc, pwr, flash);
 
@@ -65,21 +97,19 @@ fn main(hw: Hardware) -> ! {
     });
 
     // configure led pin as output pin
-    gpioi.moder.update(|r| r.set_moder1(1));
+    let led_pin = gpio.pins.i.1.take().expect("led pin already in use");
+    let mut led = gpio.to_output(led_pin,
+                                 gpio::Type::PushPull,
+                                 gpio::Speed::Low,
+                                 gpio::Resistor::NoPull);
 
     // turn led on
-    gpioi.odr.update(|r| r.set_odr1(true));
-
-    // init sdram (needed for display buffer)
-    sdram::init(rcc, fmc, gpioc, gpiod, gpioe, gpiof, gpiog, gpioh, gpioi);
+    led.set(true);
 
     loop {
         system_clock::wait(500); // wait 0.5 seconds
-        gpioi.odr.update(|r| {
-            // toggle led
-            let value = r.odr1();
-            r.set_odr1(!value);
-        });
+        let led_on = led.current();
+        led.set(!led_on);
     }
 }
 
