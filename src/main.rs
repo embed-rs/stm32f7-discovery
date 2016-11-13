@@ -24,6 +24,7 @@ pub mod exceptions;
 mod system_clock;
 mod gpio;
 mod sdram;
+mod lcd;
 
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
@@ -56,6 +57,7 @@ fn main(hw: Hardware) -> ! {
                    pwr,
                    flash,
                    fmc,
+                   ltdc,
                    gpioa,
                    gpiob,
                    gpioc,
@@ -85,8 +87,10 @@ fn main(hw: Hardware) -> ! {
 
     system_clock::init(rcc, pwr, flash);
 
-    // enable gpio port c-i
+    // enable all gpio ports
     rcc.ahb1enr.update(|r| {
+        r.set_gpioaen(true);
+        r.set_gpioben(true);
         r.set_gpiocen(true);
         r.set_gpioden(true);
         r.set_gpioeen(true);
@@ -94,6 +98,8 @@ fn main(hw: Hardware) -> ! {
         r.set_gpiogen(true);
         r.set_gpiohen(true);
         r.set_gpioien(true);
+        r.set_gpiojen(true);
+        r.set_gpioken(true);
     });
 
     // configure led pin as output pin
@@ -109,10 +115,19 @@ fn main(hw: Hardware) -> ! {
     // init sdram (needed for display buffer)
     sdram::init(rcc, fmc, &mut gpio);
 
+    // lcd controller
+    let mut lcd = lcd::init(ltdc, rcc, &mut gpio);
+    lcd.clear_screen();
+    system_clock::wait(1000);
+    lcd.test_pixels();
+
     loop {
         system_clock::wait(500); // wait 0.5 seconds
         let led_on = led.current();
         led.set(!led_on);
+
+        let new_color = ((system_clock::ticks() as u32).wrapping_mul(19801)) % 0x1000000;
+        lcd.set_background_color(lcd::Color::from_hex(new_color));
     }
 }
 
