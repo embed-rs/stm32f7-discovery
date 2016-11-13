@@ -112,6 +112,9 @@ fn main(hw: Hardware) -> ! {
     // turn led on
     led.set(true);
 
+    let button_pin = gpio.pins.i.11.take().expect("button pin already in use");
+    let button = gpio.to_input(button_pin, gpio::Resistor::NoPull);
+
     // init sdram (needed for display buffer)
     sdram::init(rcc, fmc, &mut gpio);
 
@@ -122,12 +125,20 @@ fn main(hw: Hardware) -> ! {
     lcd.test_pixels();
 
     loop {
-        system_clock::wait(500); // wait 0.5 seconds
-        let led_on = led.current();
-        led.set(!led_on);
+        let ticks = system_clock::ticks();
 
-        let new_color = ((system_clock::ticks() as u32).wrapping_mul(19801)) % 0x1000000;
-        lcd.set_background_color(lcd::Color::from_hex(new_color));
+        // every 0.5 seconds
+        if ticks % 500 == 0 {
+            // toggle the led
+            let led_on = led.current();
+            led.set(!led_on);
+        }
+
+        if button.read() || ticks % 1000 == 0 {
+            // choose a new background color
+            let new_color = ((system_clock::ticks() as u32).wrapping_mul(19801)) % 0x1000000;
+            lcd.set_background_color(lcd::Color::from_hex(new_color));
+        }
     }
 }
 
