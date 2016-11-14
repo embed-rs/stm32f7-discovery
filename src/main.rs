@@ -25,6 +25,7 @@ mod system_clock;
 mod gpio;
 mod sdram;
 mod lcd;
+mod i2c;
 
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
@@ -69,6 +70,7 @@ fn main(hw: Hardware) -> ! {
                    gpioi,
                    gpioj,
                    gpiok,
+                   i2c3,
                    .. } = hw;
 
     let mut gpio = unsafe {
@@ -123,6 +125,12 @@ fn main(hw: Hardware) -> ! {
     lcd.clear_screen();
     system_clock::wait(1000);
     lcd.test_pixels();
+
+    // i2c
+    i2c::init_pins_and_clocks(rcc, &mut gpio);
+    let mut i2c_3 = i2c::init(i2c3);
+    i2c_3.test_1();
+    i2c_3.test_2();
 
     loop {
         let ticks = system_clock::ticks();
