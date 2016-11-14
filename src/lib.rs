@@ -20,3 +20,4 @@ pub mod gpio;
 pub mod sdram;
 pub mod lcd;
 pub mod i2c;
+pub mod audio;
