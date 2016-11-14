@@ -4,28 +4,15 @@
 #![no_std]
 #![no_main]
 
-// various compiler builtins such as `__aeabi_memcpy4`
-extern crate compiler_builtins_snapshot;
-// memcpy, memmove, etc. This needs to be below the compiler_builtins line, otherwise a linker
-// error occurs (TODO: why?)
-extern crate rlibc;
-// initialization routines for .data and .bss
-extern crate r0;
+extern crate novemb_rs_stm32f7 as stm32f7;
+
 // hardware register structs with accessor methods
 extern crate svd_board;
-// low level access to the cortex-m cpu
-extern crate cortex_m;
-// volatile wrapper types
-extern crate volatile;
+// initialization routines for .data and .bss
+extern crate r0;
 
+use stm32f7::{gpio, system_clock, sdram, lcd, i2c};
 use svd_board::Hardware;
-
-pub mod exceptions;
-mod system_clock;
-mod gpio;
-mod sdram;
-mod lcd;
-mod i2c;
 
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {

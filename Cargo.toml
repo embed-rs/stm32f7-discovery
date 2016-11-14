@@ -13,3 +13,7 @@ volatile = "0.2.0"
 [dependencies.svd_board]
 version = "0.2.1"
 features = ["stm32f7"]
+
+[[bin]]
+name = "novemb-rs-stm32f7"
+doc = false
