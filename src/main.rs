@@ -11,7 +11,7 @@ extern crate svd_board;
 // initialization routines for .data and .bss
 extern crate r0;
 
-use stm32f7::{gpio, system_clock, sdram, lcd, i2c};
+use stm32f7::{gpio, system_clock, sdram, lcd, i2c, audio};
 use svd_board::Hardware;
 
 #[no_mangle]
@@ -58,6 +58,7 @@ fn main(hw: Hardware) -> ! {
                    gpioj,
                    gpiok,
                    i2c3,
+                   sai2,
                    .. } = hw;
 
     let mut gpio = unsafe {
@@ -119,6 +120,11 @@ fn main(hw: Hardware) -> ! {
     i2c_3.test_1();
     i2c_3.test_2();
 
+    // sai and stereo microphone
+    audio::init_sai_2_pins(&mut gpio);
+    audio::init_sai_2(sai2, rcc);
+    assert!(audio::init_wm8994(&mut i2c_3).is_ok());
+
     loop {
         let ticks = system_clock::ticks();
 
@@ -134,6 +140,14 @@ fn main(hw: Hardware) -> ! {
             let new_color = ((system_clock::ticks() as u32).wrapping_mul(19801)) % 0x1000000;
             lcd.set_background_color(lcd::Color::from_hex(new_color));
         }
+
+        // poll for new audio data
+        while !sai2.bsr.read().freq() {} // fifo_request_flag
+        let data0 = sai2.bdr.read().data();
+        while !sai2.bsr.read().freq() {} // fifo_request_flag
+        let data1 = sai2.bdr.read().data();
+
+        lcd.set_next_col(data0, data1);
     }
 }
 
