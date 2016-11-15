@@ -123,10 +123,6 @@ fn config_pins(gpio: &mut GpioController) {
     let nras = gpio.pins.f.11.take().unwrap();
     let ncas = gpio.pins.g.15.take().unwrap();
     let sdnwe = gpio.pins.h.5.take().unwrap();
-    let nbl0 = gpio.pins.e.0.take().unwrap();
-    let nbl1 = gpio.pins.e.1.take().unwrap();
-    let nbl2 = gpio.pins.i.4.take().unwrap();
-    let nbl3 = gpio.pins.i.5.take().unwrap();
 
     gpio.to_alternate_function(sdclk, t, s, a, r);
     gpio.to_alternate_function(sdcke0, t, s, a, r);
@@ -167,10 +163,6 @@ fn config_pins(gpio: &mut GpioController) {
     gpio.to_alternate_function(nras, t, s, a, r);
     gpio.to_alternate_function(ncas, t, s, a, r);
     gpio.to_alternate_function(sdnwe, t, s, a, r);
-    gpio.to_alternate_function(nbl0, t, s, a, r);
-    gpio.to_alternate_function(nbl1, t, s, a, r);
-    gpio.to_alternate_function(nbl2, t, s, a, r);
-    gpio.to_alternate_function(nbl3, t, s, a, r);
 }
 
 #[allow(dead_code)]
