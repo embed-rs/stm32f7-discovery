@@ -111,7 +111,6 @@ fn main(hw: Hardware) -> ! {
     // lcd controller
     let mut lcd = lcd::init(ltdc, rcc, &mut gpio);
     lcd.clear_screen();
-    system_clock::wait(1000);
     lcd.test_pixels();
 
     // i2c
@@ -125,20 +124,28 @@ fn main(hw: Hardware) -> ! {
     audio::init_sai_2(sai2, rcc);
     assert!(audio::init_wm8994(&mut i2c_3).is_ok());
 
+    lcd.clear_screen();
+
+    let mut last_led_toggle = system_clock::ticks();
+    let mut last_color_change = system_clock::ticks();
+    let mut button_pressed_old = false;
     loop {
         let ticks = system_clock::ticks();
 
         // every 0.5 seconds
-        if ticks % 500 == 0 {
+        if ticks - last_led_toggle >= 500 {
             // toggle the led
-            let led_on = led.current();
-            led.set(!led_on);
+            let led_current = led.current();
+            led.set(!led_current);
+            last_led_toggle = ticks;
         }
 
-        if button.read() || ticks % 1000 == 0 {
+        let button_pressed = button.read();
+        if (button_pressed && !button_pressed_old) || ticks - last_color_change >= 1000 {
             // choose a new background color
             let new_color = ((system_clock::ticks() as u32).wrapping_mul(19801)) % 0x1000000;
             lcd.set_background_color(lcd::Color::from_hex(new_color));
+            last_color_change = ticks;
         }
 
         // poll for new audio data
@@ -148,6 +155,8 @@ fn main(hw: Hardware) -> ! {
         let data1 = sai2.bdr.read().data();
 
         lcd.set_next_col(data0, data1);
+
+        button_pressed_old = button_pressed;
     }
 }
 
