@@ -86,7 +86,7 @@ fn config_pins(gpio: &mut GpioController) {
 
     let sdclk = gpio.pins.g.8.take().unwrap();
     let sdcke0 = gpio.pins.c.3.take().unwrap();
-    let sdcke1 = gpio.pins.h.7.take().unwrap();
+    let sdcke1 = gpio.pins.b.5.take().unwrap();
     let sdne0 = gpio.pins.h.3.take().unwrap();
     let sdne1 = gpio.pins.h.6.take().unwrap();
     let a0 = gpio.pins.f.0.take().unwrap();

@@ -35,7 +35,7 @@ pub fn init_pins_and_clocks(rcc: &mut Rcc, gpio: &mut GpioController) {
     let i2c2_sda = gpio.pins.b.11.take().unwrap();
     let i2c3_scl = gpio.pins.h.7.take().unwrap();
     let i2c3_sda = gpio.pins.h.8.take().unwrap();
-    let i2c4_scl = gpio.pins.d.12.take().unwrap();
+    let i2c4_scl = gpio.pins.h.11.take().unwrap();
     let i2c4_sda = gpio.pins.d.13.take().unwrap();
 
     let t = gpio::Type::OpenDrain;
