@@ -15,8 +15,8 @@ pub enum Error {
 pub struct Address(u16);
 
 impl Address {
-    pub fn bits_7(addr: u8) -> Address {
-        Address(u16::from(addr) << 1)
+    pub const fn bits_7(addr: u8) -> Address {
+        Address((addr as u16) << 1)
     }
 }
 
