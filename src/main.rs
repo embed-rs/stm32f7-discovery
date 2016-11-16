@@ -113,11 +113,14 @@ fn main(hw: Hardware) -> ! {
     lcd.clear_screen();
     lcd.test_pixels();
 
-    // i2c
+    // i2c for audio and touch screen
     i2c::init_pins_and_clocks(rcc, &mut gpio);
     let mut i2c_3 = i2c::init(i2c3);
     i2c_3.test_1();
     i2c_3.test_2();
+
+    // touch screen
+    //assert!(touch::init_ft6x06(&mut i2c_3).is_ok());
 
     // sai and stereo microphone
     audio::init_sai_2_pins(&mut gpio);
@@ -161,6 +164,6 @@ fn main(hw: Hardware) -> ! {
 }
 
 #[lang = "panic_fmt"]
-extern "C" fn panic_fmt(_: core::fmt::Arguments, _: &'static str, _: u32) -> ! {
+extern "C" fn panic_fmt(_args: core::fmt::Arguments, _: &'static str, _: u32) -> ! {
     loop {}
 }
