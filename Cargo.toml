@@ -17,3 +17,6 @@ features = ["stm32f7"]
 [[bin]]
 name = "novemb-rs-stm32f7"
 doc = false
+
+[profile.release]
+lto = true
