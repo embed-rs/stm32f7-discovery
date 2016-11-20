@@ -17,6 +17,7 @@ extern crate volatile;
 extern crate byteorder;
 
 pub mod exceptions;
+pub mod interrupts;
 pub mod system_clock;
 pub mod gpio;
 pub mod sdram;

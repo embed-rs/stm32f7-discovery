@@ -86,7 +86,7 @@ pub fn init(i2c: &'static mut I2c1) -> I2C {
 }
 
 fn icr_clear_all() -> i2c1::Icr {
-    let mut clear_all = i2c1::Icr::reset_value();
+    let mut clear_all = i2c1::Icr::default();
     clear_all.set_alertcf(true); // alert clear flag
     clear_all.set_timoutcf(true); // timeout detection clear flag
     clear_all.set_peccf(true); // PEC error clear flag
@@ -144,7 +144,7 @@ impl<'a> Write for I2CSession<'a> {
         for &b in bytes {
             try!(self.0.wait_for_txis());
             self.0.txdr.write({
-                let mut r = i2c1::Txdr::reset_value();
+                let mut r = i2c1::Txdr::default();
                 r.set_txdata(b);
                 r
             }); // transmit_data
@@ -202,7 +202,7 @@ impl I2C {
         // flush transmit data register
         self.0.isr.update(|r| r.set_txe(true)); // flush_txdr
 
-        let mut reg = i2c1::Cr2::reset_value();
+        let mut reg = i2c1::Cr2::default();
         match device_address {
             Address::U7(addr) => reg.set_sadd((addr as u16) << 1),
             Address::U10(_) => unimplemented!(),
@@ -223,7 +223,7 @@ impl I2C {
         self.0.icr.write(clear_all);
 
         // reset cr2
-        self.0.cr2.write(i2c1::Cr2::reset_value());
+        self.0.cr2.write(Default::default());
         Ok(())
     }
 }

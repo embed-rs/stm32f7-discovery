@@ -109,8 +109,8 @@ pub fn init_sai_2(sai: &mut Sai2, rcc: &mut Rcc) {
     rcc.apb2enr.update(|r| r.set_sai2en(true));
 
     // Disabled All interrupt and clear all the flag
-    sai.bim.write(sai1::Bim::reset_value());
-    let mut clear_all_flags = sai1::Bclrfr::reset_value();
+    sai.bim.write(Default::default());
+    let mut clear_all_flags = sai1::Bclrfr::default();
     clear_all_flags.set_lfsdet(true); // Clear late frame synchronization detection flag
     clear_all_flags.set_cafsdet(true); // Clear anticipated frame synchronization detection flag
     clear_all_flags.set_cnrdy(true); // Clear codec not ready flag
@@ -198,7 +198,7 @@ pub fn init_sai_2(sai: &mut Sai2, rcc: &mut Rcc) {
         }
     };
 
-    let mut acr1 = sai1::Acr1::reset_value();
+    let mut acr1 = sai1::Acr1::default();
     acr1.set_mode(0b01); // MasterReceiver
     acr1.set_prtcfg(0b00); // protocol free
     acr1.set_ds(0b100); // data_size 16 bits
@@ -212,14 +212,14 @@ pub fn init_sai_2(sai: &mut Sai2, rcc: &mut Rcc) {
     sai.acr1.write(acr1);
 
     // configure cr2
-    let mut acr2 = sai1::Acr2::reset_value();
+    let mut acr2 = sai1::Acr2::default();
     acr2.set_fth(0b001); // fifo_threshold QuarterFifo
     acr2.set_tris(false); // tristate_management
     acr2.set_comp(0b00); // companding_mode None
     sai.acr2.write(acr2);
 
     // configure frame
-    let mut afrcr = sai1::Afrcr::reset_value();
+    let mut afrcr = sai1::Afrcr::default();
     afrcr.set_frl(64 - 1); // frame_length
     afrcr.set_fsall(32 - 1); // sync_active_level_length
     afrcr.set_fsdef(true); // frame_sync_definition
@@ -228,7 +228,7 @@ pub fn init_sai_2(sai: &mut Sai2, rcc: &mut Rcc) {
     sai.afrcr.write(afrcr);
 
     // configure slot
-    let mut aslotr = sai1::Aslotr::reset_value();
+    let mut aslotr = sai1::Aslotr::default();
     aslotr.set_fboff(0); // first_bit_offset
     aslotr.set_slotsz(0b00); // slot_size DataSize
     aslotr.set_nbslot(4 - 1); // number_of_slots
@@ -238,7 +238,7 @@ pub fn init_sai_2(sai: &mut Sai2, rcc: &mut Rcc) {
     // Initialize SAI2 block B in SLAVE RX synchronous from SAI2 block A
 
     // configure cr1
-    let mut bcr1 = sai1::Bcr1::reset_value();
+    let mut bcr1 = sai1::Bcr1::default();
     bcr1.set_mode(0b11); // SlaveReceiver
     bcr1.set_prtcfg(0b00); // protocol free
     bcr1.set_ds(0b100); // data_size 16 bits
@@ -252,14 +252,14 @@ pub fn init_sai_2(sai: &mut Sai2, rcc: &mut Rcc) {
     sai.bcr1.write(bcr1);
 
     // configure cr2
-    let mut bcr2 = sai1::Bcr2::reset_value();
+    let mut bcr2 = sai1::Bcr2::default();
     bcr2.set_fth(0b001); // fifo_threshold QuarterFifo
     bcr2.set_tris(false); // tristate_management
     bcr2.set_comp(0b00); // companding_mode None
     sai.bcr2.write(bcr2);
 
     // configure frame
-    let mut bfrcr = sai1::Bfrcr::reset_value();
+    let mut bfrcr = sai1::Bfrcr::default();
     bfrcr.set_frl(64 - 1); // frame_length
     bfrcr.set_fsall(32 - 1); // sync_active_level_length
     bfrcr.set_fsdef(true); // frame_sync_definition
@@ -268,7 +268,7 @@ pub fn init_sai_2(sai: &mut Sai2, rcc: &mut Rcc) {
     sai.bfrcr.write(bfrcr);
 
     // configure slot
-    let mut bslotr = sai1::Bslotr::reset_value();
+    let mut bslotr = sai1::Bslotr::default();
     bslotr.set_fboff(0); // first_bit_offset
     bslotr.set_slotsz(0b00); // slot_size DataSize
     bslotr.set_nbslot(4 - 1); // number_of_slots
