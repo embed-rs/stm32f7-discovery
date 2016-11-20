@@ -10,6 +10,7 @@
     * mac os: `brew install stlink`
 -  install arm cross compilers
     * debian/ubuntu: `sudo apt-get install gcc-arm-none-eabi gdb-arm-none-eabi`
+    * macOS: `brew tap osx-cross/arm && brew install arm-gcc-bin`
 -  install the ARM rust toolchain
     * `rustup toolchain install nightly-arm-unknown-linux-gnueabi`
 -  install a nightly compiler
