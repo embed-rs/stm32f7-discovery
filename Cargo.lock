@@ -6,7 +6,7 @@ dependencies = [
  "cortex-m 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "r0 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlibc 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "svd_board 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "svd_board 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "volatile 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -107,20 +107,20 @@ dependencies = [
 
 [[package]]
 name = "svd_board"
-version = "0.2.2"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bit_field 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "inflections 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "once 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "svd-parser 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "svd_codegen 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "svd_codegen 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "volatile 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "svd_codegen"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "clap 2.18.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -221,8 +221,8 @@ dependencies = [
 "checksum rlibc 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fc874b127765f014d792f16763a81245ab80500e2ad921ed4ee9e82481ee08fe"
 "checksum strsim 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "50c069df92e4b01425a8bf3576d5d417943a6a7272fbabaf5bd80b1aaa76442e"
 "checksum svd-parser 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "17a278c8bc26a599b2de0d6c86181d083a988e5bb60f7418f7b743f900b754ac"
-"checksum svd_board 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1920aebd9d9f3b75c374b33f525a60f54e382fac9100dd0a6cdbd6055582f961"
-"checksum svd_codegen 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e75d01c13a9ed402d15fb4ed803071c8e9849ddecd9f14fe18a5aaf90d3a6688"
+"checksum svd_board 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "325c0c5891201b4936c4e7589a962bda2aaf87c46f5ec4bde8d61753a361ee0f"
+"checksum svd_codegen 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ef1f3fd7ebb6306bfd109ef7daba27bf52f08f2ff16d4c35ed2ebfc2f2a29408"
 "checksum syn 0.9.2 (registry+https://github.com/rust-lang/crates.io-index)" = "76c2db66dc579998854d84ff0ff4a81cb73e69596764d144ce7cece4d04ce6b5"
 "checksum term_size 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "3f7f5f3f71b0040cecc71af239414c23fd3c73570f5ff54cf50e03cef637f2a0"
 "checksum unicode-segmentation 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b905d0fc2a1f0befd86b0e72e31d1787944efef9d38b9358a9e92a69757f7e3b"

@@ -96,7 +96,7 @@ pub fn init(i2c: &'static mut I2c1) -> I2C {
 }
 
 fn icr_clear_all() -> i2c1::Icr {
-    let mut clear_all = i2c1::Icr::reset_value();
+    let mut clear_all = i2c1::Icr::default();
     clear_all.set_alertcf(true); // alert clear flag
     clear_all.set_timoutcf(true); // timeout detection clear flag
     clear_all.set_peccf(true); // PEC error clear flag
@@ -119,7 +119,7 @@ impl I2C {
         self.0.isr.update(|r| r.set_txe(true)); // flush_txdr
 
         // send register address (2 bytes)
-        let mut cr2 = i2c1::Cr2::reset_value();
+        let mut cr2 = i2c1::Cr2::default();
         cr2.set_sadd(device_address.0); // slave_address
         cr2.set_start(true); // start_generation
         cr2.set_rd_wrn(false); // read_transfer
@@ -163,7 +163,7 @@ impl I2C {
         self.0.icr.write(clear_all);
 
         // reset cr2
-        self.0.cr2.write(i2c1::Cr2::reset_value());
+        self.0.cr2.write(Default::default());
 
         Ok((data_high as u16) << 8 | data_low as u16)
     }
@@ -182,7 +182,7 @@ impl I2C {
         self.0.isr.update(|r| r.set_txe(true)); // flush_txdr
 
         // send register address and data (4 bytes)
-        let mut cr2 = i2c1::Cr2::reset_value();
+        let mut cr2 = i2c1::Cr2::default();
         cr2.set_sadd(device_address.0); // slave_address
         cr2.set_start(true); // start_generation
         cr2.set_rd_wrn(false); // read_transfer
@@ -212,7 +212,7 @@ impl I2C {
         self.0.icr.write(clear_all);
 
         // reset cr2
-        self.0.cr2.write(i2c1::Cr2::reset_value());
+        self.0.cr2.write(Default::default());
 
         Ok(())
     }
