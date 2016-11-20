@@ -182,6 +182,15 @@ impl<'a> I2CSession<'a> {
         self.write_u16::<BigEndian>(register_address)?;
         Ok(RegisterHelper(self))
     }
+
+    pub fn change_device(&mut self, device_address: Address) {
+        let mut reg = i2c1::Cr2::default();
+        match device_address {
+            Address::U7(addr) => reg.set_sadd((addr as u16) << 1),
+            Address::U10(_) => unimplemented!(),
+        }
+        self.0.cr2.write(reg);
+    }
 }
 
 impl I2C {
@@ -202,15 +211,9 @@ impl I2C {
         // flush transmit data register
         self.0.isr.update(|r| r.set_txe(true)); // flush_txdr
 
-        let mut reg = i2c1::Cr2::default();
-        match device_address {
-            Address::U7(addr) => reg.set_sadd((addr as u16) << 1),
-            Address::U10(_) => unimplemented!(),
-        }
-        self.0.cr2.write(reg);
-
         {
             let mut session = I2CSession(&mut self.0);
+            session.change_device(device_address);
 
             session_handler(&mut session)?;
         }
