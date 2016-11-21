@@ -6,18 +6,9 @@ use gpio::{self, GpioController};
 
 pub struct I2C(&'static mut I2c1);
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Error {
     Nack,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Address(u16);
-
-impl Address {
-    pub const fn bits_7(addr: u8) -> Address {
-        Address((addr as u16) << 1)
-    }
 }
 
 pub fn init_pins_and_clocks(rcc: &mut Rcc, gpio: &mut GpioController) {
@@ -77,7 +68,6 @@ pub fn init(i2c: &'static mut I2c1) -> I2C {
     // configure cr2
     i2c.cr2.update(|r| {
         r.set_add10(false); // 10_bit_addressing mode
-        r.set_autoend(true); // automatic_end_mode
     });
 
     // configure oar2
@@ -109,71 +99,111 @@ fn icr_clear_all() -> i2c1::Icr {
     clear_all
 }
 
-impl I2C {
-    pub fn read(&mut self, device_address: Address, register_address: u16) -> Result<u16, Error> {
-        // clear status flags
-        let clear_all = icr_clear_all();
-        self.0.icr.write(clear_all);
+#[derive(Debug, Clone, Copy)]
+pub enum Address {
+    U7(u8),
+    U10(u16),
+}
 
-        // flush transmit data register
-        self.0.isr.update(|r| r.set_txe(true)); // flush_txdr
+#[must_use]
+pub struct I2CSession<'a>(&'a mut I2c1);
 
-        // send register address (2 bytes)
-        let mut cr2 = i2c1::Cr2::default();
-        cr2.set_sadd(device_address.0); // slave_address
-        cr2.set_start(true); // start_generation
-        cr2.set_rd_wrn(false); // read_transfer
-        cr2.set_nbytes(2); // number_of_bytes
-        cr2.set_autoend(false); // automatic_end_mode
-        self.0.cr2.write(cr2);
+use byteorder::io::{Read, Write};
+use byteorder::{BigEndian, WriteBytesExt, ReadBytesExt};
 
-        // write high address byte to transmit data register
-        try!(self.wait_for_txis());
-        self.0.txdr.update(|r| r.set_txdata((register_address >> 8) as u8)); // transmit_data
-
-        // write low address byte to transmit data register
-        try!(self.wait_for_txis());
-        self.0.txdr.update(|r| r.set_txdata(register_address as u8)); // transmit_data
-
-        try!(self.wait_for_transfer_complete());
-
-        // clear status flags
-        self.0.icr.write(clear_all);
-
+impl<'a> Read for I2CSession<'a> {
+    type Error = Error;
+    fn read_exact(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
+        assert_eq!(buffer.len() as u8 as usize, buffer.len());
         // receive 2 data bytes
         self.0.cr2.update(|r| {
-            r.set_sadd(device_address.0); // slave_address
             r.set_start(true); // start_generation
             r.set_rd_wrn(true); // read_transfer
-            r.set_nbytes(2); // number_of_bytes
-            r.set_autoend(true); // automatic_end_mode
+            r.set_nbytes(buffer.len() as u8); // number_of_bytes
         });
+        for b in buffer {
+            // read data from receive data register
+            try!(self.0.wait_for_rxne());
+            *b = self.0.rxdr.read().rxdata(); // receive_data
+        }
+        self.0.wait_for_transfer_complete()?;
+        self.0.icr.write(icr_clear_all());
+        Ok(())
+    }
+}
 
-        // read data from receive data register
-        try!(self.wait_for_rxne());
-        let data_high = self.0.rxdr.read().rxdata(); // receive_data
+impl<'a> Write for I2CSession<'a> {
+    type Error = Error;
+    fn write_all(&mut self, bytes: &[u8]) -> Result<(), Error> {
+        assert_eq!(bytes.len() as u8 as usize, bytes.len());
+        self.0.cr2.update(|reg| {
+            reg.set_start(true); // start_generation
+            reg.set_rd_wrn(false); // read_transfer
+            reg.set_nbytes(bytes.len() as u8); // number_of_bytes
+        });
+        for &b in bytes {
+            try!(self.0.wait_for_txis());
+            self.0.txdr.write({
+                let mut r = i2c1::Txdr::default();
+                r.set_txdata(b);
+                r
+            }); // transmit_data
+        }
+        self.0.wait_for_transfer_complete()?;
+        self.0.icr.write(icr_clear_all());
+        Ok(())
+    }
+}
 
-        // read data from receive data register
-        try!(self.wait_for_rxne());
-        let data_low = self.0.rxdr.read().rxdata(); // receive_data
+#[must_use]
+pub struct RegisterHelper<'a, 'b: 'a>(&'a mut I2CSession<'b>);
 
-        try!(self.wait_for_stop());
+impl<'a, 'b: 'a> Read for RegisterHelper<'a, 'b> {
+    type Error = Error;
+    fn read_exact(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
+        self.0.read_exact(buffer)
+    }
+}
 
-        // clear status flags
-        self.0.icr.write(clear_all);
+impl<'a, 'b: 'a> Write for RegisterHelper<'a, 'b> {
+    type Error = Error;
+    fn write_all(&mut self, bytes: &[u8]) -> Result<(), Error> {
+        self.0.write_all(bytes)
+    }
+}
 
-        // reset cr2
-        self.0.cr2.write(Default::default());
-
-        Ok((data_high as u16) << 8 | data_low as u16)
+impl<'a> I2CSession<'a> {
+    pub fn register8<'b>(&'b mut self, register_address: u8) -> Result<RegisterHelper<'b, 'a>, Error> {
+        self.write_u8(register_address)?;
+        Ok(RegisterHelper(self))
     }
 
-    pub fn write(&mut self,
-                 device_address: Address,
-                 register_address: u16,
-                 value: u16)
-                 -> Result<(), Error> {
+    pub fn register16<'b>(&'b mut self, register_address: u16) -> Result<RegisterHelper<'b, 'a>, Error> {
+        self.write_u16::<BigEndian>(register_address)?;
+        Ok(RegisterHelper(self))
+    }
 
+    pub fn change_device(&mut self, device_address: Address) {
+        let mut reg = i2c1::Cr2::default();
+        match device_address {
+            Address::U7(addr) => reg.set_sadd((addr as u16) << 1),
+            Address::U10(_) => unimplemented!(),
+        }
+        self.0.cr2.write(reg);
+    }
+}
+
+impl I2C {
+    /// "Connect" to a slave I2C device
+    ///
+    /// NOTE(impl) this takes care of sending START and STOP
+    pub fn connect<
+        F: FnOnce(&mut I2CSession) -> Result<(), Error>,
+    >(
+        &mut self,
+        device_address: Address,
+        session_handler: F,
+    ) -> Result<(), Error> {
         // clear status flags
         let clear_all = icr_clear_all();
         self.0.icr.write(clear_all);
@@ -181,42 +211,27 @@ impl I2C {
         // flush transmit data register
         self.0.isr.update(|r| r.set_txe(true)); // flush_txdr
 
-        // send register address and data (4 bytes)
-        let mut cr2 = i2c1::Cr2::default();
-        cr2.set_sadd(device_address.0); // slave_address
-        cr2.set_start(true); // start_generation
-        cr2.set_rd_wrn(false); // read_transfer
-        cr2.set_nbytes(4); // number_of_bytes
-        cr2.set_autoend(true); // automatic_end_mode
-        self.0.cr2.write(cr2);
+        {
+            let mut session = I2CSession(&mut self.0);
+            session.change_device(device_address);
 
-        // write high address byte to transmit data register
-        try!(self.wait_for_txis());
-        self.0.txdr.update(|r| r.set_txdata((register_address >> 8) as u8)); // transmit_data
+            session_handler(&mut session)?;
+        }
 
-        // write low address byte to transmit data register
-        try!(self.wait_for_txis());
-        self.0.txdr.update(|r| r.set_txdata(register_address as u8)); // transmit_data
+        self.0.cr2.update(|r| r.set_stop(true));
 
-        // write high value byte to transmit data register
-        try!(self.wait_for_txis());
-        self.0.txdr.update(|r| r.set_txdata((value >> 8) as u8)); // transmit_data
-
-        // write low value byte to transmit data register
-        try!(self.wait_for_txis());
-        self.0.txdr.update(|r| r.set_txdata(value as u8)); // transmit_data
-
-        try!(self.wait_for_stop());
+        try!(self.0.wait_for_stop());
 
         // clear status flags
         self.0.icr.write(clear_all);
 
         // reset cr2
         self.0.cr2.write(Default::default());
-
         Ok(())
     }
+}
 
+impl I2C {
     pub fn update<F>(&mut self,
                      device_address: Address,
                      register_address: u16,
@@ -224,15 +239,26 @@ impl I2C {
                      -> Result<(), Error>
         where F: FnOnce(&mut u16)
     {
-        let mut value = try!(self.read(device_address, register_address));
-        f(&mut value);
-        self.write(device_address, register_address, value)
+        self.connect(device_address, |sess| {
+            let mut val = sess.register16(register_address)?.read_u16::<BigEndian>()?;
+            f(&mut val);
+            sess.register16(register_address)?.write_u16::<BigEndian>(val)
+        })
     }
+}
 
+trait I2CHelper {
+    fn wait_for_txis(&self) -> Result<(), Error>;
+    fn wait_for_rxne(&self) -> Result<(), Error>;
+    fn wait_for_transfer_complete(&self) -> Result<(), Error>;
+    fn wait_for_stop(&self) -> Result<(), Error>;
+}
+
+impl I2CHelper for I2c1 {
     /// Wait for “transmit interrupt status” flag
     fn wait_for_txis(&self) -> Result<(), Error> {
         loop {
-            let isr = self.0.isr.read();
+            let isr = self.isr.read();
             if isr.nackf() {
                 // nack_received
                 return Err(Error::Nack);
@@ -246,7 +272,7 @@ impl I2C {
     /// Wait for "receive data register not empty" flag
     fn wait_for_rxne(&self) -> Result<(), Error> {
         loop {
-            let isr = self.0.isr.read();
+            let isr = self.isr.read();
             if isr.nackf() {
                 // nack_received
                 return Err(Error::Nack);
@@ -260,7 +286,7 @@ impl I2C {
     /// Wait for “transfer complete” flag
     fn wait_for_transfer_complete(&self) -> Result<(), Error> {
         loop {
-            let isr = self.0.isr.read();
+            let isr = self.isr.read();
             if isr.nackf() {
                 // nack_received
                 return Err(Error::Nack);
@@ -275,7 +301,7 @@ impl I2C {
     /// Wait for automatically generated stop flag
     fn wait_for_stop(&self) -> Result<(), Error> {
         loop {
-            let isr = self.0.isr.read();
+            let isr = self.isr.read();
             if isr.nackf() {
                 // nack_received
                 return Err(Error::Nack);
@@ -286,13 +312,15 @@ impl I2C {
             }
         }
     }
+}
 
+impl I2C {
     // provokes a NACK
     pub fn test_1(&mut self) {
         let mut i2c = &mut self.0;
 
         i2c.cr2.update(|r| {
-            r.set_sadd(Address::bits_7(0b1010101).0); // slave_address
+            r.set_sadd(0b1010101); // slave_address
             r.set_start(true); // start_generation
             r.set_nbytes(0); // number_of_bytes
             r.set_autoend(true); // automatic_end_mode
@@ -319,7 +347,7 @@ impl I2C {
         let mut addr = 0;
         loop {
             i2c.cr2.update(|r| {
-                r.set_sadd(Address::bits_7(addr).0); // slave_address
+                r.set_sadd(addr); // slave_address
                 r.set_start(true); // start_generation
                 r.set_nbytes(0); // number_of_bytes
                 r.set_autoend(true); // automatic_end_mode

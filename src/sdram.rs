@@ -66,7 +66,7 @@ pub fn init(rcc: &mut Rcc, fmc: &mut Fmc, gpio: &mut GpioController) {
 
     let ptr1 = 0xC000_0000 as *mut u32;
     let ptr2 = 0xC053_6170 as *mut u32;
-    let ptr3 = 0xC07f_fffc as *mut u32;
+    let ptr3 = 0xC07F_FFFC as *mut u32;
 
     unsafe {
         ptr::write_volatile(ptr1, 0xcafebabe);

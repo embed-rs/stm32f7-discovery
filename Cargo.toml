@@ -9,6 +9,8 @@ cortex-m = "0.1.4"
 r0 = "0.1.0"
 rlibc = "1.0.0"
 volatile = "0.2.0"
+# used for i2c
+byteorder = { version = "0.5.3", default-features = false, path = "../byteorder" }
 
 [dependencies.svd_board]
 version = "0.3.0"

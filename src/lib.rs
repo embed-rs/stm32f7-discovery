@@ -13,6 +13,8 @@ extern crate svd_board;
 extern crate cortex_m;
 // volatile wrapper types
 extern crate volatile;
+// used for i2c
+extern crate byteorder;
 
 pub mod exceptions;
 pub mod interrupts;
@@ -22,3 +24,4 @@ pub mod sdram;
 pub mod lcd;
 pub mod i2c;
 pub mod audio;
+//pub mod touch;
