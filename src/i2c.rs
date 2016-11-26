@@ -3,6 +3,7 @@
 use svd_board::rcc::Rcc;
 use svd_board::i2c1::{self, I2c1};
 use gpio::{self, GpioController};
+use core::marker::PhantomData;
 
 pub struct I2C(&'static mut I2c1);
 
@@ -109,13 +110,43 @@ fn icr_clear_all() -> i2c1::Icr {
     clear_all
 }
 
-pub struct I2cConnection<'a> {
+pub struct I2cConnection<'a, T: RegisterType> {
     i2c: &'a mut I2C,
     device_address: Address,
+    register_type: PhantomData<T>,
 }
 
-impl<'a> I2cConnection<'a> {
-    pub fn read_bytes(&mut self, buffer: &mut[u8]) -> Result<(), Error> {
+pub trait RegisterType: Sized {
+    fn write<'a>(&self, &mut I2cConnection<'a, Self>) -> Result<(), Error>;
+    fn read<'a>(&mut I2cConnection<'a, Self>) -> Result<Self, Error>;
+}
+
+impl RegisterType for u8 {
+    fn write<'a>(&self, conn: &mut I2cConnection<'a, Self>) -> Result<(), Error> {
+        let buf = [*self];
+        conn.write_bytes(&buf)
+    }
+    fn read<'a>(conn: &mut I2cConnection<'a, Self>) -> Result<Self, Error> {
+        let mut buf = [0];
+        conn.read_bytes(&mut buf)?;
+        Ok(buf[0])
+    }
+}
+
+impl RegisterType for u16 {
+    fn write<'a>(&self, conn: &mut I2cConnection<'a, Self>) -> Result<(), Error> {
+        let buf = [(*self >> 8) as u8, *self as u8];
+        conn.write_bytes(&buf)
+    }
+    fn read<'a>(conn: &mut I2cConnection<'a, Self>) -> Result<Self, Error> {
+        let mut buf = [0, 0];
+        conn.read_bytes(&mut buf)?;
+        Ok((buf[0] as u16) << 8 | buf[1] as u16)
+    }
+}
+
+impl<'a, T: RegisterType> I2cConnection<'a, T> {
+    pub fn read_bytes(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
         // clear status flags
         self.i2c.0.icr.write(icr_clear_all());
 
@@ -182,33 +213,25 @@ impl<'a> I2cConnection<'a> {
         Ok(())
     }
 
-    pub fn read(&mut self, register_address: u16) -> Result<u16, Error> {
-        let addr = [(register_address >> 8) as u8, register_address as u8];
-        self.write_bytes(&addr)?;
+    pub fn read(&mut self, register_address: T) -> Result<T, Error> {
+        register_address.write(self)?;
 
-        let mut buf = [0; 2];
-        self.read_bytes(&mut buf)?;
-
-        Ok((buf[0] as u16) << 8 | buf[1] as u16)
+        T::read(self)
     }
 
     pub fn write(&mut self,
-                 register_address: u16,
-                 value: u16)
+                 register_address: T,
+                 value: T)
                  -> Result<(), Error> {
-        let addr = [(register_address >> 8) as u8, register_address as u8];
-        self.write_bytes(&addr)?;
-
-        let val = [(value >> 8) as u8, value as u8];
-        self.write_bytes(&val)?;
-
-        Ok(())
+        register_address.write(self)?;
+        value.write(self)
     }
 }
 
 impl I2C {
     pub fn connect<
-        F: for<'a> FnOnce(I2cConnection<'a>) -> Result<(), Error>
+        T: RegisterType,
+        F: for<'a> FnOnce(I2cConnection<'a, T>) -> Result<(), Error>
     >(
         &mut self,
         device_address: Address,
@@ -218,6 +241,7 @@ impl I2C {
             let conn = I2cConnection {
                 i2c: self,
                 device_address: device_address,
+                register_type: PhantomData,
             };
             f(conn)?;
         }

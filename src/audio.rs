@@ -8,7 +8,7 @@ use system_clock;
 const WM8994_ADDRESS: i2c::Address = i2c::Address::bits_7(0b0011010);
 
 pub fn init_wm8994(i2c_3: &mut i2c::I2C) -> Result<(), i2c::Error> {
-    i2c_3.connect(WM8994_ADDRESS, |mut conn| {
+    i2c_3.connect::<u16, _>(WM8994_ADDRESS, |mut conn| {
         // read and check device family ID
         assert_eq!(conn.read(0).ok(), Some(0x8994));
         // reset device
