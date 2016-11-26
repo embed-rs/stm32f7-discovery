@@ -90,6 +90,8 @@ pub fn init_wm8994(i2c_3: &mut i2c::I2C) -> Result<(), i2c::Error> {
     // Right AIF1 ADC2 volume
     try!(i2c_3.write(WM8994_ADDRESS, 0x405, convertedvol | 0x100));
 
+    i2c_3.stop()?;
+
     Ok(())
 }
 

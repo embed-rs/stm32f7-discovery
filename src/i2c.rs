@@ -159,8 +159,6 @@ impl I2C {
 
         try!(self.wait_for_transfer_complete());
 
-        self.stop()?;
-
         // clear status flags
         self.0.icr.write(clear_all);
 
@@ -209,8 +207,6 @@ impl I2C {
         self.0.txdr.update(|r| r.set_txdata(value as u8)); // transmit_data
 
         try!(self.wait_for_transfer_complete());
-
-        self.stop()?;
 
         // clear status flags
         self.0.icr.write(clear_all);
