@@ -1,6 +1,6 @@
 use system_clock;
 
-#[link_section = ".exceptions"]
+#[no_mangle]
 pub static EXCEPTIONS: VectorTable = VectorTable {
     nmi: None,
     hard_fault: Some(fault),

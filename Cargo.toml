@@ -11,9 +11,12 @@ rlibc = "1.0.0"
 volatile = "0.2.0"
 
 [dependencies.svd_board]
-version = "0.2.2"
+version = "0.3.0"
 features = ["stm32f7"]
 
 [[bin]]
 name = "novemb-rs-stm32f7"
 doc = false
+
+[profile.release]
+lto = true

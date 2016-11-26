@@ -17,8 +17,8 @@ SECTIONS
         /* reset entry point */
         LONG(reset + 1)
 
-        KEEP(*(.exceptions))
-        KEEP(*(.interrupts))
+        KEEP(*(.rodata.EXCEPTIONS));
+        KEEP(*(.rodata.INTERRUPTS));
 
         *(.text*)
     } > FLASH
