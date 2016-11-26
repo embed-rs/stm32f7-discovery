@@ -115,6 +115,34 @@ pub struct I2cConnection<'a> {
 }
 
 impl<'a> I2cConnection<'a> {
+    pub fn read_bytes(&mut self, buffer: &mut[u8]) -> Result<(), Error> {
+        assert_eq!(buffer.len() as u8 as usize, buffer.len(), "transfers > 255 bytes are not implemented yet");
+        let device_address = self.device_address.0;
+        self.i2c.0.cr2.update(|r| {
+            r.set_sadd(device_address); // slave_address
+            r.set_start(true); // start_generation
+            r.set_rd_wrn(true); // read_transfer
+            r.set_nbytes(buffer.len() as u8); // number_of_bytes
+            r.set_autoend(false); // automatic_end_mode
+        });
+
+        // read data from receive data register
+        for b in buffer {
+            self.i2c.wait_for_rxne()?;
+            *b = self.i2c.0.rxdr.read().rxdata(); // receive_data
+        }
+
+        try!(self.i2c.wait_for_transfer_complete());
+
+        // clear status flags
+        self.i2c.0.icr.write(icr_clear_all());
+
+        // reset cr2
+        self.i2c.0.cr2.write(i2c1::Cr2::reset_value());
+
+        Ok(())
+    }
+
     pub fn read(&mut self, register_address: u16) -> Result<u16, Error> {
         // clear status flags
         let clear_all = icr_clear_all();
@@ -145,33 +173,10 @@ impl<'a> I2cConnection<'a> {
         // clear status flags
         self.i2c.0.icr.write(clear_all);
 
-        // receive 2 data bytes
-        let device_address = self.device_address.0;
-        self.i2c.0.cr2.update(|r| {
-            r.set_sadd(device_address); // slave_address
-            r.set_start(true); // start_generation
-            r.set_rd_wrn(true); // read_transfer
-            r.set_nbytes(2); // number_of_bytes
-            r.set_autoend(false); // automatic_end_mode
-        });
+        let mut buf = [0; 2];
+        self.read_bytes(&mut buf)?;
 
-        // read data from receive data register
-        try!(self.i2c.wait_for_rxne());
-        let data_high = self.i2c.0.rxdr.read().rxdata(); // receive_data
-
-        // read data from receive data register
-        try!(self.i2c.wait_for_rxne());
-        let data_low = self.i2c.0.rxdr.read().rxdata(); // receive_data
-
-        try!(self.i2c.wait_for_transfer_complete());
-
-        // clear status flags
-        self.i2c.0.icr.write(clear_all);
-
-        // reset cr2
-        self.i2c.0.cr2.write(i2c1::Cr2::reset_value());
-
-        Ok((data_high as u16) << 8 | data_low as u16)
+        Ok((buf[0] as u16) << 8 | buf[1] as u16)
     }
 
     pub fn write(&mut self,
