@@ -146,7 +146,7 @@ impl I2C {
             r.set_start(true); // start_generation
             r.set_rd_wrn(true); // read_transfer
             r.set_nbytes(2); // number_of_bytes
-            r.set_autoend(true); // automatic_end_mode
+            r.set_autoend(false); // automatic_end_mode
         });
 
         // read data from receive data register
@@ -156,6 +156,10 @@ impl I2C {
         // read data from receive data register
         try!(self.wait_for_rxne());
         let data_low = self.0.rxdr.read().rxdata(); // receive_data
+
+        try!(self.wait_for_transfer_complete());
+
+        self.0.cr2.update(|r| r.set_stop(true));
 
         try!(self.wait_for_stop());
 
