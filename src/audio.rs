@@ -8,91 +8,91 @@ use system_clock;
 const WM8994_ADDRESS: i2c::Address = i2c::Address::bits_7(0b0011010);
 
 pub fn init_wm8994(i2c_3: &mut i2c::I2C) -> Result<(), i2c::Error> {
-    // read and check device family ID
-    assert_eq!(i2c_3.read(WM8994_ADDRESS, 0).ok(), Some(0x8994));
-    // reset device
-    try!(i2c_3.write(WM8994_ADDRESS, 0, 0));
+    i2c_3.connect(WM8994_ADDRESS, |mut conn| {
+        // read and check device family ID
+        assert_eq!(conn.read(0).ok(), Some(0x8994));
+        // reset device
+        try!(conn.write(0, 0));
 
-    // wm8994 Errata Work-Arounds
-    try!(i2c_3.write(WM8994_ADDRESS, 0x102, 0x0003));
-    try!(i2c_3.write(WM8994_ADDRESS, 0x817, 0x0000));
-    try!(i2c_3.write(WM8994_ADDRESS, 0x102, 0x0000));
+        // wm8994 Errata Work-Arounds
+        try!(conn.write(0x102, 0x0003));
+        try!(conn.write(0x817, 0x0000));
+        try!(conn.write(0x102, 0x0000));
 
-    // Enable VMID soft start (fast), Start-up Bias Current Enabled
-    try!(i2c_3.write(WM8994_ADDRESS, 0x39, 0x006C));
+        // Enable VMID soft start (fast), Start-up Bias Current Enabled
+        try!(conn.write(0x39, 0x006C));
 
-    // Enable bias generator, Enable VMID
-    try!(i2c_3.write(WM8994_ADDRESS, 0x01, 0x0003));
+        // Enable bias generator, Enable VMID
+        try!(conn.write(0x01, 0x0003));
 
-    system_clock::wait(50);
+        system_clock::wait(50);
 
-    // INPUT_DEVICE_DIGITAL_MICROPHONE_2 :
+        // INPUT_DEVICE_DIGITAL_MICROPHONE_2 :
 
-    // Enable AIF1ADC2 (Left), Enable AIF1ADC2 (Right)
-    // Enable DMICDAT2 (Left), Enable DMICDAT2 (Right)
-    // Enable Left ADC, Enable Right ADC
-    try!(i2c_3.write(WM8994_ADDRESS, 0x04, 0x0C30));
+        // Enable AIF1ADC2 (Left), Enable AIF1ADC2 (Right)
+        // Enable DMICDAT2 (Left), Enable DMICDAT2 (Right)
+        // Enable Left ADC, Enable Right ADC
+        try!(conn.write(0x04, 0x0C30));
 
-    // Enable AIF1 DRC2 Signal Detect & DRC in AIF1ADC2 Left/Right Timeslot 1
-    try!(i2c_3.write(WM8994_ADDRESS, 0x450, 0x00DB));
+        // Enable AIF1 DRC2 Signal Detect & DRC in AIF1ADC2 Left/Right Timeslot 1
+        try!(conn.write(0x450, 0x00DB));
 
-    // Disable IN1L, IN1R, IN2L, IN2R, Enable Thermal sensor & shutdown
-    try!(i2c_3.write(WM8994_ADDRESS, 0x02, 0x6000));
+        // Disable IN1L, IN1R, IN2L, IN2R, Enable Thermal sensor & shutdown
+        try!(conn.write(0x02, 0x6000));
 
-    // Enable the DMIC2(Left) to AIF1 Timeslot 1 (Left) mixer path
-    try!(i2c_3.write(WM8994_ADDRESS, 0x608, 0x0002));
+        // Enable the DMIC2(Left) to AIF1 Timeslot 1 (Left) mixer path
+        try!(conn.write(0x608, 0x0002));
 
-    // Enable the DMIC2(Right) to AIF1 Timeslot 1 (Right) mixer path
-    try!(i2c_3.write(WM8994_ADDRESS, 0x609, 0x0002));
+        // Enable the DMIC2(Right) to AIF1 Timeslot 1 (Right) mixer path
+        try!(conn.write(0x609, 0x0002));
 
-    // GPIO1 pin configuration GP1_DIR = output, GP1_FN = AIF1 DRC2 signal detect
-    try!(i2c_3.write(WM8994_ADDRESS, 0x700, 0x000E));
+        // GPIO1 pin configuration GP1_DIR = output, GP1_FN = AIF1 DRC2 signal detect
+        try!(conn.write(0x700, 0x000E));
 
-    // Clock Configurations
+        // Clock Configurations
 
-    // AIF1 Sample Rate = 16 (KHz), ratio=256
-    try!(i2c_3.write(WM8994_ADDRESS, 0x210, 0x0033));
+        // AIF1 Sample Rate = 16 (KHz), ratio=256
+        try!(conn.write(0x210, 0x0033));
 
-    // AIF1 Word Length = 16-bits, AIF1 Format = I2S (Default Register Value)
-    try!(i2c_3.write(WM8994_ADDRESS, 0x300, 0x4010));
+        // AIF1 Word Length = 16-bits, AIF1 Format = I2S (Default Register Value)
+        try!(conn.write(0x300, 0x4010));
 
-    // slave mode
-    try!(i2c_3.write(WM8994_ADDRESS, 0x302, 0x0000));
+        // slave mode
+        try!(conn.write(0x302, 0x0000));
 
-    // Enable the DSP processing clock for AIF1, Enable the core clock
-    try!(i2c_3.write(WM8994_ADDRESS, 0x208, 0x000A));
+        // Enable the DSP processing clock for AIF1, Enable the core clock
+        try!(conn.write(0x208, 0x000A));
 
-    // Enable AIF1 Clock, AIF1 Clock Source = MCLK1 pin
-    try!(i2c_3.write(WM8994_ADDRESS, 0x200, 0x0001));
+        // Enable AIF1 Clock, AIF1 Clock Source = MCLK1 pin
+        try!(conn.write(0x200, 0x0001));
 
-    // Enable Microphone bias 1 generator, Enable VMID
-    try!(i2c_3.write(WM8994_ADDRESS, 0x01, 0x0013));
+        // Enable Microphone bias 1 generator, Enable VMID
+        try!(conn.write(0x01, 0x0013));
 
-    // ADC oversample enable
-    try!(i2c_3.write(WM8994_ADDRESS, 0x620, 0x0002));
+        // ADC oversample enable
+        try!(conn.write(0x620, 0x0002));
 
-    // AIF ADC2 HPF enable, HPF cut = voice mode 1 fc=127Hz at fs=8kHz
-    try!(i2c_3.write(WM8994_ADDRESS, 0x411, 0x3800));
+        // AIF ADC2 HPF enable, HPF cut = voice mode 1 fc=127Hz at fs=8kHz
+        try!(conn.write(0x411, 0x3800));
 
-    // set volume
+        // set volume
 
-    let convertedvol = 239; // 100(+17.625dB)
+        let convertedvol = 239; // 100(+17.625dB)
 
-    // Left AIF1 ADC1 volume
-    try!(i2c_3.write(WM8994_ADDRESS, 0x400, convertedvol | 0x100));
+        // Left AIF1 ADC1 volume
+        try!(conn.write(0x400, convertedvol | 0x100));
 
-    // Right AIF1 ADC1 volume
-    try!(i2c_3.write(WM8994_ADDRESS, 0x401, convertedvol | 0x100));
+        // Right AIF1 ADC1 volume
+        try!(conn.write(0x401, convertedvol | 0x100));
 
-    // Left AIF1 ADC2 volume
-    try!(i2c_3.write(WM8994_ADDRESS, 0x404, convertedvol | 0x100));
+        // Left AIF1 ADC2 volume
+        try!(conn.write(0x404, convertedvol | 0x100));
 
-    // Right AIF1 ADC2 volume
-    try!(i2c_3.write(WM8994_ADDRESS, 0x405, convertedvol | 0x100));
+        // Right AIF1 ADC2 volume
+        try!(conn.write(0x405, convertedvol | 0x100));
 
-    i2c_3.stop()?;
-
-    Ok(())
+        Ok(())
+    })
 }
 
 pub fn init_sai_2(sai: &mut Sai2, rcc: &mut Rcc) {
