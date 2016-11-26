@@ -159,9 +159,7 @@ impl I2C {
 
         try!(self.wait_for_transfer_complete());
 
-        self.0.cr2.update(|r| r.set_stop(true));
-
-        try!(self.wait_for_stop());
+        self.stop()?;
 
         // clear status flags
         self.0.icr.write(clear_all);
@@ -212,9 +210,7 @@ impl I2C {
 
         try!(self.wait_for_transfer_complete());
 
-        self.0.cr2.update(|r| r.set_stop(true));
-
-        try!(self.wait_for_stop());
+        self.stop()?;
 
         // clear status flags
         self.0.icr.write(clear_all);
@@ -223,6 +219,12 @@ impl I2C {
         self.0.cr2.write(i2c1::Cr2::reset_value());
 
         Ok(())
+    }
+
+    pub fn stop(&mut self) -> Result<(), Error> {
+        self.0.cr2.update(|r| r.set_stop(true));
+
+        self.wait_for_stop()
     }
 
     pub fn update<F>(&mut self,
