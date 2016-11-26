@@ -191,7 +191,7 @@ impl I2C {
         cr2.set_start(true); // start_generation
         cr2.set_rd_wrn(false); // read_transfer
         cr2.set_nbytes(4); // number_of_bytes
-        cr2.set_autoend(true); // automatic_end_mode
+        cr2.set_autoend(false); // automatic_end_mode
         self.0.cr2.write(cr2);
 
         // write high address byte to transmit data register
@@ -209,6 +209,10 @@ impl I2C {
         // write low value byte to transmit data register
         try!(self.wait_for_txis());
         self.0.txdr.update(|r| r.set_txdata(value as u8)); // transmit_data
+
+        try!(self.wait_for_transfer_complete());
+
+        self.0.cr2.update(|r| r.set_stop(true));
 
         try!(self.wait_for_stop());
 
