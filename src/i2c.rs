@@ -97,7 +97,7 @@ pub fn init(i2c: &'static mut I2c1) -> I2C {
 }
 
 fn icr_clear_all() -> i2c1::Icr {
-    let mut clear_all = i2c1::Icr::reset_value();
+    let mut clear_all = i2c1::Icr::default();
     clear_all.set_alertcf(true); // alert clear flag
     clear_all.set_timoutcf(true); // timeout detection clear flag
     clear_all.set_peccf(true); // PEC error clear flag
@@ -172,7 +172,7 @@ impl<'a, T: RegisterType> I2cConnection<'a, T> {
         self.i2c.0.icr.write(icr_clear_all());
 
         // reset cr2
-        self.i2c.0.cr2.write(i2c1::Cr2::reset_value());
+        self.i2c.0.cr2.write(i2c1::Cr2::default());
 
         Ok(())
     }
@@ -208,7 +208,7 @@ impl<'a, T: RegisterType> I2cConnection<'a, T> {
         self.i2c.0.icr.write(icr_clear_all());
 
         // reset cr2
-        self.i2c.0.cr2.write(i2c1::Cr2::reset_value());
+        self.i2c.0.cr2.write(i2c1::Cr2::default());
 
         Ok(())
     }
