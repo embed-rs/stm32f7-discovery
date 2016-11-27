@@ -79,7 +79,7 @@ pub fn init(i2c: &'static mut I2c1) -> I2C {
     // configure cr2
     i2c.cr2.update(|r| {
         r.set_add10(false); // 10_bit_addressing mode
-        r.set_autoend(true); // automatic_end_mode
+        r.set_autoend(false); // automatic_end_mode
     });
 
     // configure oar2
