@@ -22,7 +22,7 @@
     * `rustup run nightly cargo install xargo`
     * NOTE: do **not** run this command in the `novemb-rs-stm32f7` folder, you will get errors about the compiler not finding the standard library
 -  get the demo code
-    * `git clone https://github.com/phil-opp/novemb-rs-stm32f7.git`
+    * `git clone https://github.com/embed-rs/novemb-rs-stm32f7.git`
 
 # Compiling
 
