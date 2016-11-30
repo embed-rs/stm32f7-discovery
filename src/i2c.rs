@@ -143,13 +143,19 @@ impl<'a> I2cConnection<'a> {
         Ok(())
     }
 
-    pub fn read(&mut self, register_address: u16) -> Result<u16, Error> {
-        // clear status flags
-        let clear_all = icr_clear_all();
-        self.i2c.0.icr.write(clear_all);
-
+    fn pre(&mut self) {
+        self.clear_status_flags();
         // flush transmit data register
         self.i2c.0.isr.update(|r| r.set_txe(true)); // flush_txdr
+    }
+
+    fn clear_status_flags(&mut self) {
+        let clear_all = icr_clear_all();
+        self.i2c.0.icr.write(clear_all);
+    }
+
+    pub fn read(&mut self, register_address: u16) -> Result<u16, Error> {
+        self.pre();
 
         // send register address (2 bytes)
         let mut cr2 = i2c1::Cr2::reset_value();
@@ -170,8 +176,7 @@ impl<'a> I2cConnection<'a> {
 
         try!(self.i2c.wait_for_transfer_complete());
 
-        // clear status flags
-        self.i2c.0.icr.write(clear_all);
+        self.clear_status_flags();
 
         let mut buf = [0; 2];
         self.read_bytes(&mut buf)?;
@@ -179,17 +184,8 @@ impl<'a> I2cConnection<'a> {
         Ok((buf[0] as u16) << 8 | buf[1] as u16)
     }
 
-    pub fn write(&mut self,
-                 register_address: u16,
-                 value: u16)
-                 -> Result<(), Error> {
-
-        // clear status flags
-        let clear_all = icr_clear_all();
-        self.i2c.0.icr.write(clear_all);
-
-        // flush transmit data register
-        self.i2c.0.isr.update(|r| r.set_txe(true)); // flush_txdr
+    pub fn write(&mut self, register_address: u16, value: u16) -> Result<(), Error> {
+        self.pre();
 
         // send register address and data (4 bytes)
         let mut cr2 = i2c1::Cr2::reset_value();
@@ -218,8 +214,7 @@ impl<'a> I2cConnection<'a> {
 
         try!(self.i2c.wait_for_transfer_complete());
 
-        // clear status flags
-        self.i2c.0.icr.write(clear_all);
+        self.clear_status_flags();
 
         // reset cr2
         self.i2c.0.cr2.write(i2c1::Cr2::reset_value());
