@@ -3,6 +3,8 @@
 use svd_board::rcc::Rcc;
 use svd_board::i2c1::{self, I2c1};
 use gpio::{self, GpioController};
+use core::marker::PhantomData;
+use core::iter::TrustedLen;
 
 pub struct I2C(&'static mut I2c1);
 
@@ -109,12 +111,43 @@ fn icr_clear_all() -> i2c1::Icr {
     clear_all
 }
 
-pub struct I2cConnection<'a> {
+pub struct I2cConnection<'a, T: RegisterType> {
     i2c: &'a mut I2C,
     device_address: Address,
+    register_type: PhantomData<T>,
 }
 
-impl<'a> I2cConnection<'a> {
+pub trait RegisterType: Sized {
+    fn write<'a, F: for<'b> FnOnce(&'b [u8]) -> Result<(), Error>>(&self, f: F) -> Result<(), Error>;
+    fn read<'a, F: for<'b> FnOnce(&'b mut [u8]) -> Result<(), Error>>(f: F) -> Result<Self, Error>;
+}
+
+
+impl RegisterType for u8 {
+    fn write<'a, F: for<'b> FnOnce(&'b [u8]) -> Result<(), Error>>(&self, f: F) -> Result<(), Error> {
+        f(&[*self])
+    }
+
+    fn read<'a, F: for<'b> FnOnce(&'b mut [u8]) -> Result<(), Error>>(f: F) -> Result<Self, Error> {
+        let mut buf = [0];
+        f(&mut buf)?;
+        Ok(buf[0])
+    }
+}
+
+impl RegisterType for u16 {
+    fn write<'a, F: for<'b> FnOnce(&'b [u8]) -> Result<(), Error>>(&self, f: F) -> Result<(), Error> {
+        f(&[(*self >> 8) as u8, *self as u8])
+    }
+
+    fn read<'a, F: for<'b> FnOnce(&'b mut [u8]) -> Result<(), Error>>(f: F) -> Result<Self, Error> {
+        let mut buf = [0, 0];
+        f(&mut buf)?;
+        Ok((buf[0] as u16) << 8 | buf[1] as u16)
+    }
+}
+
+impl<'a, T: RegisterType> I2cConnection<'a, T> {
     fn start(&mut self, read: bool, bytes: u8) {
         let mut cr2 = i2c1::Cr2::reset_value();
         cr2.set_sadd(self.device_address.0); // slave_address
@@ -125,11 +158,12 @@ impl<'a> I2cConnection<'a> {
         self.i2c.0.cr2.write(cr2);
     }
 
-    fn write_bytes(&mut self, bytes: &[u8]) -> Result<(), Error> {
-        assert_eq!(bytes.len() as u8 as usize, bytes.len(), "transfers > 255 bytes are not implemented yet");
-        self.start(false, bytes.len() as u8);
+    fn write_bytes<ITER: Iterator<Item = u8> + TrustedLen>(&mut self, bytes: ITER) -> Result<(), Error> {
+        assert!(bytes.size_hint().1.is_some());
+        assert_eq!(bytes.size_hint().0 as u8 as usize, bytes.size_hint().0, "transfers > 255 bytes are not implemented yet");
+        self.start(false, bytes.size_hint().0 as u8);
 
-        for &b in bytes {
+        for b in bytes {
             self.i2c.wait_for_txis()?;
             self.i2c.0.txdr.update(|r| r.set_txdata(b)); // transmit_data
         }
@@ -144,9 +178,10 @@ impl<'a> I2cConnection<'a> {
         Ok(())
     }
 
-    fn read_bytes(&mut self, buffer: &mut[u8]) -> Result<(), Error> {
-        assert_eq!(buffer.len() as u8 as usize, buffer.len(), "transfers > 255 bytes are not implemented yet");
-        self.start(true, buffer.len() as u8);
+    fn read_bytes<'b, ITER: Iterator<Item = &'b mut u8> + TrustedLen>(&mut self, buffer: ITER) -> Result<(), Error> {
+        assert!(buffer.size_hint().1.is_some());
+        assert_eq!(buffer.size_hint().0 as u8 as usize, buffer.size_hint().0, "transfers > 255 bytes are not implemented yet");
+        self.start(true, buffer.size_hint().0 as u8);
 
         // read data from receive data register
         for b in buffer {
@@ -175,34 +210,28 @@ impl<'a> I2cConnection<'a> {
         self.i2c.0.icr.write(clear_all);
     }
 
-    pub fn read(&mut self, register_address: u16) -> Result<u16, Error> {
+    pub fn read(&mut self, register_address: T) -> Result<T, Error> {
         self.pre();
 
-        self.write_bytes(&[(register_address >> 8) as u8, register_address as u8])?;
+        register_address.write(|addr_bytes| self.write_bytes(addr_bytes.iter().cloned()))?;
 
-        let mut buf = [0; 2];
-        self.read_bytes(&mut buf)?;
-
-        Ok((buf[0] as u16) << 8 | buf[1] as u16)
+        T::read(|val_bytes| self.read_bytes(val_bytes.iter_mut()))
     }
 
-    pub fn write(&mut self, register_address: u16, value: u16) -> Result<(), Error> {
+    pub fn write(&mut self, register_address: T, value: T) -> Result<(), Error> {
         self.pre();
-
-        self.write_bytes(&[
-            (register_address >> 8) as u8,
-            register_address as u8,
-            (value >> 8) as u8,
-            value as u8,
-        ])?;
-
-        Ok(())
+        register_address.write(|addr_bytes| {
+            value.write(|val_bytes| {
+                self.write_bytes(addr_bytes.iter().cloned().chain(val_bytes.iter().cloned()))
+            })
+        })
     }
 }
 
 impl I2C {
     pub fn connect<
-        F: for<'a> FnOnce(I2cConnection<'a>) -> Result<(), Error>
+        T: RegisterType,
+        F: for<'a> FnOnce(I2cConnection<'a, T>) -> Result<(), Error>
     >(
         &mut self,
         device_address: Address,
@@ -212,6 +241,7 @@ impl I2C {
             let conn = I2cConnection {
                 i2c: self,
                 device_address: device_address,
+                register_type: PhantomData,
             };
             f(conn)?;
         }

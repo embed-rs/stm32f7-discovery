@@ -1,5 +1,6 @@
 #![feature(lang_items)]
 #![feature(const_fn)]
+#![feature(trusted_len)]
 
 #![no_std]
 
