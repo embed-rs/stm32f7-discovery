@@ -16,6 +16,7 @@ extern crate cortex_m;
 extern crate volatile;
 
 pub mod exceptions;
+pub mod interrupts;
 pub mod system_clock;
 pub mod gpio;
 pub mod sdram;

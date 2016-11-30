@@ -72,7 +72,7 @@ struct BsrrRef<Pin: PinNumber> {
 
 impl<Pin: PinNumber> BsrrRef<Pin> {
     fn set(&self, value: bool) {
-        let mut new_value = gpiod::Bsrr::reset_value();
+        let mut new_value = Default::default();
         Pin::set_output(&mut new_value, value);
         let bsrr = unsafe { &mut *self.bsrr };
         bsrr.write(new_value);

@@ -5,6 +5,7 @@ pub use self::init::init;
 
 use svd_board::ltdc::Ltdc;
 use gpio::{self, GpioWrite};
+use core::ptr;
 
 mod init;
 mod color;
@@ -32,7 +33,7 @@ impl Lcd {
             for j in 0..480 {
                 let pixel = i * 480 + j;
                 let pixel_color = (addr + pixel * 2) as *mut u16;
-                unsafe { *pixel_color = colors[(i / 10) as usize & 7] };
+                unsafe { ptr::write_volatile(pixel_color, colors[(i / 10) as usize & 7]) };
             }
         }
 
@@ -44,7 +45,7 @@ impl Lcd {
             for j in 0..480 {
                 let pixel = i * 480 + j;
                 let pixel_color = (addr + pixel * 2) as *mut u16;
-                unsafe { *pixel_color = colors[(j / 10) as usize & 7] };
+                unsafe { ptr::write_volatile(pixel_color, colors[(j / 10) as usize & 7]) };
             }
         }
     }
@@ -56,7 +57,7 @@ impl Lcd {
             for j in 0..480 {
                 let pixel = i * 480 + j;
                 let pixel_color = (addr + pixel * 2) as *mut u16;
-                unsafe { *pixel_color = 0 };
+                unsafe { ptr::write_volatile(pixel_color, 0) };
             }
         }
 
@@ -66,7 +67,7 @@ impl Lcd {
             for j in 0..480 {
                 let pixel = i * 480 + j;
                 let pixel_color = (addr + pixel * 2) as *mut u16;
-                unsafe { *pixel_color = 0 };
+                unsafe { ptr::write_volatile(pixel_color, 0) };
             }
         }
     }
@@ -75,7 +76,7 @@ impl Lcd {
         // layer 1
         let addr: u32 = 0xC000_0000;
         let pixel_color = (addr + self.next_pixel * 2) as *mut u16;
-        unsafe { *pixel_color = color };
+        unsafe { ptr::write_volatile(pixel_color, color) };
 
         self.next_pixel = (self.next_pixel + 1) % (272 * 480);
     }
@@ -116,7 +117,7 @@ impl Lcd {
 
             let pixel = i * 480 + self.next_col;
             let pixel_color = (addr + pixel * 2) as *mut u16;
-            unsafe { *pixel_color = color };
+            unsafe { ptr::write_volatile(pixel_color, color) };
         }
 
 

@@ -98,7 +98,7 @@ pub fn init(i2c: &'static mut I2c1) -> I2C {
 }
 
 fn icr_clear_all() -> i2c1::Icr {
-    let mut clear_all = i2c1::Icr::reset_value();
+    let mut clear_all = i2c1::Icr::default();
     clear_all.set_alertcf(true); // alert clear flag
     clear_all.set_timoutcf(true); // timeout detection clear flag
     clear_all.set_peccf(true); // PEC error clear flag
@@ -121,7 +121,6 @@ pub trait RegisterType: Sized {
     fn write<'a, F: for<'b> FnOnce(&'b [u8]) -> Result<(), Error>>(&self, f: F) -> Result<(), Error>;
     fn read<'a, F: for<'b> FnOnce(&'b mut [u8]) -> Result<(), Error>>(f: F) -> Result<Self, Error>;
 }
-
 
 impl RegisterType for u8 {
     fn write<'a, F: for<'b> FnOnce(&'b [u8]) -> Result<(), Error>>(&self, f: F) -> Result<(), Error> {
@@ -149,7 +148,7 @@ impl RegisterType for u16 {
 
 impl<'a, T: RegisterType> I2cConnection<'a, T> {
     fn start(&mut self, read: bool, bytes: u8) {
-        let mut cr2 = i2c1::Cr2::reset_value();
+        let mut cr2 = i2c1::Cr2::default();
         cr2.set_sadd(self.device_address.0); // slave_address
         cr2.set_start(true); // start_generation
         cr2.set_rd_wrn(read); // read_transfer
@@ -173,7 +172,7 @@ impl<'a, T: RegisterType> I2cConnection<'a, T> {
         self.clear_status_flags();
 
         // reset cr2
-        self.i2c.0.cr2.write(i2c1::Cr2::reset_value());
+        self.i2c.0.cr2.write(Default::default());
 
         Ok(())
     }
@@ -194,7 +193,7 @@ impl<'a, T: RegisterType> I2cConnection<'a, T> {
         self.clear_status_flags();
 
         // reset cr2
-        self.i2c.0.cr2.write(i2c1::Cr2::reset_value());
+        self.i2c.0.cr2.write(Default::default());
 
         Ok(())
     }
@@ -248,8 +247,12 @@ impl I2C {
         self.stop()
     }
 
+
     pub fn stop(&mut self) -> Result<(), Error> {
         self.0.cr2.update(|r| r.set_stop(true));
+
+        // reset cr2
+        self.0.cr2.write(Default::default());
 
         self.wait_for_stop()
     }
