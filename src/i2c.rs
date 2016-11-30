@@ -115,16 +115,19 @@ pub struct I2cConnection<'a> {
 }
 
 impl<'a> I2cConnection<'a> {
+    fn start(&mut self, read: bool, bytes: u8) {
+        let mut cr2 = i2c1::Cr2::reset_value();
+        cr2.set_sadd(self.device_address.0); // slave_address
+        cr2.set_start(true); // start_generation
+        cr2.set_rd_wrn(read); // read_transfer
+        cr2.set_nbytes(bytes); // number_of_bytes
+        cr2.set_autoend(false); // automatic_end_mode
+        self.i2c.0.cr2.write(cr2);
+    }
+
     pub fn read_bytes(&mut self, buffer: &mut[u8]) -> Result<(), Error> {
         assert_eq!(buffer.len() as u8 as usize, buffer.len(), "transfers > 255 bytes are not implemented yet");
-        let device_address = self.device_address.0;
-        self.i2c.0.cr2.update(|r| {
-            r.set_sadd(device_address); // slave_address
-            r.set_start(true); // start_generation
-            r.set_rd_wrn(true); // read_transfer
-            r.set_nbytes(buffer.len() as u8); // number_of_bytes
-            r.set_autoend(false); // automatic_end_mode
-        });
+        self.start(true, buffer.len() as u8);
 
         // read data from receive data register
         for b in buffer {
@@ -157,14 +160,7 @@ impl<'a> I2cConnection<'a> {
     pub fn read(&mut self, register_address: u16) -> Result<u16, Error> {
         self.pre();
 
-        // send register address (2 bytes)
-        let mut cr2 = i2c1::Cr2::reset_value();
-        cr2.set_sadd(self.device_address.0); // slave_address
-        cr2.set_start(true); // start_generation
-        cr2.set_rd_wrn(false); // read_transfer
-        cr2.set_nbytes(2); // number_of_bytes
-        cr2.set_autoend(false); // automatic_end_mode
-        self.i2c.0.cr2.write(cr2);
+        self.start(false, 2);
 
         // write high address byte to transmit data register
         try!(self.i2c.wait_for_txis());
@@ -187,14 +183,7 @@ impl<'a> I2cConnection<'a> {
     pub fn write(&mut self, register_address: u16, value: u16) -> Result<(), Error> {
         self.pre();
 
-        // send register address and data (4 bytes)
-        let mut cr2 = i2c1::Cr2::reset_value();
-        cr2.set_sadd(self.device_address.0); // slave_address
-        cr2.set_start(true); // start_generation
-        cr2.set_rd_wrn(false); // read_transfer
-        cr2.set_nbytes(4); // number_of_bytes
-        cr2.set_autoend(false); // automatic_end_mode
-        self.i2c.0.cr2.write(cr2);
+        self.start(false, 4);
 
         // write high address byte to transmit data register
         try!(self.i2c.wait_for_txis());
