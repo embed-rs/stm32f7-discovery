@@ -125,7 +125,7 @@ impl<'a> I2cConnection<'a> {
         self.i2c.0.cr2.write(cr2);
     }
 
-    pub fn read_bytes(&mut self, buffer: &mut[u8]) -> Result<(), Error> {
+    fn read_bytes(&mut self, buffer: &mut[u8]) -> Result<(), Error> {
         assert_eq!(buffer.len() as u8 as usize, buffer.len(), "transfers > 255 bytes are not implemented yet");
         self.start(true, buffer.len() as u8);
 
@@ -135,10 +135,9 @@ impl<'a> I2cConnection<'a> {
             *b = self.i2c.0.rxdr.read().rxdata(); // receive_data
         }
 
-        try!(self.i2c.wait_for_transfer_complete());
+        self.i2c.wait_for_transfer_complete()?;
 
-        // clear status flags
-        self.i2c.0.icr.write(icr_clear_all());
+        self.clear_status_flags();
 
         // reset cr2
         self.i2c.0.cr2.write(i2c1::Cr2::reset_value());
