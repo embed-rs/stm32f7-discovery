@@ -1,6 +1,6 @@
-use svd_board::rcc::Rcc;
-use svd_board::pwr::Pwr;
-use svd_board::flash::Flash;
+use board::rcc::Rcc;
+use board::pwr::Pwr;
+use board::flash::Flash;
 use cortex_m::peripheral;
 
 use core::sync::atomic::{AtomicUsize, Ordering};

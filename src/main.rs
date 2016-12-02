@@ -7,12 +7,12 @@
 extern crate novemb_rs_stm32f7 as stm32f7;
 
 // hardware register structs with accessor methods
-extern crate svd_board;
+extern crate embedded_stm32f7 as board;
+extern crate embedded;
 // initialization routines for .data and .bss
 extern crate r0;
 
-use stm32f7::{gpio, system_clock, sdram, lcd, i2c, audio};
-use svd_board::Hardware;
+use stm32f7::{system_clock, sdram, lcd, i2c, audio};
 
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
@@ -37,43 +37,43 @@ pub unsafe extern "C" fn reset() -> ! {
     // zeroes the .bss section
     r0::zero_bss(bss_start, bss_end);
 
-    main(svd_board::hw());
+    main(board::hw());
 }
 
-fn main(hw: Hardware) -> ! {
-    let Hardware { rcc,
-                   pwr,
-                   flash,
-                   fmc,
-                   ltdc,
-                   gpioa,
-                   gpiob,
-                   gpioc,
-                   gpiod,
-                   gpioe,
-                   gpiof,
-                   gpiog,
-                   gpioh,
-                   gpioi,
-                   gpioj,
-                   gpiok,
-                   i2c3,
-                   sai2,
-                   .. } = hw;
+fn main(hw: board::Hardware) -> ! {
+    use embedded::interfaces::gpio::{self, Gpio};
 
-    let mut gpio = unsafe {
-        gpio::GpioController::new(gpioa,
-                                  gpiob,
-                                  gpioc,
-                                  gpiod,
-                                  gpioe,
-                                  gpiof,
-                                  gpiog,
-                                  gpioh,
-                                  gpioi,
-                                  gpioj,
-                                  gpiok)
-    };
+    let board::Hardware { rcc,
+                          pwr,
+                          flash,
+                          fmc,
+                          ltdc,
+                          gpio_a,
+                          gpio_b,
+                          gpio_c,
+                          gpio_d,
+                          gpio_e,
+                          gpio_f,
+                          gpio_g,
+                          gpio_h,
+                          gpio_i,
+                          gpio_j,
+                          gpio_k,
+                          i2c_3,
+                          sai_2,
+                          .. } = hw;
+
+    let mut gpio = Gpio::new(gpio_a,
+                             gpio_b,
+                             gpio_c,
+                             gpio_d,
+                             gpio_e,
+                             gpio_f,
+                             gpio_g,
+                             gpio_h,
+                             gpio_i,
+                             gpio_j,
+                             gpio_k);
 
     system_clock::init(rcc, pwr, flash);
 
@@ -93,17 +93,19 @@ fn main(hw: Hardware) -> ! {
     });
 
     // configure led pin as output pin
-    let led_pin = gpio.pins.i.1.take().expect("led pin already in use");
+    let led_pin = (gpio::Port::PortI, gpio::Pin::Pin1);
     let mut led = gpio.to_output(led_pin,
-                                 gpio::Type::PushPull,
-                                 gpio::Speed::Low,
-                                 gpio::Resistor::NoPull);
+                   gpio::OutputType::PushPull,
+                   gpio::OutputSpeed::Low,
+                   gpio::Resistor::NoPull)
+        .expect("led pin already in use");
 
     // turn led on
     led.set(true);
 
-    let button_pin = gpio.pins.i.11.take().expect("button pin already in use");
-    let button = gpio.to_input(button_pin, gpio::Resistor::NoPull);
+    let button_pin = (gpio::Port::PortI, gpio::Pin::Pin11);
+    let button = gpio.to_input(button_pin, gpio::Resistor::NoPull)
+        .expect("button pin already in use");
 
     // init sdram (needed for display buffer)
     sdram::init(rcc, fmc, &mut gpio);
@@ -115,13 +117,13 @@ fn main(hw: Hardware) -> ! {
 
     // i2c
     i2c::init_pins_and_clocks(rcc, &mut gpio);
-    let mut i2c_3 = i2c::init(i2c3);
+    let mut i2c_3 = i2c::init(i2c_3);
     i2c_3.test_1();
     i2c_3.test_2();
 
     // sai and stereo microphone
     audio::init_sai_2_pins(&mut gpio);
-    audio::init_sai_2(sai2, rcc);
+    audio::init_sai_2(sai_2, rcc);
     assert!(audio::init_wm8994(&mut i2c_3).is_ok());
 
     lcd.clear_screen();
@@ -135,12 +137,12 @@ fn main(hw: Hardware) -> ! {
         // every 0.5 seconds
         if ticks - last_led_toggle >= 500 {
             // toggle the led
-            let led_current = led.current();
+            let led_current = led.get();
             led.set(!led_current);
             last_led_toggle = ticks;
         }
 
-        let button_pressed = button.read();
+        let button_pressed = button.get();
         if (button_pressed && !button_pressed_old) || ticks - last_color_change >= 1000 {
             // choose a new background color
             let new_color = ((system_clock::ticks() as u32).wrapping_mul(19801)) % 0x1000000;
@@ -149,18 +151,13 @@ fn main(hw: Hardware) -> ! {
         }
 
         // poll for new audio data
-        while !sai2.bsr.read().freq() {} // fifo_request_flag
-        let data0 = sai2.bdr.read().data();
-        while !sai2.bsr.read().freq() {} // fifo_request_flag
-        let data1 = sai2.bdr.read().data();
+        while !sai_2.bsr.read().freq() {} // fifo_request_flag
+        let data0 = sai_2.bdr.read().data();
+        while !sai_2.bsr.read().freq() {} // fifo_request_flag
+        let data1 = sai_2.bdr.read().data();
 
         lcd.set_next_col(data0, data1);
 
         button_pressed_old = button_pressed;
     }
-}
-
-#[lang = "panic_fmt"]
-extern "C" fn panic_fmt(_: core::fmt::Arguments, _: &'static str, _: u32) -> ! {
-    loop {}
 }
