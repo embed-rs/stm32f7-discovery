@@ -3,8 +3,8 @@
 pub use self::color::Color;
 pub use self::init::init;
 
-use svd_board::ltdc::Ltdc;
-use gpio::{self, GpioWrite};
+use board::ltdc::Ltdc;
+use embedded::interfaces::gpio::OutputPin;
 use core::ptr;
 
 mod init;
@@ -12,8 +12,8 @@ mod color;
 
 pub struct Lcd {
     controller: &'static mut Ltdc,
-    display_enable: GpioWrite<gpio::Pin12>,
-    backlight_enable: GpioWrite<gpio::Pin3>,
+    display_enable: OutputPin,
+    backlight_enable: OutputPin,
     next_pixel: u32,
     next_col: u32,
     prev_value: (u32, u32),

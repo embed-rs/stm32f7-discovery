@@ -10,9 +10,12 @@ r0 = "0.1.0"
 rlibc = "1.0.0"
 volatile = "0.2.0"
 
-[dependencies.svd_board]
-version = "0.3.0"
-features = ["stm32f7"]
+[dependencies.embedded_stm32f7]
+git = "https://github.com/embed-rs/embedded_stm32f7.git"
+
+[dependencies.embedded]
+branch = "rewrite"
+git = "https://github.com/embed-rs/embedded-rs.git"
 
 [[bin]]
 name = "novemb-rs-stm32f7"

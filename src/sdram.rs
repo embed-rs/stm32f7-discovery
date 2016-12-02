@@ -1,9 +1,9 @@
-use svd_board::rcc::Rcc;
-use svd_board::fmc::Fmc;
+use board::rcc::Rcc;
+use board::fmc::Fmc;
 use system_clock;
-use gpio::{self, GpioController};
+use embedded::interfaces::gpio::Gpio;
 
-pub fn init(rcc: &mut Rcc, fmc: &mut Fmc, gpio: &mut GpioController) {
+pub fn init(rcc: &mut Rcc, fmc: &mut Fmc, gpio: &mut Gpio) {
     config_pins(gpio);
 
     // Enable FMC clock
@@ -78,91 +78,60 @@ pub fn init(rcc: &mut Rcc, fmc: &mut Fmc, gpio: &mut GpioController) {
     }
 }
 
-fn config_pins(gpio: &mut GpioController) {
-    let t = gpio::Type::PushPull;
-    let s = gpio::Speed::High;
-    let a = gpio::AlternateFunction::AF12;
-    let r = gpio::Resistor::PullUp;
+fn config_pins(gpio: &mut Gpio) {
+    use embedded::interfaces::gpio::{OutputType, OutputSpeed, AlternateFunction, Resistor};
+    use embedded::interfaces::gpio::Port::*;
+    use embedded::interfaces::gpio::Pin::*;
 
-    let sdclk = gpio.pins.g.8.take().unwrap();
-    let sdcke0 = gpio.pins.c.3.take().unwrap();
-    let sdcke1 = gpio.pins.b.5.take().unwrap();
-    let sdne0 = gpio.pins.h.3.take().unwrap();
-    let sdne1 = gpio.pins.h.6.take().unwrap();
-    let a0 = gpio.pins.f.0.take().unwrap();
-    let a1 = gpio.pins.f.1.take().unwrap();
-    let a2 = gpio.pins.f.2.take().unwrap();
-    let a3 = gpio.pins.f.3.take().unwrap();
-    let a4 = gpio.pins.f.4.take().unwrap();
-    let a5 = gpio.pins.f.5.take().unwrap();
-    let a6 = gpio.pins.f.12.take().unwrap();
-    let a7 = gpio.pins.f.13.take().unwrap();
-    let a8 = gpio.pins.f.14.take().unwrap();
-    let a9 = gpio.pins.f.15.take().unwrap();
-    let a10 = gpio.pins.g.0.take().unwrap();
-    let a11 = gpio.pins.g.1.take().unwrap();
-    let a12 = gpio.pins.g.2.take().unwrap();
-    let d0 = gpio.pins.d.14.take().unwrap();
-    let d1 = gpio.pins.d.15.take().unwrap();
-    let d2 = gpio.pins.d.0.take().unwrap();
-    let d3 = gpio.pins.d.1.take().unwrap();
-    let d4 = gpio.pins.e.7.take().unwrap();
-    let d5 = gpio.pins.e.8.take().unwrap();
-    let d6 = gpio.pins.e.9.take().unwrap();
-    let d7 = gpio.pins.e.10.take().unwrap();
-    let d8 = gpio.pins.e.11.take().unwrap();
-    let d9 = gpio.pins.e.12.take().unwrap();
-    let d10 = gpio.pins.e.13.take().unwrap();
-    let d11 = gpio.pins.e.14.take().unwrap();
-    let d12 = gpio.pins.e.15.take().unwrap();
-    let d13 = gpio.pins.d.8.take().unwrap();
-    let d14 = gpio.pins.d.9.take().unwrap();
-    let d15 = gpio.pins.d.10.take().unwrap();
-    let ba0 = gpio.pins.g.4.take().unwrap();
-    let ba1 = gpio.pins.g.5.take().unwrap();
-    let nras = gpio.pins.f.11.take().unwrap();
-    let ncas = gpio.pins.g.15.take().unwrap();
-    let sdnwe = gpio.pins.h.5.take().unwrap();
+    let sdclk = (PortG, Pin8);
+    let sdcke0 = (PortC, Pin3);
+    let sdcke1 = (PortB, Pin5);
+    let sdne0 = (PortH, Pin3);
+    let sdne1 = (PortH, Pin6);
+    let a0 = (PortF, Pin0);
+    let a1 = (PortF, Pin1);
+    let a2 = (PortF, Pin2);
+    let a3 = (PortF, Pin3);
+    let a4 = (PortF, Pin4);
+    let a5 = (PortF, Pin5);
+    let a6 = (PortF, Pin12);
+    let a7 = (PortF, Pin13);
+    let a8 = (PortF, Pin14);
+    let a9 = (PortF, Pin15);
+    let a10 = (PortG, Pin0);
+    let a11 = (PortG, Pin1);
+    let a12 = (PortG, Pin2);
+    let d0 = (PortD, Pin14);
+    let d1 = (PortD, Pin15);
+    let d2 = (PortD, Pin0);
+    let d3 = (PortD, Pin1);
+    let d4 = (PortE, Pin7);
+    let d5 = (PortE, Pin8);
+    let d6 = (PortE, Pin9);
+    let d7 = (PortE, Pin10);
+    let d8 = (PortE, Pin11);
+    let d9 = (PortE, Pin12);
+    let d10 = (PortE, Pin13);
+    let d11 = (PortE, Pin14);
+    let d12 = (PortE, Pin15);
+    let d13 = (PortD, Pin8);
+    let d14 = (PortD, Pin9);
+    let d15 = (PortD, Pin10);
+    let ba0 = (PortG, Pin4);
+    let ba1 = (PortG, Pin5);
+    let nras = (PortF, Pin11);
+    let ncas = (PortG, Pin15);
+    let sdnwe = (PortH, Pin5);
 
-    gpio.to_alternate_function(sdclk, t, s, a, r);
-    gpio.to_alternate_function(sdcke0, t, s, a, r);
-    gpio.to_alternate_function(sdcke1, t, s, a, r);
-    gpio.to_alternate_function(sdne0, t, s, a, r);
-    gpio.to_alternate_function(sdne1, t, s, a, r);
-    gpio.to_alternate_function(a0, t, s, a, r);
-    gpio.to_alternate_function(a1, t, s, a, r);
-    gpio.to_alternate_function(a2, t, s, a, r);
-    gpio.to_alternate_function(a3, t, s, a, r);
-    gpio.to_alternate_function(a4, t, s, a, r);
-    gpio.to_alternate_function(a5, t, s, a, r);
-    gpio.to_alternate_function(a6, t, s, a, r);
-    gpio.to_alternate_function(a7, t, s, a, r);
-    gpio.to_alternate_function(a8, t, s, a, r);
-    gpio.to_alternate_function(a9, t, s, a, r);
-    gpio.to_alternate_function(a10, t, s, a, r);
-    gpio.to_alternate_function(a11, t, s, a, r);
-    gpio.to_alternate_function(a12, t, s, a, r);
-    gpio.to_alternate_function(d0, t, s, a, r);
-    gpio.to_alternate_function(d1, t, s, a, r);
-    gpio.to_alternate_function(d2, t, s, a, r);
-    gpio.to_alternate_function(d3, t, s, a, r);
-    gpio.to_alternate_function(d4, t, s, a, r);
-    gpio.to_alternate_function(d5, t, s, a, r);
-    gpio.to_alternate_function(d6, t, s, a, r);
-    gpio.to_alternate_function(d7, t, s, a, r);
-    gpio.to_alternate_function(d8, t, s, a, r);
-    gpio.to_alternate_function(d9, t, s, a, r);
-    gpio.to_alternate_function(d10, t, s, a, r);
-    gpio.to_alternate_function(d11, t, s, a, r);
-    gpio.to_alternate_function(d12, t, s, a, r);
-    gpio.to_alternate_function(d13, t, s, a, r);
-    gpio.to_alternate_function(d14, t, s, a, r);
-    gpio.to_alternate_function(d15, t, s, a, r);
-    gpio.to_alternate_function(ba0, t, s, a, r);
-    gpio.to_alternate_function(ba1, t, s, a, r);
-    gpio.to_alternate_function(nras, t, s, a, r);
-    gpio.to_alternate_function(ncas, t, s, a, r);
-    gpio.to_alternate_function(sdnwe, t, s, a, r);
+    let pins = [sdclk, sdcke0, sdcke1, sdne0, sdne1, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10,
+                a11, a12, d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d15,
+                ba0, ba1, nras, ncas, sdnwe];
+    gpio.to_alternate_function_all(&pins,
+                                   AlternateFunction::AF12,
+                                   OutputType::PushPull,
+                                   OutputSpeed::High,
+                                   Resistor::PullUp)
+        .unwrap();
 }
 
 #[allow(dead_code)]

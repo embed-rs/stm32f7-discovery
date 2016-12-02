@@ -1,9 +1,9 @@
-use svd_board::rcc::Rcc;
-use svd_board::ltdc::Ltdc;
-use gpio::{self, GpioController, GpioWrite};
+use board::rcc::Rcc;
+use board::ltdc::Ltdc;
+use embedded::interfaces::gpio::{Gpio, OutputPin};
 use super::Lcd;
 
-pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut GpioController) -> Lcd {
+pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
     // init gpio pins
     let (mut display_enable, mut backlight_enable) = init_pins(gpio);
 
@@ -197,90 +197,95 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut GpioController) -
     }
 }
 
-pub fn init_pins(gpio: &mut GpioController) -> (GpioWrite<gpio::Pin12>, GpioWrite<gpio::Pin3>) {
-    use gpio::{Type, Speed, AlternateFunction, Resistor};
+pub fn init_pins(gpio: &mut Gpio) -> (OutputPin, OutputPin) {
+    use embedded::interfaces::gpio::Port::*;
+    use embedded::interfaces::gpio::Pin::*;
+    use embedded::interfaces::gpio::{OutputType, OutputSpeed, AlternateFunction, Resistor};
 
     // Red
-    let r0 = gpio.pins.i.15.take().unwrap();
-    let r1 = gpio.pins.j.0.take().unwrap();
-    let r2 = gpio.pins.j.1.take().unwrap();
-    let r3 = gpio.pins.j.2.take().unwrap();
-    let r4 = gpio.pins.j.3.take().unwrap();
-    let r5 = gpio.pins.j.4.take().unwrap();
-    let r6 = gpio.pins.j.5.take().unwrap();
-    let r7 = gpio.pins.j.6.take().unwrap();
+    let r0 = (PortI, Pin15);
+    let r1 = (PortJ, Pin0);
+    let r2 = (PortJ, Pin1);
+    let r3 = (PortJ, Pin2);
+    let r4 = (PortJ, Pin3);
+    let r5 = (PortJ, Pin4);
+    let r6 = (PortJ, Pin5);
+    let r7 = (PortJ, Pin6);
 
     // Green
-    let g0 = gpio.pins.j.7.take().unwrap();
-    let g1 = gpio.pins.j.8.take().unwrap();
-    let g2 = gpio.pins.j.9.take().unwrap();
-    let g3 = gpio.pins.j.10.take().unwrap();
-    let g4 = gpio.pins.j.11.take().unwrap();
-    let g5 = gpio.pins.k.0.take().unwrap();
-    let g6 = gpio.pins.k.1.take().unwrap();
-    let g7 = gpio.pins.k.2.take().unwrap();
+    let g0 = (PortJ, Pin7);
+    let g1 = (PortJ, Pin8);
+    let g2 = (PortJ, Pin9);
+    let g3 = (PortJ, Pin10);
+    let g4 = (PortJ, Pin11);
+    let g5 = (PortK, Pin0);
+    let g6 = (PortK, Pin1);
+    let g7 = (PortK, Pin2);
 
     // Blue
-    let b0 = gpio.pins.e.4.take().unwrap();
-    let b1 = gpio.pins.j.13.take().unwrap();
-    let b2 = gpio.pins.j.14.take().unwrap();
-    let b3 = gpio.pins.j.15.take().unwrap();
-    let b4 = gpio.pins.g.12.take().unwrap();
-    let b5 = gpio.pins.k.4.take().unwrap();
-    let b6 = gpio.pins.k.5.take().unwrap();
-    let b7 = gpio.pins.k.6.take().unwrap();
+    let b0 = (PortE, Pin4);
+    let b1 = (PortJ, Pin13);
+    let b2 = (PortJ, Pin14);
+    let b3 = (PortJ, Pin15);
+    let b4 = (PortG, Pin12);
+    let b5 = (PortK, Pin4);
+    let b6 = (PortK, Pin5);
+    let b7 = (PortK, Pin6);
 
-    let clk = gpio.pins.i.14.take().unwrap();
-    let data_enable = gpio.pins.k.7.take().unwrap();
-    let hsync = gpio.pins.i.10.take().unwrap();
-    let vsync = gpio.pins.i.9.take().unwrap();
+    let clk = (PortI, Pin14);
+    let data_enable = (PortK, Pin7);
+    let hsync = (PortI, Pin10);
+    let vsync = (PortI, Pin9);
 
-    let t = Type::PushPull;
-    let s = Speed::High;
-    let a = AlternateFunction::AF14;
-    let r = Resistor::NoPull;
-
-    gpio.to_alternate_function(r0, t, s, a, r);
-    gpio.to_alternate_function(r1, t, s, a, r);
-    gpio.to_alternate_function(r2, t, s, a, r);
-    gpio.to_alternate_function(r3, t, s, a, r);
-    gpio.to_alternate_function(r4, t, s, a, r);
-    gpio.to_alternate_function(r5, t, s, a, r);
-    gpio.to_alternate_function(r6, t, s, a, r);
-    gpio.to_alternate_function(r7, t, s, a, r);
-    gpio.to_alternate_function(g0, t, s, a, r);
-    gpio.to_alternate_function(g1, t, s, a, r);
-    gpio.to_alternate_function(g2, t, s, a, r);
-    gpio.to_alternate_function(g3, t, s, a, r);
-    gpio.to_alternate_function(g4, t, s, a, r);
-    gpio.to_alternate_function(g5, t, s, a, r);
-    gpio.to_alternate_function(g6, t, s, a, r);
-    gpio.to_alternate_function(g7, t, s, a, r);
-    gpio.to_alternate_function(b0, t, s, a, r);
-    gpio.to_alternate_function(b1, t, s, a, r);
-    gpio.to_alternate_function(b2, t, s, a, r);
-    gpio.to_alternate_function(b3, t, s, a, r);
-    gpio.to_alternate_function(b4, t, s, a, r);
-    gpio.to_alternate_function(b5, t, s, a, r);
-    gpio.to_alternate_function(b6, t, s, a, r);
-    gpio.to_alternate_function(b7, t, s, a, r);
-    gpio.to_alternate_function(clk, t, s, a, r);
-    gpio.to_alternate_function(data_enable, t, s, a, r);
-    gpio.to_alternate_function(hsync, t, s, a, r);
-    gpio.to_alternate_function(vsync, t, s, a, r);
+    let pins = [r0,
+                r1,
+                r2,
+                r3,
+                r4,
+                r5,
+                r6,
+                r7,
+                g0,
+                g1,
+                g2,
+                g3,
+                g4,
+                g5,
+                g6,
+                g7,
+                b0,
+                b1,
+                b2,
+                b3,
+                b4,
+                b5,
+                b6,
+                b7,
+                clk,
+                data_enable,
+                hsync,
+                vsync];
+    gpio.to_alternate_function_all(&pins,
+                                   AlternateFunction::AF14,
+                                   OutputType::PushPull,
+                                   OutputSpeed::High,
+                                   Resistor::NoPull)
+        .unwrap();
 
     // Display control
-    let display_enable_pin = gpio.pins.i.12.take().unwrap();
-    let backlight_pin = gpio.pins.k.3.take().unwrap();
+    let display_enable_pin = (PortI, Pin12);
+    let backlight_pin = (PortK, Pin3);
 
     let display_enable = gpio.to_output(display_enable_pin,
-                                        Type::PushPull,
-                                        Speed::Low,
-                                        Resistor::PullDown);
+                   OutputType::PushPull,
+                   OutputSpeed::Low,
+                   Resistor::PullDown)
+        .unwrap();
     let backlight = gpio.to_output(backlight_pin,
-                                   Type::PushPull,
-                                   Speed::Low,
-                                   Resistor::PullDown);
+                   OutputType::PushPull,
+                   OutputSpeed::Low,
+                   Resistor::PullDown)
+        .unwrap();
 
     (display_enable, backlight)
 

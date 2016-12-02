@@ -1,12 +1,12 @@
 #![allow(dead_code)]
 
-use svd_board::rcc::Rcc;
-use svd_board::i2c1::{self, I2c1};
-use gpio::{self, GpioController};
+use board::rcc::Rcc;
+use board::i2c;
+use embedded::interfaces::gpio::Gpio;
 use core::marker::PhantomData;
 use core::iter::TrustedLen;
 
-pub struct I2C(&'static mut I2c1);
+pub struct I2C(&'static mut i2c::I2c);
 
 #[derive(Debug)]
 pub enum Error {
@@ -22,7 +22,11 @@ impl Address {
     }
 }
 
-pub fn init_pins_and_clocks(rcc: &mut Rcc, gpio: &mut GpioController) {
+pub fn init_pins_and_clocks(rcc: &mut Rcc, gpio: &mut Gpio) {
+    use embedded::interfaces::gpio::{OutputType, OutputSpeed, AlternateFunction, Resistor};
+    use embedded::interfaces::gpio::Port::*;
+    use embedded::interfaces::gpio::Pin::*;
+
     // enable clocks
     rcc.apb1enr.update(|r| {
         r.set_i2c1en(true);
@@ -31,31 +35,25 @@ pub fn init_pins_and_clocks(rcc: &mut Rcc, gpio: &mut GpioController) {
         r.set_i2c4en(true);
     });
 
-    let i2c1_scl = gpio.pins.b.8.take().unwrap();
-    let i2c1_sda = gpio.pins.b.9.take().unwrap();
-    let i2c2_scl = gpio.pins.b.10.take().unwrap();
-    let i2c2_sda = gpio.pins.b.11.take().unwrap();
-    let i2c3_scl = gpio.pins.h.7.take().unwrap();
-    let i2c3_sda = gpio.pins.h.8.take().unwrap();
-    let i2c4_scl = gpio.pins.h.11.take().unwrap();
-    let i2c4_sda = gpio.pins.d.13.take().unwrap();
+    let i2c1_scl = (PortB, Pin8);
+    let i2c1_sda = (PortB, Pin9);
+    let i2c2_scl = (PortB, Pin10);
+    let i2c2_sda = (PortB, Pin11);
+    let i2c3_scl = (PortH, Pin7);
+    let i2c3_sda = (PortH, Pin8);
+    let i2c4_scl = (PortH, Pin11);
+    let i2c4_sda = (PortD, Pin13);
 
-    let t = gpio::Type::OpenDrain;
-    let s = gpio::Speed::Medium;
-    let a = gpio::AlternateFunction::AF4;
-    let r = gpio::Resistor::PullUp;
-
-    gpio.to_alternate_function(i2c1_scl, t, s, a, r);
-    gpio.to_alternate_function(i2c1_sda, t, s, a, r);
-    gpio.to_alternate_function(i2c2_scl, t, s, a, r);
-    gpio.to_alternate_function(i2c2_sda, t, s, a, r);
-    gpio.to_alternate_function(i2c3_scl, t, s, a, r);
-    gpio.to_alternate_function(i2c3_sda, t, s, a, r);
-    gpio.to_alternate_function(i2c4_scl, t, s, a, r);
-    gpio.to_alternate_function(i2c4_sda, t, s, a, r);
+    let pins = [i2c1_scl, i2c1_sda, i2c2_scl, i2c2_sda, i2c3_scl, i2c3_sda, i2c4_scl, i2c4_sda];
+    gpio.to_alternate_function_all(&pins,
+                                   AlternateFunction::AF4,
+                                   OutputType::OpenDrain,
+                                   OutputSpeed::Medium,
+                                   Resistor::PullUp)
+        .unwrap();
 }
 
-pub fn init(i2c: &'static mut I2c1) -> I2C {
+pub fn init(i2c: &'static mut i2c::I2c) -> I2C {
     // disable I2C peripheral
     i2c.cr1.update(|r| r.set_pe(false)); // peripheral_enable
 
@@ -97,8 +95,8 @@ pub fn init(i2c: &'static mut I2c1) -> I2C {
     I2C(i2c)
 }
 
-fn icr_clear_all() -> i2c1::Icr {
-    let mut clear_all = i2c1::Icr::default();
+fn icr_clear_all() -> i2c::Icr {
+    let mut clear_all = i2c::Icr::default();
     clear_all.set_alertcf(true); // alert clear flag
     clear_all.set_timoutcf(true); // timeout detection clear flag
     clear_all.set_peccf(true); // PEC error clear flag
@@ -118,16 +116,20 @@ pub struct I2cConnection<'a, T: RegisterType> {
 }
 
 pub trait RegisterType: Sized {
-    fn write<'a, F: for<'b> FnOnce(&'b [u8]) -> Result<(), Error>>(&self, f: F) -> Result<(), Error>;
-    fn read<'a, F: for<'b> FnOnce(&'b mut [u8]) -> Result<(), Error>>(f: F) -> Result<Self, Error>;
+    fn write<F>(&self, f: F) -> Result<(), Error> where F: FnOnce(&[u8]) -> Result<(), Error>;
+    fn read<F>(f: F) -> Result<Self, Error> where F: FnOnce(&mut [u8]) -> Result<(), Error>;
 }
 
 impl RegisterType for u8 {
-    fn write<'a, F: for<'b> FnOnce(&'b [u8]) -> Result<(), Error>>(&self, f: F) -> Result<(), Error> {
+    fn write<F>(&self, f: F) -> Result<(), Error>
+        where F: FnOnce(&[u8]) -> Result<(), Error>
+    {
         f(&[*self])
     }
 
-    fn read<'a, F: for<'b> FnOnce(&'b mut [u8]) -> Result<(), Error>>(f: F) -> Result<Self, Error> {
+    fn read<F>(f: F) -> Result<Self, Error>
+        where F: FnOnce(&mut [u8]) -> Result<(), Error>
+    {
         let mut buf = [0];
         f(&mut buf)?;
         Ok(buf[0])
@@ -135,11 +137,15 @@ impl RegisterType for u8 {
 }
 
 impl RegisterType for u16 {
-    fn write<'a, F: for<'b> FnOnce(&'b [u8]) -> Result<(), Error>>(&self, f: F) -> Result<(), Error> {
+    fn write<F>(&self, f: F) -> Result<(), Error>
+        where F: FnOnce(&[u8]) -> Result<(), Error>
+    {
         f(&[(*self >> 8) as u8, *self as u8])
     }
 
-    fn read<'a, F: for<'b> FnOnce(&'b mut [u8]) -> Result<(), Error>>(f: F) -> Result<Self, Error> {
+    fn read<F>(f: F) -> Result<Self, Error>
+        where F: FnOnce(&mut [u8]) -> Result<(), Error>
+    {
         let mut buf = [0, 0];
         f(&mut buf)?;
         Ok((buf[0] as u16) << 8 | buf[1] as u16)
@@ -148,7 +154,7 @@ impl RegisterType for u16 {
 
 impl<'a, T: RegisterType> I2cConnection<'a, T> {
     fn start(&mut self, read: bool, bytes: u8) {
-        let mut cr2 = i2c1::Cr2::default();
+        let mut cr2 = i2c::Cr2::default();
         cr2.set_sadd(self.device_address.0); // slave_address
         cr2.set_start(true); // start_generation
         cr2.set_rd_wrn(read); // read_transfer
@@ -157,9 +163,13 @@ impl<'a, T: RegisterType> I2cConnection<'a, T> {
         self.i2c.0.cr2.write(cr2);
     }
 
-    fn write_bytes<ITER: Iterator<Item = u8> + TrustedLen>(&mut self, bytes: ITER) -> Result<(), Error> {
+    fn write_bytes<ITER>(&mut self, bytes: ITER) -> Result<(), Error>
+        where ITER: Iterator<Item = u8> + TrustedLen
+    {
         assert!(bytes.size_hint().1.is_some());
-        assert_eq!(bytes.size_hint().0 as u8 as usize, bytes.size_hint().0, "transfers > 255 bytes are not implemented yet");
+        assert_eq!(bytes.size_hint().0 as u8 as usize,
+                   bytes.size_hint().0,
+                   "transfers > 255 bytes are not implemented yet");
         self.start(false, bytes.size_hint().0 as u8);
 
         for b in bytes {
@@ -177,9 +187,13 @@ impl<'a, T: RegisterType> I2cConnection<'a, T> {
         Ok(())
     }
 
-    fn read_bytes<'b, ITER: Iterator<Item = &'b mut u8> + TrustedLen>(&mut self, buffer: ITER) -> Result<(), Error> {
+    fn read_bytes<'b, ITER>(&mut self, buffer: ITER) -> Result<(), Error>
+        where ITER: Iterator<Item = &'b mut u8> + TrustedLen
+    {
         assert!(buffer.size_hint().1.is_some());
-        assert_eq!(buffer.size_hint().0 as u8 as usize, buffer.size_hint().0, "transfers > 255 bytes are not implemented yet");
+        assert_eq!(buffer.size_hint().0 as u8 as usize,
+                   buffer.size_hint().0,
+                   "transfers > 255 bytes are not implemented yet");
         self.start(true, buffer.size_hint().0 as u8);
 
         // read data from receive data register
@@ -228,14 +242,10 @@ impl<'a, T: RegisterType> I2cConnection<'a, T> {
 }
 
 impl I2C {
-    pub fn connect<
-        T: RegisterType,
-        F: for<'a> FnOnce(I2cConnection<'a, T>) -> Result<(), Error>
-    >(
-        &mut self,
-        device_address: Address,
-        f: F,
-    ) -> Result<(), Error> {
+    pub fn connect<T, F>(&mut self, device_address: Address, f: F) -> Result<(), Error>
+        where T: RegisterType,
+              F: FnOnce(I2cConnection<T>) -> Result<(), Error>
+    {
         {
             let conn = I2cConnection {
                 i2c: self,
