@@ -119,7 +119,7 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
 
     // specify constant alpha value
     ltdc.l1cacr.update(|r| r.set_consta(200)); // constant_alpha
-    ltdc.l2cacr.update(|r| r.set_consta(50)); // constant_alpha
+    ltdc.l2cacr.update(|r| r.set_consta(150)); // constant_alpha
 
     // specify blending factors
     ltdc.l1bfcr.update(|r| {
