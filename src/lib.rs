@@ -15,6 +15,7 @@ extern crate embedded;
 extern crate cortex_m;
 // volatile wrapper types
 extern crate volatile;
+extern crate arrayvec;
 
 pub mod exceptions;
 pub mod interrupts;
@@ -23,3 +24,4 @@ pub mod sdram;
 pub mod lcd;
 pub mod i2c;
 pub mod audio;
+pub mod touch;
