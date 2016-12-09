@@ -12,7 +12,7 @@ extern crate embedded;
 // initialization routines for .data and .bss
 extern crate r0;
 
-use stm32f7::{system_clock, sdram, lcd, i2c, audio};
+use stm32f7::{system_clock, sdram, lcd, i2c, audio, touch};
 
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
@@ -128,6 +128,8 @@ fn main(hw: board::Hardware) -> ! {
 
     lcd.clear_screen();
 
+    touch::check_family_id(&mut i2c_3).unwrap();
+
     let mut last_led_toggle = system_clock::ticks();
     let mut last_color_change = system_clock::ticks();
     let mut button_pressed_old = false;
@@ -157,6 +159,11 @@ fn main(hw: board::Hardware) -> ! {
         let data1 = sai_2.bdr.read().data();
 
         lcd.set_next_col(data0, data1);
+
+        // poll for new touch data
+        for touch in &touch::touches(&mut i2c_3).unwrap() {
+            lcd.print_point_at(touch.x, touch.y);
+        }
 
         button_pressed_old = button_pressed;
     }
