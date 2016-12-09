@@ -3,6 +3,8 @@
 use svd_board::rcc::Rcc;
 use svd_board::i2c1::{self, I2c1};
 use gpio::{self, GpioController};
+use core::marker::PhantomData;
+use core::iter::TrustedLen;
 
 pub struct I2C(&'static mut I2c1);
 
@@ -77,7 +79,7 @@ pub fn init(i2c: &'static mut I2c1) -> I2C {
     // configure cr2
     i2c.cr2.update(|r| {
         r.set_add10(false); // 10_bit_addressing mode
-        r.set_autoend(true); // automatic_end_mode
+        r.set_autoend(false); // automatic_end_mode
     });
 
     // configure oar2
@@ -109,112 +111,150 @@ fn icr_clear_all() -> i2c1::Icr {
     clear_all
 }
 
-impl I2C {
-    pub fn read(&mut self, device_address: Address, register_address: u16) -> Result<u16, Error> {
-        // clear status flags
-        let clear_all = icr_clear_all();
-        self.0.icr.write(clear_all);
+pub struct I2cConnection<'a, T: RegisterType> {
+    i2c: &'a mut I2C,
+    device_address: Address,
+    register_type: PhantomData<T>,
+}
 
-        // flush transmit data register
-        self.0.isr.update(|r| r.set_txe(true)); // flush_txdr
+pub trait RegisterType: Sized {
+    fn write<'a, F: for<'b> FnOnce(&'b [u8]) -> Result<(), Error>>(&self, f: F) -> Result<(), Error>;
+    fn read<'a, F: for<'b> FnOnce(&'b mut [u8]) -> Result<(), Error>>(f: F) -> Result<Self, Error>;
+}
 
-        // send register address (2 bytes)
-        let mut cr2 = i2c1::Cr2::default();
-        cr2.set_sadd(device_address.0); // slave_address
-        cr2.set_start(true); // start_generation
-        cr2.set_rd_wrn(false); // read_transfer
-        cr2.set_nbytes(2); // number_of_bytes
-        cr2.set_autoend(false); // automatic_end_mode
-        self.0.cr2.write(cr2);
-
-        // write high address byte to transmit data register
-        try!(self.wait_for_txis());
-        self.0.txdr.update(|r| r.set_txdata((register_address >> 8) as u8)); // transmit_data
-
-        // write low address byte to transmit data register
-        try!(self.wait_for_txis());
-        self.0.txdr.update(|r| r.set_txdata(register_address as u8)); // transmit_data
-
-        try!(self.wait_for_transfer_complete());
-
-        // clear status flags
-        self.0.icr.write(clear_all);
-
-        // receive 2 data bytes
-        self.0.cr2.update(|r| {
-            r.set_sadd(device_address.0); // slave_address
-            r.set_start(true); // start_generation
-            r.set_rd_wrn(true); // read_transfer
-            r.set_nbytes(2); // number_of_bytes
-            r.set_autoend(true); // automatic_end_mode
-        });
-
-        // read data from receive data register
-        try!(self.wait_for_rxne());
-        let data_high = self.0.rxdr.read().rxdata(); // receive_data
-
-        // read data from receive data register
-        try!(self.wait_for_rxne());
-        let data_low = self.0.rxdr.read().rxdata(); // receive_data
-
-        try!(self.wait_for_stop());
-
-        // clear status flags
-        self.0.icr.write(clear_all);
-
-        // reset cr2
-        self.0.cr2.write(Default::default());
-
-        Ok((data_high as u16) << 8 | data_low as u16)
+impl RegisterType for u8 {
+    fn write<'a, F: for<'b> FnOnce(&'b [u8]) -> Result<(), Error>>(&self, f: F) -> Result<(), Error> {
+        f(&[*self])
     }
 
-    pub fn write(&mut self,
-                 device_address: Address,
-                 register_address: u16,
-                 value: u16)
-                 -> Result<(), Error> {
+    fn read<'a, F: for<'b> FnOnce(&'b mut [u8]) -> Result<(), Error>>(f: F) -> Result<Self, Error> {
+        let mut buf = [0];
+        f(&mut buf)?;
+        Ok(buf[0])
+    }
+}
 
-        // clear status flags
-        let clear_all = icr_clear_all();
-        self.0.icr.write(clear_all);
+impl RegisterType for u16 {
+    fn write<'a, F: for<'b> FnOnce(&'b [u8]) -> Result<(), Error>>(&self, f: F) -> Result<(), Error> {
+        f(&[(*self >> 8) as u8, *self as u8])
+    }
 
-        // flush transmit data register
-        self.0.isr.update(|r| r.set_txe(true)); // flush_txdr
+    fn read<'a, F: for<'b> FnOnce(&'b mut [u8]) -> Result<(), Error>>(f: F) -> Result<Self, Error> {
+        let mut buf = [0, 0];
+        f(&mut buf)?;
+        Ok((buf[0] as u16) << 8 | buf[1] as u16)
+    }
+}
 
-        // send register address and data (4 bytes)
+impl<'a, T: RegisterType> I2cConnection<'a, T> {
+    fn start(&mut self, read: bool, bytes: u8) {
         let mut cr2 = i2c1::Cr2::default();
-        cr2.set_sadd(device_address.0); // slave_address
+        cr2.set_sadd(self.device_address.0); // slave_address
         cr2.set_start(true); // start_generation
-        cr2.set_rd_wrn(false); // read_transfer
-        cr2.set_nbytes(4); // number_of_bytes
-        cr2.set_autoend(true); // automatic_end_mode
-        self.0.cr2.write(cr2);
+        cr2.set_rd_wrn(read); // read_transfer
+        cr2.set_nbytes(bytes); // number_of_bytes
+        cr2.set_autoend(false); // automatic_end_mode
+        self.i2c.0.cr2.write(cr2);
+    }
 
-        // write high address byte to transmit data register
-        try!(self.wait_for_txis());
-        self.0.txdr.update(|r| r.set_txdata((register_address >> 8) as u8)); // transmit_data
+    fn write_bytes<ITER: Iterator<Item = u8> + TrustedLen>(&mut self, bytes: ITER) -> Result<(), Error> {
+        assert!(bytes.size_hint().1.is_some());
+        assert_eq!(bytes.size_hint().0 as u8 as usize, bytes.size_hint().0, "transfers > 255 bytes are not implemented yet");
+        self.start(false, bytes.size_hint().0 as u8);
 
-        // write low address byte to transmit data register
-        try!(self.wait_for_txis());
-        self.0.txdr.update(|r| r.set_txdata(register_address as u8)); // transmit_data
+        for b in bytes {
+            self.i2c.wait_for_txis()?;
+            self.i2c.0.txdr.update(|r| r.set_txdata(b)); // transmit_data
+        }
 
-        // write high value byte to transmit data register
-        try!(self.wait_for_txis());
-        self.0.txdr.update(|r| r.set_txdata((value >> 8) as u8)); // transmit_data
+        self.i2c.wait_for_transfer_complete()?;
 
-        // write low value byte to transmit data register
-        try!(self.wait_for_txis());
-        self.0.txdr.update(|r| r.set_txdata(value as u8)); // transmit_data
+        self.clear_status_flags();
 
-        try!(self.wait_for_stop());
+        // reset cr2
+        self.i2c.0.cr2.write(Default::default());
 
-        // clear status flags
-        self.0.icr.write(clear_all);
+        Ok(())
+    }
+
+    fn read_bytes<'b, ITER: Iterator<Item = &'b mut u8> + TrustedLen>(&mut self, buffer: ITER) -> Result<(), Error> {
+        assert!(buffer.size_hint().1.is_some());
+        assert_eq!(buffer.size_hint().0 as u8 as usize, buffer.size_hint().0, "transfers > 255 bytes are not implemented yet");
+        self.start(true, buffer.size_hint().0 as u8);
+
+        // read data from receive data register
+        for b in buffer {
+            self.i2c.wait_for_rxne()?;
+            *b = self.i2c.0.rxdr.read().rxdata(); // receive_data
+        }
+
+        self.i2c.wait_for_transfer_complete()?;
+
+        self.clear_status_flags();
+
+        // reset cr2
+        self.i2c.0.cr2.write(Default::default());
+
+        Ok(())
+    }
+
+    fn pre(&mut self) {
+        self.clear_status_flags();
+        // flush transmit data register
+        self.i2c.0.isr.update(|r| r.set_txe(true)); // flush_txdr
+    }
+
+    fn clear_status_flags(&mut self) {
+        let clear_all = icr_clear_all();
+        self.i2c.0.icr.write(clear_all);
+    }
+
+    pub fn read(&mut self, register_address: T) -> Result<T, Error> {
+        self.pre();
+
+        register_address.write(|addr_bytes| self.write_bytes(addr_bytes.iter().cloned()))?;
+
+        T::read(|val_bytes| self.read_bytes(val_bytes.iter_mut()))
+    }
+
+    pub fn write(&mut self, register_address: T, value: T) -> Result<(), Error> {
+        self.pre();
+        register_address.write(|addr_bytes| {
+            value.write(|val_bytes| {
+                self.write_bytes(addr_bytes.iter().cloned().chain(val_bytes.iter().cloned()))
+            })
+        })
+    }
+}
+
+impl I2C {
+    pub fn connect<
+        T: RegisterType,
+        F: for<'a> FnOnce(I2cConnection<'a, T>) -> Result<(), Error>
+    >(
+        &mut self,
+        device_address: Address,
+        f: F,
+    ) -> Result<(), Error> {
+        {
+            let conn = I2cConnection {
+                i2c: self,
+                device_address: device_address,
+                register_type: PhantomData,
+            };
+            f(conn)?;
+        }
+        self.stop()
+    }
+
+
+    pub fn stop(&mut self) -> Result<(), Error> {
+        self.0.cr2.update(|r| r.set_stop(true));
 
         // reset cr2
         self.0.cr2.write(Default::default());
 
-        Ok(())
+        self.wait_for_stop()
     }
 
     pub fn update<F>(&mut self,
@@ -224,9 +264,11 @@ impl I2C {
                      -> Result<(), Error>
         where F: FnOnce(&mut u16)
     {
-        let mut value = try!(self.read(device_address, register_address));
-        f(&mut value);
-        self.write(device_address, register_address, value)
+        self.connect(device_address, |mut conn| {
+            let mut value = conn.read(register_address)?;
+            f(&mut value);
+            conn.write(register_address, value)
+        })
     }
 
     /// Wait for “transmit interrupt status” flag

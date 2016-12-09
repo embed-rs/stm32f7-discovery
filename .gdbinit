@@ -12,3 +12,9 @@ end
 define lr
     load-reset
 end
+
+define lrc
+    load
+    reset
+    continue
+end
