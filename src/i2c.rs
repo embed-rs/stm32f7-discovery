@@ -187,7 +187,7 @@ impl<'a, T: RegisterType> I2cConnection<'a, T> {
         Ok(())
     }
 
-    fn read_bytes<'b, ITER>(&mut self, buffer: ITER) -> Result<(), Error>
+    fn read_bytes_raw<'b, ITER>(&mut self, buffer: ITER) -> Result<(), Error>
         where ITER: Iterator<Item = &'b mut u8> + TrustedLen
     {
         assert!(buffer.size_hint().1.is_some());
@@ -228,7 +228,15 @@ impl<'a, T: RegisterType> I2cConnection<'a, T> {
 
         register_address.write(|addr_bytes| self.write_bytes(addr_bytes.iter().cloned()))?;
 
-        T::read(|val_bytes| self.read_bytes(val_bytes.iter_mut()))
+        T::read(|val_bytes| self.read_bytes_raw(val_bytes.iter_mut()))
+    }
+
+    pub fn read_bytes(&mut self, register_address: T, bytes: &mut [u8]) -> Result<(), Error> {
+        self.pre();
+
+        register_address.write(|addr_bytes| self.write_bytes(addr_bytes.iter().cloned()))?;
+
+        self.read_bytes_raw(bytes.iter_mut())
     }
 
     pub fn write(&mut self, register_address: T, value: T) -> Result<(), Error> {
