@@ -16,6 +16,7 @@ extern crate cortex_m;
 // volatile wrapper types
 extern crate volatile;
 extern crate arrayvec;
+extern crate bit_field;
 
 pub mod exceptions;
 pub mod interrupts;
