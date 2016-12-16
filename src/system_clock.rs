@@ -52,7 +52,7 @@ pub fn init(rcc: &mut Rcc, pwr: &mut Pwr, flash: &mut Flash) {
     rcc.pllcfgr.update(|r| {
         r.set_pllsrc(true); // HSE
         r.set_pllm(25);
-        r.set_plln(432); // 400 for 200 MHz, 432 for 216 MHz
+        r.set_plln(432); // 400 for 200 MHz, 432 for 216 MHz(don't forget to update `get_frequency`)
         r.set_pllp(2);
         r.set_pllq(9); // 8 for 200 MHz, 9 for 216 MHz
     });
@@ -102,4 +102,8 @@ pub fn init(rcc: &mut Rcc, pwr: &mut Pwr, flash: &mut Flash) {
     systick.csr.write(0b111); // CLKSOURCE | TICKINT | ENABLE
 
     reset_ticks();
+}
+
+pub fn get_frequency() -> u32 {
+    216_000_000 // 216 MHz
 }

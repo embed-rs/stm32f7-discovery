@@ -26,3 +26,4 @@ pub mod lcd;
 pub mod i2c;
 pub mod audio;
 pub mod touch;
+pub mod ethernet;
