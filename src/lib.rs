@@ -36,3 +36,12 @@ pub mod ethernet;
 pub mod heap;
 #[macro_use]
 pub mod semi_hosting;
+
+#[cfg(not(test))]
+#[lang = "panic_fmt"]
+#[no_mangle]
+pub extern "C" fn panic_fmt(fmt: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
+    println_err!("\nPANIC in {} at line {}:", file, line);
+    println_err!("    {}", fmt);
+    loop {}
+}
