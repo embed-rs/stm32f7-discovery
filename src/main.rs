@@ -1,5 +1,6 @@
 #![feature(lang_items)]
 #![feature(const_fn)]
+#![feature(alloc, collections)]
 
 #![no_std]
 #![no_main]
@@ -11,6 +12,9 @@ extern crate embedded_stm32f7 as board;
 extern crate embedded;
 // initialization routines for .data and .bss
 extern crate r0;
+extern crate alloc;
+#[macro_use]
+extern crate collections;
 
 use stm32f7::{system_clock, sdram, lcd, i2c, audio, touch};
 
@@ -37,11 +41,17 @@ pub unsafe extern "C" fn reset() -> ! {
     // zeroes the .bss section
     r0::zero_bss(bss_start, bss_end);
 
+    stm32f7::heap::init();
+
     main(board::hw());
 }
 
 fn main(hw: board::Hardware) -> ! {
     use embedded::interfaces::gpio::{self, Gpio};
+
+    let x = vec![1, 2, 3, 4, 5];
+    assert_eq!(x.len(), 5);
+    assert_eq!(x[3], 4);
 
     let board::Hardware { rcc,
                           pwr,

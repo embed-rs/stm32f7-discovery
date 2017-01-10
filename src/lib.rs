@@ -1,6 +1,7 @@
 #![feature(lang_items)]
 #![feature(const_fn)]
 #![feature(trusted_len)]
+#![feature(alloc, collections)]
 
 #![no_std]
 
@@ -15,6 +16,10 @@ extern crate embedded;
 extern crate cortex_m;
 // volatile wrapper types
 extern crate volatile;
+// allocator
+extern crate alloc_cortex_m;
+extern crate alloc;
+extern crate collections;
 extern crate arrayvec;
 extern crate bit_field;
 
@@ -27,3 +32,4 @@ pub mod i2c;
 pub mod audio;
 pub mod touch;
 pub mod ethernet;
+pub mod heap;
