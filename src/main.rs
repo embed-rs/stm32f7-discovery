@@ -5,6 +5,7 @@
 #![no_std]
 #![no_main]
 
+#[macro_use]
 extern crate novemb_rs_stm32f7 as stm32f7;
 
 // hardware register structs with accessor methods
@@ -48,6 +49,8 @@ pub unsafe extern "C" fn reset() -> ! {
 
 fn main(hw: board::Hardware) -> ! {
     use embedded::interfaces::gpio::{self, Gpio};
+
+    println!("Entering main");
 
     let x = vec![1, 2, 3, 4, 5];
     assert_eq!(x.len(), 5);

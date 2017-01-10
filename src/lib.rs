@@ -1,6 +1,7 @@
 #![feature(lang_items)]
 #![feature(const_fn)]
 #![feature(trusted_len)]
+#![feature(asm)]
 #![feature(alloc, collections)]
 
 #![no_std]
@@ -33,3 +34,5 @@ pub mod audio;
 pub mod touch;
 pub mod ethernet;
 pub mod heap;
+#[macro_use]
+pub mod semi_hosting;
