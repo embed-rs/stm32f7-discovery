@@ -9,7 +9,7 @@ name = "novemb-rs-stm32f7"
 
 [dependencies]
 alloc-cortex-m = "0.2.1"
-bit_field = "0.6.0"
+bit_field = "0.7.0"
 compiler-builtins-snapshot = "0.0.20161008+c56faf22abb39724008148d58f12bcd43b6d236b"
 cortex-m = "0.1.4"
 r0 = "0.1.0"

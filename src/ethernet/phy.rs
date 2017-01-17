@@ -67,7 +67,7 @@ pub fn init(ethernet_mac: &mut EthernetMac) -> Result<AutoNegotiationResult, Err
     let ssr = phy_read(ethernet_mac, LAN8742A_PHY_ADDRESS, SPECIAL_STATUS_REG);
     // auto-negotiation done bit should be set
     assert!(ssr.get_bit(12));
-    let (duplex, speed) = match ssr.get_range(2..5) {
+    let (duplex, speed) = match ssr.get_bits(2..5) {
         0b001 => (false, Speed::Speed10M), // 10BASE-T half-duplex
         0b101 => (true, Speed::Speed10M), // 10BASE-T full-duplex
         0b010 => (false, Speed::Speed100M), // 100BASE-TX half-duplex

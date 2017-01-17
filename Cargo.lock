@@ -4,7 +4,7 @@ version = "0.1.0"
 dependencies = [
  "alloc-cortex-m 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "arrayvec 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)",
- "bit_field 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bit_field 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "compiler-builtins-snapshot 0.0.20161008+c56faf22abb39724008148d58f12bcd43b6d236b (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "embedded 0.3.0 (git+https://github.com/embed-rs/embedded-rs.git)",
@@ -41,6 +41,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "bit_field"
 version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "bit_field"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -156,6 +161,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum arrayvec 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)" = "d89f1b0e242270b5b797778af0c8d182a1a2ccac5d8d6fadf414223cc0fab096"
 "checksum bit_field 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8c7f2626c064227bf8d383b35223f8ac9b7d33a7999f7bd9a5b5e491583061f6"
 "checksum bit_field 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2f2608c2dbf1057804d86937a32731a17458a60b10e83ad91c1c35c36e522f5d"
+"checksum bit_field 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ff91a64014e1bc53bf643920f2c9ab5f0980d92a0948295f3ee550e9266849ad"
 "checksum bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "aad18937a628ec6abcd26d1489012cc0e18c21798210f491af69ded9b881106d"
 "checksum compiler-builtins-snapshot 0.0.20161008+c56faf22abb39724008148d58f12bcd43b6d236b (registry+https://github.com/rust-lang/crates.io-index)" = "ca81a7af7dcd70e798e34f9928e22c35204059493ffe3cda46a2f0c797209cf6"
 "checksum compiler_builtins 0.1.0 (git+https://github.com/japaric/compiler-builtins)" = "<none>"
