@@ -17,7 +17,7 @@ extern crate alloc;
 #[macro_use]
 extern crate collections;
 
-use stm32f7::{system_clock, sdram, lcd, i2c, audio, touch};
+use stm32f7::{system_clock, sdram, lcd, i2c, audio, touch, ethernet};
 
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
@@ -74,6 +74,9 @@ fn main(hw: board::Hardware) -> ! {
                           gpio_k,
                           i2c_3,
                           sai_2,
+                          syscfg,
+                          ethernet_mac,
+                          ethernet_dma,
                           .. } = hw;
 
     let mut gpio = Gpio::new(gpio_a,
@@ -138,6 +141,10 @@ fn main(hw: board::Hardware) -> ! {
     audio::init_sai_2_pins(&mut gpio);
     audio::init_sai_2(sai_2, rcc);
     assert!(audio::init_wm8994(&mut i2c_3).is_ok());
+
+    // ethernet
+    ethernet::init(rcc, syscfg, &mut gpio, ethernet_mac, ethernet_dma)
+        .expect("ethernet init failed");
 
     lcd.clear_screen();
 
