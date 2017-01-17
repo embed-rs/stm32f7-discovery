@@ -58,7 +58,9 @@ SECTIONS
       *(.ARM.exidx*)
     }
 
+    __HEAP_START = .;
+    . += 20K;
+    __HEAP_END = .;
+
     __STACK_START = ORIGIN(RAM) + LENGTH(RAM);
-    __HEAP_START = ORIGIN(RAM);
-    __HEAP_END = ORIGIN(RAM) + 20K;
 }
