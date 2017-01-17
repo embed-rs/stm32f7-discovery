@@ -25,6 +25,8 @@ extern crate arrayvec;
 extern crate bit_field;
 extern crate spin;
 
+#[macro_use]
+pub mod semi_hosting;
 pub mod exceptions;
 pub mod interrupts;
 pub mod system_clock;
@@ -35,8 +37,6 @@ pub mod audio;
 pub mod touch;
 pub mod ethernet;
 pub mod heap;
-#[macro_use]
-pub mod semi_hosting;
 
 #[cfg(not(test))]
 #[lang = "panic_fmt"]
