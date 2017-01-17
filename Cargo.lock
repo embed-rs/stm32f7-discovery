@@ -12,7 +12,7 @@ dependencies = [
  "r0 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlibc 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "spin 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "volatile 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "volatile 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -84,7 +84,7 @@ dependencies = [
  "bit_field 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "compiler_builtins 0.1.0 (git+https://github.com/japaric/compiler-builtins)",
- "volatile 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "volatile 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -95,7 +95,7 @@ dependencies = [
  "bit_field 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "embedded 0.3.0 (git+https://github.com/embed-rs/embedded-rs.git)",
  "once 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "volatile 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "volatile 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -148,7 +148,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "volatile"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -177,5 +177,5 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum rlibc 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fc874b127765f014d792f16763a81245ab80500e2ad921ed4ee9e82481ee08fe"
 "checksum rustc-cfg 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "56a596b5718bf5e059d59a30af12f7f462a152de147aa462b70892849ee18704"
 "checksum spin 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)" = "1d16a26e2b789f86aabddbe91cb82ee2e822beb8a59840d631941b625ef77e53"
-"checksum volatile 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "a7ce286110f2585da4cb753affdc8b6addbab52d0e104442649237451c53cf92"
+"checksum volatile 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1ad41258d7814f441cdab10ceb7faa58a81db5a99098a8c46bd876f8a6010f9c"
 "checksum volatile-register 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a470889aa8f2d3ad893bd43cd90c824e63e8ac0ee5fe64c5d81a932d184fd549"
