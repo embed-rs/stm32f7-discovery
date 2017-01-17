@@ -10,6 +10,7 @@ const SPECIAL_STATUS_REG: u8 = 31; // special status register
 
 const PHY_RESET: u16 = 1 << 15;
 const AUTONEGOTIATION_ENABLE: u16 = 1 << 12;
+const AUTONEGOTIATION_RESTART: u16 = 1 << 9;
 
 const TIMEOUT: usize = 5_000;
 
@@ -53,22 +54,25 @@ pub fn init(ethernet_mac: &mut EthernetMac) -> Result<AutoNegotiationResult, Err
     phy_write(ethernet_mac,
               LAN8742A_PHY_ADDRESS,
               BASIC_CONTROL_REG,
-              AUTONEGOTIATION_ENABLE);
+              AUTONEGOTIATION_ENABLE | AUTONEGOTIATION_RESTART);
+
     // wait until auto-negotiation complete bit is set
     let ticks = system_clock::ticks();
-    while phy_read(ethernet_mac, LAN8742A_PHY_ADDRESS, BASIC_STATUS_REG).get_bit(5) {
+    while !phy_read(ethernet_mac, LAN8742A_PHY_ADDRESS, BASIC_STATUS_REG).get_bit(5) {
         if system_clock::ticks() - ticks > TIMEOUT {
             return Err(Error::AutoNegotiationTimeout); // timeout
         }
     }
 
     let ssr = phy_read(ethernet_mac, LAN8742A_PHY_ADDRESS, SPECIAL_STATUS_REG);
+    // auto-negotiation done bit should be set
+    assert!(ssr.get_bit(12));
     let (duplex, speed) = match ssr.get_range(2..5) {
         0b001 => (false, Speed::Speed10M), // 10BASE-T half-duplex
         0b101 => (true, Speed::Speed10M), // 10BASE-T full-duplex
         0b010 => (false, Speed::Speed100M), // 100BASE-TX half-duplex
         0b110 => (true, Speed::Speed100M), // 100BASE-TX full-duplex
-        _ => unreachable!("invalid auto-negotiation value"),
+        other => unreachable!("invalid auto-negotiation value: {:#b}", other),
     };
     Ok(AutoNegotiationResult {
         duplex: duplex,
