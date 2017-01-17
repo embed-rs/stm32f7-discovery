@@ -2,15 +2,26 @@
 name = "novemb-rs-stm32f7"
 version = "0.1.0"
 dependencies = [
+ "alloc-cortex-m 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "arrayvec 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)",
- "bit_field 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bit_field 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "compiler-builtins-snapshot 0.0.20161008+c56faf22abb39724008148d58f12bcd43b6d236b (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "embedded 0.2.0 (git+https://github.com/embed-rs/embedded-rs.git?branch=rewrite)",
+ "embedded 0.3.0 (git+https://github.com/embed-rs/embedded-rs.git)",
  "embedded_stm32f7 0.1.0 (git+https://github.com/embed-rs/embedded_stm32f7.git)",
  "r0 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlibc 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "volatile 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spin 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "volatile 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "alloc-cortex-m"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "cortex-m 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "linked_list_allocator 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -29,7 +40,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "bit_field"
-version = "0.6.0"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -45,10 +56,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "compiler_builtins"
 version = "0.1.0"
-source = "git+https://github.com/japaric/compiler-builtins#8bb7795459945a75827d7d075f64d085d99a9745"
+source = "git+https://github.com/japaric/compiler-builtins#2d64b2df584f1086315db21af7c5ddc6450f6bce"
 dependencies = [
- "gcc 0.3.39 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc-cfg 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gcc 0.3.41 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-cfg 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -61,30 +72,35 @@ dependencies = [
 
 [[package]]
 name = "embedded"
-version = "0.2.0"
-source = "git+https://github.com/embed-rs/embedded-rs.git?branch=rewrite#65a8c6aaf3dd7288720707c639bca1dcb31bf7ad"
+version = "0.3.0"
+source = "git+https://github.com/embed-rs/embedded-rs.git#2bacddb05c0f83cd0a13575d90b82efb928f163e"
 dependencies = [
  "arrayvec 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "bit_field 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "compiler_builtins 0.1.0 (git+https://github.com/japaric/compiler-builtins)",
- "volatile 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "volatile 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "embedded_stm32f7"
 version = "0.1.0"
-source = "git+https://github.com/embed-rs/embedded_stm32f7.git#76eaeec52b9beff7d803a328af11f75d839b33b2"
+source = "git+https://github.com/embed-rs/embedded_stm32f7.git#1b81819811592fd58b608129222233b461be3225"
 dependencies = [
- "bit_field 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "embedded 0.2.0 (git+https://github.com/embed-rs/embedded-rs.git?branch=rewrite)",
+ "bit_field 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "embedded 0.3.0 (git+https://github.com/embed-rs/embedded-rs.git)",
  "once 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "volatile 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "volatile 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "gcc"
-version = "0.3.39"
+version = "0.3.41"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "linked_list_allocator"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -117,12 +133,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "rustc-cfg"
-version = "0.2.0"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "spin"
+version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "volatile"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -131,21 +152,24 @@ version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [metadata]
+"checksum alloc-cortex-m 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "fb73e5e379a7600089a76c52bbd50b2b14934a406c1728be19cdb5b23635448f"
 "checksum arrayvec 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)" = "d89f1b0e242270b5b797778af0c8d182a1a2ccac5d8d6fadf414223cc0fab096"
 "checksum bit_field 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8c7f2626c064227bf8d383b35223f8ac9b7d33a7999f7bd9a5b5e491583061f6"
-"checksum bit_field 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "38cd044473d684f0faae8469c213a7c707c5ddabacf575fe91bd878ed3712ffa"
+"checksum bit_field 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2f2608c2dbf1057804d86937a32731a17458a60b10e83ad91c1c35c36e522f5d"
 "checksum bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "aad18937a628ec6abcd26d1489012cc0e18c21798210f491af69ded9b881106d"
 "checksum compiler-builtins-snapshot 0.0.20161008+c56faf22abb39724008148d58f12bcd43b6d236b (registry+https://github.com/rust-lang/crates.io-index)" = "ca81a7af7dcd70e798e34f9928e22c35204059493ffe3cda46a2f0c797209cf6"
 "checksum compiler_builtins 0.1.0 (git+https://github.com/japaric/compiler-builtins)" = "<none>"
 "checksum cortex-m 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "628106fa5619caf9cee1c7dc67ba76ed37d8ad50687f1bbdd486a8337045b6b1"
-"checksum embedded 0.2.0 (git+https://github.com/embed-rs/embedded-rs.git?branch=rewrite)" = "<none>"
+"checksum embedded 0.3.0 (git+https://github.com/embed-rs/embedded-rs.git)" = "<none>"
 "checksum embedded_stm32f7 0.1.0 (git+https://github.com/embed-rs/embedded_stm32f7.git)" = "<none>"
-"checksum gcc 0.3.39 (registry+https://github.com/rust-lang/crates.io-index)" = "771e4a97ff6f237cf0f7d5f5102f6e28bb9743814b6198d684da5c58b76c11e0"
+"checksum gcc 0.3.41 (registry+https://github.com/rust-lang/crates.io-index)" = "3689e1982a563af74960ae3a4758aa632bb8fd984cfc3cc3b60ee6109477ab6e"
+"checksum linked_list_allocator 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "3504327a5901bc4fb25ca095d67a6d3f48be4233dc08230f197b313736a13384"
 "checksum nodrop 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "0dbbadd3f4c98dea0bd3d9b4be4c0cdaf1ab57035cb2e41fce3983db5add7cc5"
 "checksum odds 0.2.25 (registry+https://github.com/rust-lang/crates.io-index)" = "c3df9b730298cea3a1c3faa90b7e2f9df3a9c400d0936d6015e6165734eefcba"
 "checksum once 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1ae5868dd493edd93941c182240a2c019dfe84c7d2de51d4659da32e58688ce9"
 "checksum r0 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1627d705506f5bf4c16126c4f85cd8c59d45c151f2aef890b45bdd4a91ca152f"
 "checksum rlibc 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fc874b127765f014d792f16763a81245ab80500e2ad921ed4ee9e82481ee08fe"
-"checksum rustc-cfg 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "37937dfed502ccc4e644c3cc272222e31adc2b1f5d215f6f8f8e1a422072e516"
-"checksum volatile 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "076d023557bb0ff1a39acd8c3836b15d99fcc75bf32450d26df328cf07d04dd7"
+"checksum rustc-cfg 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "56a596b5718bf5e059d59a30af12f7f462a152de147aa462b70892849ee18704"
+"checksum spin 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)" = "1d16a26e2b789f86aabddbe91cb82ee2e822beb8a59840d631941b625ef77e53"
+"checksum volatile 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "a7ce286110f2585da4cb753affdc8b6addbab52d0e104442649237451c53cf92"
 "checksum volatile-register 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a470889aa8f2d3ad893bd43cd90c824e63e8ac0ee5fe64c5d81a932d184fd549"
