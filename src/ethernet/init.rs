@@ -42,7 +42,7 @@ pub fn init(rcc: &mut Rcc,
         r.set_ethmacrxen(true); // ethernet mac reception clock enable
     });
 
-    // select MII mode
+    // select MII or RMII mode
     syscfg.pmc.update(|r| r.set_mii_rmii_sel(true)); // false = MII, true = RMII
 
     // ethernet software reset in DMA bus mode register
