@@ -23,6 +23,7 @@ extern crate alloc;
 extern crate collections;
 extern crate arrayvec;
 extern crate bit_field;
+extern crate spin;
 
 pub mod exceptions;
 pub mod interrupts;
