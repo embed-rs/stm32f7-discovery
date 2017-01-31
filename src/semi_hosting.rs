@@ -65,19 +65,30 @@ pub fn print(args: fmt::Arguments) {
     Stdout.write_fmt(args).unwrap();
 }
 
+static mut STDOUT_BUFFER: ([u8; 100], usize) = ([0; 100], 0);
+
 struct Stdout;
 
 impl fmt::Write for Stdout {
     fn write_str(&mut self, s: &str) -> ::core::fmt::Result {
-        svc_sys_write(1, s.as_bytes());
+        unsafe {
+            for &byte in s.as_bytes() {
+                STDOUT_BUFFER.0[STDOUT_BUFFER.1] = byte;
+                STDOUT_BUFFER.1 += 1;
+                if STDOUT_BUFFER.1 >= 100 || byte == b'\n' {
+                    svc_sys_write(1, &STDOUT_BUFFER.0[..STDOUT_BUFFER.1]);
+                    STDOUT_BUFFER.1 = 0;
+                }
+            }
+        }
         Ok(())
     }
 }
 
 #[macro_export]
 macro_rules! println_err {
-    ($fmt:expr) => (print!(concat!($fmt, "\n")));
-    ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
+    ($fmt:expr) => (print_err!(concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => (print_err!(concat!($fmt, "\n"), $($arg)*));
 }
 
 #[macro_export]
