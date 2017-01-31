@@ -1,5 +1,6 @@
 use bit_field::BitField;
 use core::convert::TryInto;
+use core::mem;
 use volatile::Volatile;
 
 #[derive(Debug, Clone, Copy)]
@@ -27,6 +28,12 @@ impl RxDescriptor {
         descriptor.set_own(true);
 
         descriptor
+    }
+
+    pub fn reset(&mut self) {
+        let buffer_start = self.buffer_1_address() as *const u8;
+        let buffer_size = self.buffer_1_size() as usize;
+        mem::replace(self, RxDescriptor::new(buffer_start, buffer_size));
     }
 
     pub fn set_next(&mut self, next: *const Volatile<Self>) {
