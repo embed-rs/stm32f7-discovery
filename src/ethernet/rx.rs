@@ -63,4 +63,16 @@ impl RxDescriptor {
     fn set_buffer_1_size(&mut self, size: u16) {
         self.word_1.set_bits(0..13, size.into());
     }
+
+    pub fn frame_len(&self) -> usize {
+        self.word_0.get_bits(16..30).try_into().unwrap()
+    }
+
+    pub fn is_last_descriptor(&self) -> bool {
+        self.word_0.get_bit(8)
+    }
+
+    pub fn error(&self) -> bool {
+        self.word_0.get_bit(14)
+    }
 }
