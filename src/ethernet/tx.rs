@@ -1,43 +1,7 @@
 use bit_field::BitField;
-use arrayvec::ArrayVec;
-use spin::Mutex;
-use volatile::Volatile;
-
-const NUMBER_OF_DESCRIPTORS: usize = 16;
-
-pub fn init_descriptors() {
-    let mut descriptors = ArrayVec::<[_; NUMBER_OF_DESCRIPTORS]>::new();
-    let tx_buffers = TX_BUFFERS.lock();
-
-    for buffer in tx_buffers.iter() {
-        let descriptor = TxDescriptor::new(buffer);
-        descriptors.push(descriptor);
-    }
-
-    // chain descriptors
-    {
-        let mut iter = descriptors.iter_mut().peekable();
-        while let Some(descriptor) = iter.next() {
-            if let Some(next) = iter.peek() {
-                descriptor.set_next(next);
-            }
-        }
-    }
-
-    let descriptors: ArrayVec<[_; NUMBER_OF_DESCRIPTORS]> =
-        descriptors.into_iter().map(|d| Volatile::new(d)).collect();
-}
-
-
-struct TxBuffer([u8; 0x100]);
-
-impl Clone for TxBuffer {
-    fn clone(&self) -> TxBuffer {
-        TxBuffer(self.0)
-    }
-}
-
-impl Copy for TxBuffer {}
+use alloc::boxed::Box;
+use core::convert::TryInto;
+use core::mem;
 
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
@@ -58,31 +22,37 @@ impl TxDescriptor {
         }
     }
 
-    pub fn new(buffer: &[u8]) -> TxDescriptor {
+    pub fn new(buffer: Box<[u8]>) -> TxDescriptor {
         let mut descriptor = TxDescriptor::empty();
         descriptor.set_buffer_1(buffer);
 
         descriptor
     }
 
-    fn set_next(&mut self, next: &TxDescriptor) {
-        self.word_3 = next as *const _ as u32;
+    fn set_next(&mut self, next: Box<TxDescriptor>) {
+        self.word_3 = (Box::into_raw(next) as usize).try_into().unwrap();
     }
 
     pub fn own(&self) -> bool {
         self.word_0.get_bit(31)
     }
 
-    fn set_buffer_1(&mut self, buffer: &[u8]) {
+    fn set_buffer_1(&mut self, buffer: Box<[u8]>) {
+        assert_eq!(self.buffer_1_address(), 0);
         self.set_buffer_1_address(buffer.as_ptr() as usize);
         self.set_buffer_1_size(buffer.len() as u16);
+        mem::forget(buffer);
+    }
+
+    fn buffer_1_address(&self) -> usize {
+        self.word_2.try_into().unwrap()
     }
 
     fn set_buffer_1_address(&mut self, buffer_address: usize) {
-        self.word_2 = buffer_address as u32;
+        self.word_2 = buffer_address.try_into().unwrap();
     }
 
     fn set_buffer_1_size(&mut self, size: u16) {
-        self.word_1.set_range(0..13, size.into());
+        self.word_1.set_bits(0..13, size.into());
     }
 }
