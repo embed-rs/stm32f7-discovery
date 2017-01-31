@@ -5,6 +5,7 @@ use board::{rcc, syscfg};
 use board::ethernet_dma::{self, EthernetDma};
 use board::ethernet_mac::EthernetMac;
 use embedded::interfaces::gpio;
+use smoltcp;
 use volatile::Volatile;
 
 mod init;
@@ -16,6 +17,7 @@ pub struct EthernetDevice {
     rx_config: RxConfig,
     rx_buffer: Box<[u8]>,
     rx_descriptors: Box<[Volatile<rx::RxDescriptor>]>,
+    rx_next_descriptor: usize,
 }
 
 impl EthernetDevice {
@@ -61,6 +63,7 @@ impl EthernetDevice {
             rx_config: rx_config,
             rx_buffer: rx_buffer,
             rx_descriptors: rx_descriptors,
+            rx_next_descriptor: 0,
         };
 
         let mut srl = ethernet_dma::Dmardlar::default();
@@ -71,43 +74,70 @@ impl EthernetDevice {
         Ok(eth_device)
     }
 
-    fn rx_packet_data(&self, descriptor_index: usize) -> Result<&[u8], ::smoltcp::Error> {
-        use core::convert::TryFrom;
+    fn rx_packet_data(&self, descriptor_index: usize) -> Result<&[u8], smoltcp::Error> {
         let descriptor = self.rx_descriptors[descriptor_index].read();
         if descriptor.own() {
-            Err(::smoltcp::Error::Exhausted)
+            Err(smoltcp::Error::Exhausted)
         } else {
-            let offset = self.rx_config.descriptor_buffer_offset(descriptor_index);
-            // TODO multiple descriptors
-            let len = usize::try_from(descriptor.buffer_1_size()).unwrap();
-            Ok(&self.rx_buffer[offset..(offset + len)])
+            let mut last_descriptor = descriptor;
+            let mut i = 0;
+            while !last_descriptor.is_last_descriptor() {
+                i += 1;
+                last_descriptor = self.rx_descriptors[descriptor_index + i].read();
+            }
+            if last_descriptor.error() {
+                Err(smoltcp::Error::Truncated)
+            } else {
+                let offset = self.rx_config.descriptor_buffer_offset(descriptor_index);
+                let len = last_descriptor.frame_len();
+                print!("len {}: ", len);
+                Ok(&self.rx_buffer[offset..(offset + len)])
+            }
         }
     }
 
-    pub fn dump_packet_data(&self) -> Result<(), ::smoltcp::Error> {
-        use smoltcp::wire::{EthernetFrame, EthernetProtocol};
-
-        for i in 0..self.rx_descriptors.len() {
-            let eth_frame = EthernetFrame::new(self.rx_packet_data(i)?)?;
-            match eth_frame.ethertype() {
-                EthernetProtocol::Arp => {
-                    use smoltcp::wire::{ArpPacket, ArpRepr};
-                    let arp_packet = ArpPacket::new(eth_frame.payload())?;
-                    let arp_repr = ArpRepr::parse(&arp_packet)?;
-                    println!("Arp: {:?}", arp_repr);
-                }
-                EthernetProtocol::Ipv4 => {
-                    use smoltcp::wire::{Ipv4Packet, Ipv4Repr};
-                    let ipv4_packet = Ipv4Packet::new(eth_frame.payload())?;
-                    let ipv4_repr = Ipv4Repr::parse(&ipv4_packet)?;
-
-                    println!("Ipv4: {:#?}", ipv4_repr);
-                }
-                _ => println!("{:?}", eth_frame.ethertype()),
+    fn receive<T, F>(&mut self, f: F) -> Result<T, smoltcp::Error>
+        where F: FnOnce(&[u8]) -> T
+    {
+        let ret = {
+            let data = self.rx_packet_data(self.rx_next_descriptor)?;
+            f(data)
+        };
+        loop {
+            let next = (self.rx_next_descriptor + 1) % self.rx_descriptors.len();
+            let descriptor = self.rx_descriptors[self.rx_next_descriptor].read();
+            self.rx_descriptors[self.rx_next_descriptor].update(|d| d.reset());
+            self.rx_next_descriptor = next;
+            if descriptor.is_last_descriptor() {
+                break;
             }
         }
+        Ok(ret)
+    }
 
-        Ok(())
+    pub fn dump_next_packet(&mut self) -> Result<(), smoltcp::Error> {
+        use smoltcp::wire::{EthernetFrame, EthernetProtocol};
+
+        self.receive(|data| -> Result<_, smoltcp::Error> {
+                let eth_frame = EthernetFrame::new(data)?;
+                match eth_frame.ethertype() {
+                    EthernetProtocol::Arp => {
+                        use smoltcp::wire::{ArpPacket, ArpRepr};
+                        let arp_packet = ArpPacket::new(eth_frame.payload())?;
+                        let arp_repr = ArpRepr::parse(&arp_packet)?;
+                        println!("Arp: {:?}", arp_repr);
+                    }
+                    EthernetProtocol::Ipv4 => {
+                        use smoltcp::wire::{Ipv4Packet, Ipv4Repr};
+                        let ipv4_packet = Ipv4Packet::new(eth_frame.payload())?;
+                        let ipv4_repr = Ipv4Repr::parse(&ipv4_packet)?;
+
+                        println!("Ipv4: {:?}", ipv4_repr);
+                    }
+                    _ => println!("{:?}", eth_frame.ethertype()),
+                }
+                Ok(())
+            })?
     }
 }
 
