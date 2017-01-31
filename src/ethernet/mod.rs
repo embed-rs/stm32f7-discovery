@@ -13,6 +13,8 @@ mod phy;
 mod rx;
 mod tx;
 
+const MTU: usize = 1536;
+
 pub struct EthernetDevice {
     rx_config: RxConfig,
     rx_buffer: Box<[u8]>,
@@ -169,11 +171,10 @@ impl RxConfig {
 
 impl Default for RxConfig {
     fn default() -> RxConfig {
-        let mtu = 1500;
-        let number_of_descriptors = 10;
+        let number_of_descriptors = 30;
         let default_descriptor_buffer_size = 0x100;
         RxConfig {
-            buffer_size: default_descriptor_buffer_size * (number_of_descriptors - 1) + mtu,
+            buffer_size: default_descriptor_buffer_size * (number_of_descriptors - 1) + MTU,
             number_of_descriptors: number_of_descriptors,
             default_descriptor_buffer_size: default_descriptor_buffer_size,
         }
