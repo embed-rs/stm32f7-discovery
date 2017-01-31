@@ -5,7 +5,6 @@ use board::ethernet_mac::EthernetMac;
 use embedded::interfaces::gpio::Gpio;
 use system_clock;
 use super::phy;
-// use self::tx::TxDescriptor;
 
 #[derive(Debug)]
 pub enum Error {
@@ -176,9 +175,22 @@ pub fn init(rcc: &mut Rcc,
         r.set_maca0l(0 << 24 | 0 << 16 | 0 << 8 | 2); // low register
     });
 
-    // tx::init_descriptors();
-
     Ok(())
+}
+
+pub fn start(ethernet_mac: &mut EthernetMac, ethernet_dma: &mut EthernetDma) {
+    // enable MAC transmission and reception
+    ethernet_mac.maccr.update(|r| {
+        r.set_te(true);
+        r.set_re(true);
+    });
+
+    // flush transmit FIFO and enable DMA transmission/reception
+    ethernet_dma.dmaomr.update(|r| {
+        r.set_ftf(true);
+        r.set_st(true);
+        r.set_sr(true);
+    });
 }
 
 pub fn init_pins(gpio: &mut Gpio) {
