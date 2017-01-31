@@ -5,6 +5,7 @@ define reset
 end
 
 define load-reset
+    reset
     load
     reset
 end
@@ -14,6 +15,7 @@ define lr
 end
 
 define lrc
+    reset
     load
     reset
     continue
