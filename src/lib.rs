@@ -3,6 +3,7 @@
 #![feature(trusted_len)]
 #![feature(asm)]
 #![feature(alloc, collections)]
+#![feature(try_from)]
 
 #![no_std]
 
@@ -18,6 +19,7 @@ extern crate volatile;
 // allocator
 extern crate alloc_cortex_m;
 extern crate alloc;
+#[macro_use]
 extern crate collections;
 extern crate arrayvec;
 extern crate bit_field;
