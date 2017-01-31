@@ -143,7 +143,12 @@ fn main(hw: board::Hardware) -> ! {
     assert!(audio::init_wm8994(&mut i2c_3).is_ok());
 
     // ethernet
-    ethernet::init(rcc, syscfg, &mut gpio, ethernet_mac, ethernet_dma)
+    let eth_device = ethernet::EthernetDevice::new(Default::default(),
+                                                   rcc,
+                                                   syscfg,
+                                                   &mut gpio,
+                                                   ethernet_mac,
+                                                   ethernet_dma)
         .expect("ethernet init failed");
 
     lcd.clear_screen();
@@ -170,6 +175,10 @@ fn main(hw: board::Hardware) -> ! {
             let new_color = ((system_clock::ticks() as u32).wrapping_mul(19801)) % 0x1000000;
             lcd.set_background_color(lcd::Color::from_hex(new_color));
             last_color_change = ticks;
+        }
+
+        if button_pressed && !button_pressed_old {
+            eth_device.dump_packet_data().unwrap();
         }
 
         // poll for new audio data
