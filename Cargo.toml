@@ -18,7 +18,6 @@ default-features = false
 git = "https://github.com/embed-rs/embedded_stm32f7.git"
 
 [dependencies.embedded]
-branch = "rewrite"
 git = "https://github.com/embed-rs/embedded-rs.git"
 
 [[bin]]
