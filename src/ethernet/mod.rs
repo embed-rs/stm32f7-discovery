@@ -135,22 +135,25 @@ impl RxDevice {
     fn packet_data(&self, descriptor_index: usize) -> Result<&[u8], Error> {
         let descriptor = self.descriptors[descriptor_index].read();
         if descriptor.own() {
-            Err(Error::Exhausted);
+            return Err(Error::Exhausted);
+        }
+
+        let mut last_descriptor = descriptor;
+        let mut i = 0;
+        while !last_descriptor.is_last_descriptor() {
+            i += 1;
+            assert!(descriptor_index + i < self.descriptors.len(),
+                    "last descriptor buffer too small"); // no wrap around
+            last_descriptor = self.descriptors[descriptor_index + i].read();
+        }
+        if last_descriptor.error() {
+            Err(Error::Truncated)
         } else {
-            let mut last_descriptor = descriptor;
-            let mut i = 0;
-            while !last_descriptor.is_last_descriptor() {
-                i += 1;
-                last_descriptor = self.descriptors[descriptor_index + i].read();
-            }
-            if last_descriptor.error() {
-                Err(smoltcp::Error::Truncated)
-            } else {
-                let offset = self.config.descriptor_buffer_offset(descriptor_index);
-                let len = last_descriptor.frame_len();
-                print!("len {}: ", len);
-                Ok(&self.buffer[offset..(offset + len)])
-            }
+            assert!(descriptor.is_first_descriptor());
+            let offset = self.config.descriptor_buffer_offset(descriptor_index);
+            let len = last_descriptor.frame_len();
+            print!("len {}: ", len);
+            Ok(&self.buffer[offset..(offset + len)])
         }
     }
 
