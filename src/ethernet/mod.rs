@@ -75,16 +75,16 @@ impl EthernetDevice {
                         use smoltcp::wire::{ArpPacket, ArpRepr};
                         let arp_packet = ArpPacket::new(eth_frame.payload())?;
                         let arp_repr = ArpRepr::parse(&arp_packet)?;
-                        println!("Arp: {:?}", arp_repr);
+                        // println!("Arp: {:?}", arp_repr);
                     }
                     EthernetProtocol::Ipv4 => {
                         use smoltcp::wire::{Ipv4Packet, Ipv4Repr};
                         let ipv4_packet = Ipv4Packet::new(eth_frame.payload())?;
                         let ipv4_repr = Ipv4Repr::parse(&ipv4_packet)?;
 
-                        println!("Ipv4: {:?}", ipv4_repr);
+                        // println!("Ipv4: {:?}", ipv4_repr);
                     }
-                    _ => println!("{:?}", eth_frame.ethertype()),
+                    _ => {} // println!("{:?}", eth_frame.ethertype()),
                 }
                 Ok(())
             })?
@@ -152,7 +152,7 @@ impl RxDevice {
             assert!(descriptor.is_first_descriptor());
             let offset = self.config.descriptor_buffer_offset(descriptor_index);
             let len = last_descriptor.frame_len();
-            print!("len {}: ", len);
+            // print!("len {}: ", len);
             Ok(&self.buffer[offset..(offset + len)])
         }
     }
