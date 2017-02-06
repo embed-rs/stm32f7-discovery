@@ -1,6 +1,5 @@
 use bit_field::BitField;
 use core::convert::TryInto;
-use core::mem;
 use volatile::Volatile;
 
 #[derive(Debug, Clone, Copy)]
@@ -35,6 +34,7 @@ impl RxDescriptor {
         self.set_own(true);
     }
 
+    #[allow(dead_code)]
     pub fn set_next(&mut self, next: *const Volatile<Self>) {
         self.word_3 = (next as usize).try_into().unwrap();
         self.word_1 |= 1 << 14; // RCH: Second address chained
@@ -64,10 +64,6 @@ impl RxDescriptor {
 
     fn set_buffer_1_address(&mut self, buffer_address: usize) {
         self.word_2 = buffer_address.try_into().unwrap();
-    }
-
-    pub fn buffer_1_size(&self) -> u16 {
-        self.word_1.get_bits(0..13) as u16
     }
 
     fn set_buffer_1_size(&mut self, size: usize) {
