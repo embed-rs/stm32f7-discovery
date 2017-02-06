@@ -117,35 +117,17 @@ impl RxDevice {
             let buffer_start = &buffer[buffer_offset];
             let buffer_size = config.descriptor_buffer_size(i);
 
-            let descriptor = RxDescriptor::new(buffer_start, buffer_size);
-            descriptors.push(Volatile::new(descriptor));
-        }
-
-        // convert Vec to boxed slice to ensure that no reallocations occur; this allows us
-        // to safely link the descriptors.
-        let mut descriptors = descriptors.into_boxed_slice();
-        link_descriptors(&mut descriptors);
-
-        fn link_descriptors(descriptors: &mut [Volatile<RxDescriptor>]) {
-            // link each descriptor to its successor
-            {
-                let mut iter = descriptors.iter_mut().peekable();
-                while let Some(descriptor) = iter.next() {
-                    if let Some(next) = iter.peek() {
-                        descriptor.update(|d| d.set_next(*next));
-                    }
-                }
+            let mut descriptor = RxDescriptor::new(buffer_start, buffer_size);
+            if i == descriptor_num - 1 {
+                descriptor.set_end_of_ring(true);
             }
-            // link last descriptor to first
-            let first: *const _ = &descriptors[0];
-            let last_index = descriptors.len() - 1;
-            descriptors[last_index].update(|d| d.set_next(first));
+            descriptors.push(Volatile::new(descriptor));
         }
 
         Ok(RxDevice {
             config: config,
             buffer: buffer,
-            descriptors: descriptors,
+            descriptors: descriptors.into_boxed_slice(),
             next_descriptor: 0,
         })
     }
