@@ -160,20 +160,28 @@ impl RxDevice {
     fn receive<T, F>(&mut self, f: F) -> Result<T, Error>
         where F: FnOnce(&[u8]) -> T
     {
-        let ret = {
-            let data = self.packet_data(self.next_descriptor)?;
-            f(data)
-        };
-        loop {
-            let next = (self.next_descriptor + 1) % self.descriptors.len();
-            let descriptor = self.descriptors[self.next_descriptor].read();
-            self.descriptors[self.next_descriptor].update(|d| d.reset());
-            self.next_descriptor = next;
-            if descriptor.is_last_descriptor() {
-                break;
+        let descriptor_index = self.next_descriptor;
+        let ret = self.packet_data(descriptor_index).map(|data| f(data));
+
+        if let Err(Error::Exhausted) = ret {
+            return ret;
+        }
+
+        // reset descriptor(s) and update next_descriptor
+        let mut next = (descriptor_index + 1) % self.descriptors.len();
+        if ret.is_ok() {
+            // handle subsequent descriptors if descriptor is not last_descriptor
+            let mut descriptor = self.descriptors[descriptor_index].read();
+            while !descriptor.is_last_descriptor() {
+                descriptor = self.descriptors[next].read();
+                self.descriptors[next].update(|d| d.reset());
+                next = (next + 1) % self.descriptors.len();
             }
         }
-        Ok(ret)
+        self.descriptors[descriptor_index].update(|d| d.reset());
+        self.next_descriptor = next;
+
+        ret
     }
 }
 
