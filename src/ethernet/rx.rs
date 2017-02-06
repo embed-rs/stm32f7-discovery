@@ -83,6 +83,10 @@ impl RxDescriptor {
         self.word_0.get_bit(8)
     }
 
+    pub fn is_first_descriptor(&self) -> bool {
+        self.word_0.get_bit(9)
+    }
+
     pub fn error(&self) -> bool {
         self.word_0.get_bit(14)
     }
