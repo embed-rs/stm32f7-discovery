@@ -80,7 +80,7 @@ pub fn init(rcc: &mut Rcc,
         // When set, this bit enables IPv4 checksum checking for received frame payloads'
         // TCP/UDP/ICMP headers. When this bit is reset, the checksum offload function in the
         // receiver is disabled.
-        r.set_ipco(true); // IPv4 checksum offload
+        r.set_ipco(false); // IPv4 checksum offload
 
         // When this bit is set, the MAC disables the watchdog timer on the receiver, and can
         // receive frames of up to 16 384 bytes. When this bit is reset, the MAC allows no more
@@ -155,7 +155,7 @@ pub fn init(rcc: &mut Rcc,
         r.set_fb(true); // fixed burst
         r.set_rdp(32); // Rx DMA Programmable burst length
         r.set_pbl(32); // TX DMA Programmable burst length
-        r.set_edfe(true); // Enhanced descriptor format enable
+        r.set_edfe(false); // Enhanced descriptor format enable
         r.set_dsl(0); // Descriptor skip length
         r.set_da(false); // DMA Arbitration (false = Round-robin with Rx:Tx priority given in `pm`)
         r.set_usp(true); // Use separate PBL

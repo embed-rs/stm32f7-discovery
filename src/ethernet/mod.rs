@@ -104,12 +104,19 @@ impl RxDevice {
         link_descriptors(&mut descriptors);
 
         fn link_descriptors(descriptors: &mut [Volatile<RxDescriptor>]) {
-            let mut iter = descriptors.iter_mut().peekable();
-            while let Some(descriptor) = iter.next() {
-                if let Some(next) = iter.peek() {
-                    descriptor.update(|d| d.set_next(*next));
+            // link each descriptor to its successor
+            {
+                let mut iter = descriptors.iter_mut().peekable();
+                while let Some(descriptor) = iter.next() {
+                    if let Some(next) = iter.peek() {
+                        descriptor.update(|d| d.set_next(*next));
+                    }
                 }
             }
+            // link last descriptor to first
+            let first: *const _ = &descriptors[0];
+            let last_index = descriptors.len() - 1;
+            descriptors[last_index].update(|d| d.set_next(first));
         }
 
         Ok(RxDevice {
