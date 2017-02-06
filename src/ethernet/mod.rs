@@ -31,6 +31,7 @@ const MTU: usize = 1536;
 
 pub struct EthernetDevice {
     rx: RxDevice,
+    ethernet_dma: &'static mut EthernetDma,
 }
 
 impl EthernetDevice {
@@ -51,13 +52,21 @@ impl EthernetDevice {
 
         init::start(ethernet_mac, ethernet_dma);
 
-        Ok(EthernetDevice { rx: rx_device })
+        Ok(EthernetDevice {
+            rx: rx_device,
+            ethernet_dma: ethernet_dma,
+        })
     }
 
     pub fn dump_next_packet(&mut self) -> Result<(), Error> {
         use smoltcp::wire::{EthernetFrame, EthernetProtocol};
 
-        let &mut EthernetDevice { ref mut rx } = self;
+        let missed_packets = self.ethernet_dma.dmamfbocr.read().mfc();
+        if missed_packets > 20 {
+            println!("missed packets: {}", missed_packets);
+        }
+
+        let &mut EthernetDevice { ref mut rx, .. } = self;
 
         rx.receive(|data| -> Result<_, Error> {
                 let eth_frame = EthernetFrame::new(data)?;
