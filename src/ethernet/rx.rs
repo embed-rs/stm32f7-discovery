@@ -40,6 +40,10 @@ impl RxDescriptor {
         self.word_1 |= 1 << 14; // RCH: Second address chained
     }
 
+    pub fn set_end_of_ring(&mut self, value: bool) {
+        self.word_1.set_bit(15, value);
+    }
+
     pub fn own(&self) -> bool {
         self.word_0.get_bit(31)
     }
