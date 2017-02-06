@@ -55,7 +55,7 @@ impl RxDescriptor {
     fn set_buffer_1(&mut self, buffer_start: *const u8, buffer_size: usize) {
         assert_eq!(self.buffer_1_address(), 0);
         self.set_buffer_1_address(buffer_start as usize);
-        self.set_buffer_1_size(buffer_size.try_into().unwrap());
+        self.set_buffer_1_size(buffer_size);
     }
 
     fn buffer_1_address(&self) -> usize {
@@ -70,8 +70,9 @@ impl RxDescriptor {
         self.word_1.get_bits(0..13) as u16
     }
 
-    fn set_buffer_1_size(&mut self, size: u16) {
-        self.word_1.set_bits(0..13, size.into());
+    fn set_buffer_1_size(&mut self, size: usize) {
+        let size = size.try_into().unwrap();
+        self.word_1.set_bits(0..13, size);
     }
 
     pub fn frame_len(&self) -> usize {
