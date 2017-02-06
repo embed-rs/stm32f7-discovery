@@ -128,8 +128,6 @@ fn main(hw: board::Hardware) -> ! {
 
     // lcd controller
     let mut lcd = lcd::init(ltdc, rcc, &mut gpio);
-    lcd.clear_screen();
-    lcd.test_pixels();
 
     // i2c
     i2c::init_pins_and_clocks(rcc, &mut gpio);
