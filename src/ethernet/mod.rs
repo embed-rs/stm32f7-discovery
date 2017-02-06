@@ -13,6 +13,20 @@ mod phy;
 mod rx;
 mod tx;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Error {
+    Exhausted,
+    Checksum,
+    Truncated,
+    Parsing(smoltcp::Error),
+}
+
+impl From<smoltcp::Error> for Error {
+    fn from(err: smoltcp::Error) -> Error {
+        Error::Parsing(err)
+    }
+}
+
 const MTU: usize = 1536;
 
 pub struct EthernetDevice {
@@ -40,12 +54,12 @@ impl EthernetDevice {
         Ok(EthernetDevice { rx: rx_device })
     }
 
-    pub fn dump_next_packet(&mut self) -> Result<(), smoltcp::Error> {
+    pub fn dump_next_packet(&mut self) -> Result<(), Error> {
         use smoltcp::wire::{EthernetFrame, EthernetProtocol};
 
         let &mut EthernetDevice { ref mut rx } = self;
 
-        rx.receive(|data| -> Result<_, smoltcp::Error> {
+        rx.receive(|data| -> Result<_, Error> {
                 let eth_frame = EthernetFrame::new(data)?;
                 match eth_frame.ethertype() {
                     EthernetProtocol::Arp => {
@@ -127,10 +141,10 @@ impl RxDevice {
         })
     }
 
-    fn packet_data(&self, descriptor_index: usize) -> Result<&[u8], smoltcp::Error> {
+    fn packet_data(&self, descriptor_index: usize) -> Result<&[u8], Error> {
         let descriptor = self.descriptors[descriptor_index].read();
         if descriptor.own() {
-            Err(smoltcp::Error::Exhausted)
+            Err(Error::Exhausted);
         } else {
             let mut last_descriptor = descriptor;
             let mut i = 0;
@@ -149,7 +163,7 @@ impl RxDevice {
         }
     }
 
-    fn receive<T, F>(&mut self, f: F) -> Result<T, smoltcp::Error>
+    fn receive<T, F>(&mut self, f: F) -> Result<T, Error>
         where F: FnOnce(&[u8]) -> T
     {
         let ret = {
