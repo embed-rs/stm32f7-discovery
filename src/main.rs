@@ -167,8 +167,6 @@ fn main(hw: board::Hardware) -> ! {
             let led_current = led.get();
             led.set(!led_current);
             last_led_toggle = ticks;
-
-            eth_device.dump_next_packet();
         }
 
         let button_pressed = button.get();
@@ -190,6 +188,17 @@ fn main(hw: board::Hardware) -> ! {
         // poll for new touch data
         for touch in &touch::touches(&mut i2c_3).unwrap() {
             lcd.print_point_at(touch.x, touch.y);
+        }
+
+        // handle new ethernet packets
+        loop {
+            if let Err(err) = eth_device.dump_next_packet() {
+                match err {
+                    stm32f7::ethernet::Error::Exhausted => {}
+                    e => println!("err {:#?}", e),
+                }
+                break;
+            }
         }
 
         button_pressed_old = button_pressed;
