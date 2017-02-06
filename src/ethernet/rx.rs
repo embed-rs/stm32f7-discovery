@@ -31,9 +31,8 @@ impl RxDescriptor {
     }
 
     pub fn reset(&mut self) {
-        let buffer_start = self.buffer_1_address() as *const u8;
-        let buffer_size = self.buffer_1_size() as usize;
-        mem::replace(self, RxDescriptor::new(buffer_start, buffer_size));
+        self.word_0 = 0;
+        self.set_own(true);
     }
 
     pub fn set_next(&mut self, next: *const Volatile<Self>) {
