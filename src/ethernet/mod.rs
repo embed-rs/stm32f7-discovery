@@ -16,10 +16,7 @@ mod tx;
 const MTU: usize = 1536;
 
 pub struct EthernetDevice {
-    rx_config: RxConfig,
-    rx_buffer: Box<[u8]>,
-    rx_descriptors: Box<[Volatile<rx::RxDescriptor>]>,
-    rx_next_descriptor: usize,
+    rx: RxDevice,
 }
 
 impl EthernetDevice {
@@ -30,97 +27,25 @@ impl EthernetDevice {
                ethernet_mac: &'static mut EthernetMac,
                ethernet_dma: &'static mut EthernetDma)
                -> Result<EthernetDevice, init::Error> {
-        use self::rx::RxDescriptor;
-
         init::init(rcc, syscfg, gpio, ethernet_mac, ethernet_dma)?;
 
-        let rx_buffer = vec![0; rx_config.buffer_size].into_boxed_slice();
-        let descriptor_num = rx_config.number_of_descriptors;
-        let mut rx_descriptors = Vec::with_capacity(descriptor_num);
-
-        for i in 0..descriptor_num {
-            let buffer_offset = rx_config.descriptor_buffer_offset(i);
-            let buffer_start = &rx_buffer[buffer_offset];
-            let buffer_size = rx_config.descriptor_buffer_size(i);
-
-            let descriptor = RxDescriptor::new(buffer_start, buffer_size);
-            rx_descriptors.push(Volatile::new(descriptor));
-        }
-
-        // convert Vec to boxed slice to ensure that no reallocations occur; this allows us
-        // to safely link the descriptors.
-        let mut rx_descriptors = rx_descriptors.into_boxed_slice();
-        link_descriptors(&mut rx_descriptors);
-
-        fn link_descriptors(descriptors: &mut [Volatile<RxDescriptor>]) {
-            let mut iter = descriptors.iter_mut().peekable();
-            while let Some(descriptor) = iter.next() {
-                if let Some(next) = iter.peek() {
-                    descriptor.update(|d| d.set_next(*next));
-                }
-            }
-        }
-
-        let eth_device = EthernetDevice {
-            rx_config: rx_config,
-            rx_buffer: rx_buffer,
-            rx_descriptors: rx_descriptors,
-            rx_next_descriptor: 0,
-        };
+        let rx_device = RxDevice::new(rx_config)?;
 
         let mut srl = ethernet_dma::Dmardlar::default();
-        srl.set_srl(&eth_device.rx_descriptors[0] as *const Volatile<_> as u32);
+        srl.set_srl(&rx_device.descriptors[0] as *const Volatile<_> as u32);
         ethernet_dma.dmardlar.write(srl);
 
         init::start(ethernet_mac, ethernet_dma);
-        Ok(eth_device)
-    }
 
-    fn rx_packet_data(&self, descriptor_index: usize) -> Result<&[u8], smoltcp::Error> {
-        let descriptor = self.rx_descriptors[descriptor_index].read();
-        if descriptor.own() {
-            Err(smoltcp::Error::Exhausted)
-        } else {
-            let mut last_descriptor = descriptor;
-            let mut i = 0;
-            while !last_descriptor.is_last_descriptor() {
-                i += 1;
-                last_descriptor = self.rx_descriptors[descriptor_index + i].read();
-            }
-            if last_descriptor.error() {
-                Err(smoltcp::Error::Truncated)
-            } else {
-                let offset = self.rx_config.descriptor_buffer_offset(descriptor_index);
-                let len = last_descriptor.frame_len();
-                print!("len {}: ", len);
-                Ok(&self.rx_buffer[offset..(offset + len)])
-            }
-        }
-    }
-
-    fn receive<T, F>(&mut self, f: F) -> Result<T, smoltcp::Error>
-        where F: FnOnce(&[u8]) -> T
-    {
-        let ret = {
-            let data = self.rx_packet_data(self.rx_next_descriptor)?;
-            f(data)
-        };
-        loop {
-            let next = (self.rx_next_descriptor + 1) % self.rx_descriptors.len();
-            let descriptor = self.rx_descriptors[self.rx_next_descriptor].read();
-            self.rx_descriptors[self.rx_next_descriptor].update(|d| d.reset());
-            self.rx_next_descriptor = next;
-            if descriptor.is_last_descriptor() {
-                break;
-            }
-        }
-        Ok(ret)
+        Ok(EthernetDevice { rx: rx_device })
     }
 
     pub fn dump_next_packet(&mut self) -> Result<(), smoltcp::Error> {
         use smoltcp::wire::{EthernetFrame, EthernetProtocol};
 
-        self.receive(|data| -> Result<_, smoltcp::Error> {
+        let &mut EthernetDevice { ref mut rx } = self;
+
+        rx.receive(|data| -> Result<_, smoltcp::Error> {
                 let eth_frame = EthernetFrame::new(data)?;
                 match eth_frame.ethertype() {
                     EthernetProtocol::Arp => {
@@ -149,11 +74,100 @@ impl Drop for EthernetDevice {
     }
 }
 
+struct RxDevice {
+    config: RxConfig,
+    buffer: Box<[u8]>,
+    descriptors: Box<[Volatile<rx::RxDescriptor>]>,
+    next_descriptor: usize,
+}
+
+impl RxDevice {
+    fn new(config: RxConfig) -> Result<RxDevice, init::Error> {
+        use self::rx::RxDescriptor;
+
+        let buffer = vec![0; config.buffer_size].into_boxed_slice();
+        let descriptor_num = config.number_of_descriptors;
+        let mut descriptors = Vec::with_capacity(descriptor_num);
+
+        for i in 0..descriptor_num {
+            let buffer_offset = config.descriptor_buffer_offset(i);
+            let buffer_start = &buffer[buffer_offset];
+            let buffer_size = config.descriptor_buffer_size(i);
+
+            let descriptor = RxDescriptor::new(buffer_start, buffer_size);
+            descriptors.push(Volatile::new(descriptor));
+        }
+
+        // convert Vec to boxed slice to ensure that no reallocations occur; this allows us
+        // to safely link the descriptors.
+        let mut descriptors = descriptors.into_boxed_slice();
+        link_descriptors(&mut descriptors);
+
+        fn link_descriptors(descriptors: &mut [Volatile<RxDescriptor>]) {
+            let mut iter = descriptors.iter_mut().peekable();
+            while let Some(descriptor) = iter.next() {
+                if let Some(next) = iter.peek() {
+                    descriptor.update(|d| d.set_next(*next));
+                }
+            }
+        }
+
+        Ok(RxDevice {
+            config: config,
+            buffer: buffer,
+            descriptors: descriptors,
+            next_descriptor: 0,
+        })
+    }
+
+    fn packet_data(&self, descriptor_index: usize) -> Result<&[u8], smoltcp::Error> {
+        let descriptor = self.descriptors[descriptor_index].read();
+        if descriptor.own() {
+            Err(smoltcp::Error::Exhausted)
+        } else {
+            let mut last_descriptor = descriptor;
+            let mut i = 0;
+            while !last_descriptor.is_last_descriptor() {
+                i += 1;
+                last_descriptor = self.descriptors[descriptor_index + i].read();
+            }
+            if last_descriptor.error() {
+                Err(smoltcp::Error::Truncated)
+            } else {
+                let offset = self.config.descriptor_buffer_offset(descriptor_index);
+                let len = last_descriptor.frame_len();
+                print!("len {}: ", len);
+                Ok(&self.buffer[offset..(offset + len)])
+            }
+        }
+    }
+
+    fn receive<T, F>(&mut self, f: F) -> Result<T, smoltcp::Error>
+        where F: FnOnce(&[u8]) -> T
+    {
+        let ret = {
+            let data = self.packet_data(self.next_descriptor)?;
+            f(data)
+        };
+        loop {
+            let next = (self.next_descriptor + 1) % self.descriptors.len();
+            let descriptor = self.descriptors[self.next_descriptor].read();
+            self.descriptors[self.next_descriptor].update(|d| d.reset());
+            self.next_descriptor = next;
+            if descriptor.is_last_descriptor() {
+                break;
+            }
+        }
+        Ok(ret)
+    }
+}
+
 pub struct RxConfig {
     buffer_size: usize,
     number_of_descriptors: usize,
     default_descriptor_buffer_size: usize,
 }
+
 impl RxConfig {
     fn descriptor_buffer_size(&self, descriptor_index: usize) -> usize {
         let number_of_default_descriptors = self.number_of_descriptors - 1;
