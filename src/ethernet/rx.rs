@@ -88,6 +88,6 @@ impl RxDescriptor {
     }
 
     pub fn error(&self) -> bool {
-        self.word_0.get_bit(14)
+        self.word_0.get_bit(15)
     }
 }
