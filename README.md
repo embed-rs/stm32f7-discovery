@@ -8,9 +8,14 @@
         * install a C-Compiler (sorry)
         * `git clone https://github.com/texane/stlink.git && cd stlink && make release && cd build/Release && sudo make install`
     * mac os: `brew install stlink`
+    * windows: unzip `stlink-1.3.1-win32.zip`
 -  install arm cross compilers
     * debian/ubuntu: `sudo apt-get install gcc-arm-none-eabi gdb-arm-none-eabi`
     * macOS: `brew tap osx-cross/arm && brew install arm-gcc-bin`
+    * windows:
+        * download `GNU ARM Embedded Toolchain` from https://developer.arm.com/open-source/gnu-toolchain/gnu-rm/downloads
+        * execute to install
+        * ensure installation path is added to 'PATH' variable (might require a reboot)
 -  install the ARM rust toolchain
     * `rustup toolchain install nightly-arm-unknown-linux-gnueabi`
 -  install a nightly compiler
@@ -32,7 +37,7 @@
 -  have patience, the first time you run `xargo build`, the `core` library and various others need to be built.
 -  open another terminal and run `st-util`
 -  go back to your first terminal
--  run `sh gdb.sh`
+-  run `sh gdb.sh` (run `gdb.bat` for win)
 -  The code has now been flashed and is ready to run. Type `c` (for `continue`) and observe your controller.
 
 # Generate Documentation
