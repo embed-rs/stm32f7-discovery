@@ -35,7 +35,7 @@
 -  `rustup override set nightly`
 -  `xargo build`
 -  have patience, the first time you run `xargo build`, the `core` library and various others need to be built.
--  open another terminal and run `st-util`
+-  open another terminal and run `st-util` (win: `st-util.exe` is located in `stlink-1.3.1-win32\bin`, which was unziped for setup)
 -  go back to your first terminal
 -  run `sh gdb.sh` (run `gdb.bat` for win)
 -  The code has now been flashed and is ready to run. Type `c` (for `continue`) and observe your controller.
