@@ -211,7 +211,7 @@ impl RxConfig {
 
 impl Default for RxConfig {
     fn default() -> RxConfig {
-        let number_of_descriptors = 64;
+        let number_of_descriptors = 128;
         let default_descriptor_buffer_size = 64;
         RxConfig {
             buffer_size: default_descriptor_buffer_size * (number_of_descriptors - 1) + MTU,
