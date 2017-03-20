@@ -145,6 +145,9 @@ impl RxDevice {
             assert!(descriptor_index + i < self.descriptors.len(),
                     "last descriptor buffer too small"); // no wrap around
             last_descriptor = self.descriptors[descriptor_index + i].read();
+            if last_descriptor.own() {
+                return Err(Error::Exhausted); // packet is not fully received
+            }
         }
         if last_descriptor.error() {
             Err(Error::Truncated)
