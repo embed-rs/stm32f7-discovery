@@ -6,13 +6,12 @@
 
 extern crate novemb_rs_stm32f7 as stm32f7;
 
-// hardware register structs with accessor methods
-extern crate embedded_stm32f7 as board;
-extern crate embedded;
 // initialization routines for .data and .bss
 extern crate r0;
 
-use stm32f7::{system_clock, sdram, lcd, i2c, audio, touch};
+// hardware register structs with accessor methods
+use stm32f7::{system_clock, sdram, lcd, i2c, audio, touch, board, embedded};
+
 
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
