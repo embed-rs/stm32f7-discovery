@@ -1,9 +1,14 @@
 language: rust
 rust: nightly
+cache: cargo
 
 before_script:
 - rustup component add rust-src
-- cd .. && cargo install xargo --verbose && cd stm32f7-discovery
+- cd ..
+- (test -x $HOME/.cargo/bin/cargo-install-update || cargo install cargo-update)
+- (test -x $HOME/.cargo/bin/xargo || cargo install xargo)
+- cargo install-update -a
+- cd stm32f7-discovery
 
 script:
 - xargo check
