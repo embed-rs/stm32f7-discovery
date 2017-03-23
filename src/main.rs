@@ -142,6 +142,7 @@ fn main(hw: board::Hardware) -> ! {
 
     // ethernet
     let mut eth_device = ethernet::EthernetDevice::new(Default::default(),
+                                                       Default::default(),
                                                        rcc,
                                                        syscfg,
                                                        &mut gpio,
@@ -190,10 +191,10 @@ fn main(hw: board::Hardware) -> ! {
 
         // handle new ethernet packets
         loop {
-            if let Err(err) = eth_device.dump_next_packet() {
+            if let Err(err) = eth_device.handle_next_packet() {
                 match err {
                     stm32f7::ethernet::Error::Exhausted => {}
-                    e => println!("err {:#?}", e),
+                    _ => {} //println!("err {:#?}", e),
                 }
                 break;
             }
