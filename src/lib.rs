@@ -25,6 +25,8 @@ extern crate arrayvec;
 extern crate bit_field;
 extern crate spin;
 extern crate smoltcp;
+extern crate byteorder;
+extern crate net;
 
 #[macro_use]
 pub mod semi_hosting;
