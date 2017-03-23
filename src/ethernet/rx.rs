@@ -89,4 +89,25 @@ impl RxDescriptor {
     pub fn error(&self) -> bool {
         self.word_0.get_bit(15)
     }
+
+    pub fn checksum_result(&self) -> ChecksumResult {
+        let w = self.word_0;
+        match (w.get_bit(5), w.get_bit(7), w.get_bit(0)) {
+            (false, false, false) => ChecksumResult::NovellRaw,
+            (true, false, false) => ChecksumResult::Passed(false, false),
+            (true, false, true) => ChecksumResult::Error(false, true),
+            (true, true, false) => ChecksumResult::Error(true, false),
+            (true, true, true) => ChecksumResult::Error(true, true),
+            (false, false, true) => ChecksumResult::Passed(false, true),
+            (false, true, true) => ChecksumResult::Passed(true, true),
+            (false, true, false) => unreachable!(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChecksumResult {
+    Passed(bool, bool),
+    Error(bool, bool),
+    NovellRaw,
 }

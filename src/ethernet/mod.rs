@@ -137,6 +137,10 @@ impl RxDevice {
         if descriptor.own() {
             return Err(Error::Exhausted);
         }
+        if let rx::ChecksumResult::Error(header, payload) = descriptor.checksum_result() {
+            println!("checksum error {} {}", header, payload);
+            return Err(Error::Checksum);
+        }
 
         let mut last_descriptor = descriptor;
         let mut i = 0;
@@ -155,7 +159,6 @@ impl RxDevice {
             assert!(descriptor.is_first_descriptor());
             let offset = self.config.descriptor_buffer_offset(descriptor_index);
             let len = last_descriptor.frame_len();
-            // print!("len {}: ", len);
             Ok(&self.buffer[offset..(offset + len)])
         }
     }
