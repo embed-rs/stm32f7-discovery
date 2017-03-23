@@ -1,7 +1,7 @@
 use bit_field::BitField;
-use alloc::boxed::Box;
 use core::convert::TryInto;
-use core::mem;
+use core::{mem, slice};
+use collections::boxed::Box;
 
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
@@ -22,25 +22,55 @@ impl TxDescriptor {
         }
     }
 
-    pub fn new(buffer: Box<[u8]>) -> TxDescriptor {
-        let mut descriptor = TxDescriptor::empty();
-        descriptor.set_buffer_1(buffer);
-
-        descriptor
+    pub fn set_end_of_ring(&mut self, value: bool) {
+        self.word_0.set_bit(21, value);
     }
 
-    fn set_next(&mut self, next: Box<TxDescriptor>) {
-        self.word_3 = (Box::into_raw(next) as usize).try_into().unwrap();
+    pub fn set_data(&mut self, data: Box<[u8]>) {
+        assert!(!self.own(), "descriptor is still owned by the hardware");
+
+        mem::drop(self.buffer()); // drop old buffer if not already dropped
+
+        self.set_buffer(data);
+        self.set_first_segment(true);
+        self.set_last_segment(true);
+        self.set_own(true);
     }
 
     pub fn own(&self) -> bool {
         self.word_0.get_bit(31)
     }
 
-    fn set_buffer_1(&mut self, buffer: Box<[u8]>) {
+    pub fn buffer(&mut self) -> Option<Box<[u8]>> {
+        assert!(!self.own(), "descriptor is still owned by the hardware");
+        match self.buffer_1_address() {
+            0 => None,
+            ptr => {
+                self.set_buffer_1_address(0);
+                Some(unsafe {
+                         Box::from_raw(slice::from_raw_parts_mut(ptr as *mut u8,
+                                                                 self.buffer_1_size()))
+                     })
+            }
+        }
+    }
+
+    fn set_own(&mut self, value: bool) {
+        self.word_0.set_bit(31, value);
+    }
+
+    fn set_first_segment(&mut self, value: bool) {
+        self.word_0.set_bit(28, value);
+    }
+
+    fn set_last_segment(&mut self, value: bool) {
+        self.word_0.set_bit(29, value);
+    }
+
+    fn set_buffer(&mut self, buffer: Box<[u8]>) {
         assert_eq!(self.buffer_1_address(), 0);
         self.set_buffer_1_address(buffer.as_ptr() as usize);
-        self.set_buffer_1_size(buffer.len() as u16);
+        self.set_buffer_1_size(buffer.len());
         mem::forget(buffer);
     }
 
@@ -52,7 +82,14 @@ impl TxDescriptor {
         self.word_2 = buffer_address.try_into().unwrap();
     }
 
-    fn set_buffer_1_size(&mut self, size: u16) {
-        self.word_1.set_bits(0..13, size.into());
+    fn buffer_1_size(&self) -> usize {
+        self.word_1
+            .get_bits(0..13)
+            .try_into()
+            .unwrap()
+    }
+
+    fn set_buffer_1_size(&mut self, size: usize) {
+        self.word_1.set_bits(0..13, size.try_into().expect("buffer too large"));
     }
 }
