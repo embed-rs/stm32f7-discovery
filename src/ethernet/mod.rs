@@ -48,29 +48,38 @@ const MTU: usize = 1536;
 
 pub struct EthernetDevice {
     rx: RxDevice,
+    tx: TxDevice,
     ethernet_dma: &'static mut EthernetDma,
 }
 
 impl EthernetDevice {
     pub fn new(rx_config: RxConfig,
+               tx_config: TxConfig,
                rcc: &mut rcc::Rcc,
                syscfg: &mut syscfg::Syscfg,
                gpio: &mut gpio::Gpio,
                ethernet_mac: &'static mut EthernetMac,
                ethernet_dma: &'static mut EthernetDma)
-               -> Result<EthernetDevice, init::Error> {
+               -> Result<EthernetDevice, Error> {
+        use byteorder::{ByteOrder, NetworkEndian};
+
         init::init(rcc, syscfg, gpio, ethernet_mac, ethernet_dma)?;
 
         let rx_device = RxDevice::new(rx_config)?;
+        let tx_device = TxDevice::new(tx_config);
 
         let mut srl = ethernet_dma::Dmardlar::default();
         srl.set_srl(&rx_device.descriptors[0] as *const Volatile<_> as u32);
         ethernet_dma.dmardlar.write(srl);
 
-        init::start(ethernet_mac, ethernet_dma);
+        let mut stl = ethernet_dma::Dmatdlar::default();
+        stl.set_stl(tx_device.front_of_queue() as *const Volatile<_> as u32);
+        ethernet_dma.dmatdlar.write(stl);
 
-        Ok(EthernetDevice {
+        init::start(ethernet_mac, ethernet_dma);
+        let mut device = EthernetDevice {
             rx: rx_device,
+            tx: tx_device,
             ethernet_dma: ethernet_dma,
         })
     }
@@ -142,11 +151,11 @@ impl RxDevice {
         }
 
         Ok(RxDevice {
-            config: config,
-            buffer: buffer,
-            descriptors: descriptors.into_boxed_slice(),
-            next_descriptor: 0,
-        })
+               config: config,
+               buffer: buffer,
+               descriptors: descriptors.into_boxed_slice(),
+               next_descriptor: 0,
+           })
     }
 
     fn packet_data(&self, descriptor_index: usize) -> Result<&[u8], Error> {
@@ -208,6 +217,64 @@ impl RxDevice {
     }
 }
 
+struct TxDevice {
+    descriptors: Box<[Volatile<tx::TxDescriptor>]>,
+    next_descriptor: usize,
+}
+
+impl TxDevice {
+    fn new(config: TxConfig) -> TxDevice {
+        use self::tx::TxDescriptor;
+
+        let descriptor_num = config.number_of_descriptors;
+        let mut descriptors = Vec::with_capacity(descriptor_num);
+
+        for i in 0..descriptor_num {
+            let mut descriptor = TxDescriptor::empty();
+            if i == descriptor_num - 1 {
+                descriptor.set_end_of_ring(true);
+            }
+            descriptors.push(Volatile::new(descriptor));
+        }
+
+        TxDevice {
+            descriptors: descriptors.into_boxed_slice(),
+            next_descriptor: 0,
+        }
+    }
+
+    pub fn insert(&mut self, data: Box<[u8]>) {
+        while self.descriptors[self.next_descriptor].read().own() {}
+        self.descriptors[self.next_descriptor].update(|d| d.set_data(data));
+        self.next_descriptor = (self.next_descriptor + 1) % self.descriptors.len();
+
+        // println!("insert tx packet");
+        self.cleanup();
+    }
+
+    pub fn front_of_queue(&self) -> &Volatile<tx::TxDescriptor> {
+        self.descriptors.first().unwrap()
+    }
+
+    pub fn queue_empty(&self) -> bool {
+        self.descriptors.iter().all(|d| !d.read().own())
+    }
+
+    pub fn cleanup(&mut self) {
+        let mut c = 0;
+        for descriptor in self.descriptors.iter_mut() {
+            descriptor.update(|d| if !d.own() {
+                                  if let Some(_) = d.buffer() {
+                                      c += 1;
+                                  }
+                              });
+        }
+        if c > 0 {
+            // println!("cleaned up {} packets", c);
+        }
+    }
+}
+
 pub struct RxConfig {
     buffer_size: usize,
     number_of_descriptors: usize,
@@ -238,5 +305,15 @@ impl Default for RxConfig {
             number_of_descriptors: number_of_descriptors,
             default_descriptor_buffer_size: default_descriptor_buffer_size,
         }
+    }
+}
+
+pub struct TxConfig {
+    number_of_descriptors: usize,
+}
+
+impl Default for TxConfig {
+    fn default() -> TxConfig {
+        TxConfig { number_of_descriptors: 64 }
     }
 }
