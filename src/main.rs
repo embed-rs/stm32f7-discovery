@@ -146,8 +146,10 @@ fn main(hw: board::Hardware) -> ! {
                                                        syscfg,
                                                        &mut gpio,
                                                        ethernet_mac,
-                                                       ethernet_dma)
-            .expect("ethernet init failed");
+                                                       ethernet_dma);
+    if let Err(e) = eth_device {
+        println!("ethernet init failed: {:?}", e);
+    }
 
     lcd.clear_screen();
 
@@ -189,13 +191,15 @@ fn main(hw: board::Hardware) -> ! {
         }
 
         // handle new ethernet packets
-        loop {
-            if let Err(err) = eth_device.handle_next_packet() {
-                match err {
-                    stm32f7::ethernet::Error::Exhausted => {}
-                    _ => {} //println!("err {:#?}", e),
+        if let Ok(ref mut eth_device) = eth_device {
+            loop {
+                if let Err(err) = eth_device.handle_next_packet() {
+                    match err {
+                        stm32f7::ethernet::Error::Exhausted => {}
+                        _ => {} // println!("err {:?}", e),
+                    }
+                    break;
                 }
-                break;
             }
         }
 
