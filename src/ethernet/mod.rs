@@ -3,7 +3,7 @@ use collections::{Vec, BTreeMap};
 
 use board::{rcc, syscfg};
 use board::ethernet_dma::{self, EthernetDma};
-use board::ethernet_mac::{EthernetMac};
+use board::ethernet_mac::{self, EthernetMac};
 use embedded::interfaces::gpio;
 use volatile::Volatile;
 use net::ipv4::Ipv4Address;
@@ -66,6 +66,8 @@ impl EthernetDevice {
                ethernet_mac: &'static mut EthernetMac,
                ethernet_dma: &'static mut EthernetDma)
                -> Result<EthernetDevice, Error> {
+        use byteorder::{ByteOrder, LittleEndian};
+
         init::init(rcc, syscfg, gpio, ethernet_mac, ethernet_dma)?;
 
         let rx_device = RxDevice::new(rx_config)?;
@@ -78,6 +80,14 @@ impl EthernetDevice {
         let mut stl = ethernet_dma::Dmatdlar::default();
         stl.set_stl(tx_device.front_of_queue() as *const Volatile<_> as u32);
         ethernet_dma.dmatdlar.write(stl);
+
+        let eth_bytes = ETH_ADDR.as_bytes();
+        let mut mac0_low = ethernet_mac::Maca0lr::default();
+        mac0_low.set_maca0l(LittleEndian::read_u32(&eth_bytes[..4]));
+        ethernet_mac.maca0lr.write(mac0_low);
+        let mut mac0_high = ethernet_mac::Maca0hr::default();
+        mac0_high.set_maca0h(LittleEndian::read_u16(&eth_bytes[4..]));
+        ethernet_mac.maca0hr.write(mac0_high);
 
         init::start(ethernet_mac, ethernet_dma);
         let mut device = EthernetDevice {
