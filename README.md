@@ -16,8 +16,6 @@
         * download `GNU ARM Embedded Toolchain` from https://developer.arm.com/open-source/gnu-toolchain/gnu-rm/downloads
         * execute to install
         * ensure installation path is added to 'PATH' variable (might require a reboot)
--  install the ARM rust toolchain
-    * `rustup toolchain install nightly-arm-unknown-linux-gnueabi`
 -  install a nightly compiler
     * `rustup update nightly`
 -  dowload the rust source code
