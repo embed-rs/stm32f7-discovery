@@ -25,13 +25,13 @@
     * `rustup component add rust-src --toolchain nightly`
 -  install `xargo`
     * `rustup run nightly cargo install xargo`
-    * NOTE: do **not** run this command in the `novemb-rs-stm32f7` folder, you will get errors about the compiler not finding the standard library
+    * NOTE: do **not** run this command in the `stm32f7_discovery` folder, you will get errors about the compiler not finding the standard library
 -  get the demo code
-    * `git clone https://github.com/embed-rs/novemb-rs-stm32f7.git`
+    * `git clone https://github.com/embed-rs/stm32f7-discovery.git`
 
 # Compiling
 
-1. `cd novemb-rs-stm32f7`
+1. `cd stm32f7_discovery`
 -  `rustup override set nightly`
 -  `xargo build`
 -  have patience, the first time you run `xargo build`, the `core` library and various others need to be built.

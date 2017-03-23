@@ -1,5 +1,5 @@
 [root]
-name = "novemb-rs-stm32f7"
+name = "stm32f7_discovery"
 version = "0.1.0"
 dependencies = [
  "alloc-cortex-m 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
