@@ -33,3 +33,4 @@ git = "https://github.com/embed-rs/embedded_stm32f7.git"
 
 [profile.release]
 lto = true
+debug = true
