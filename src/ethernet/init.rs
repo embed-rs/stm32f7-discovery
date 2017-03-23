@@ -36,10 +36,10 @@ pub fn init(rcc: &mut Rcc,
 
     // enable ethernet clocks
     rcc.ahb1enr.update(|r| {
-        r.set_ethmacen(true); // ethernet mac clock enable
-        r.set_ethmactxen(true); // ethernet mac transmission clock enable
-        r.set_ethmacrxen(true); // ethernet mac reception clock enable
-    });
+                           r.set_ethmacen(true); // ethernet mac clock enable
+                           r.set_ethmactxen(true); // ethernet mac transmission clock enable
+                           r.set_ethmacrxen(true); // ethernet mac reception clock enable
+                       });
 
     // select MII or RMII mode
     syscfg.pmc.update(|r| r.set_mii_rmii_sel(true)); // false = MII, true = RMII
@@ -65,9 +65,9 @@ pub fn init(rcc: &mut Rcc,
     ethernet_mac.maccr.update(|r| {
         // fast ethernet speed (false = 10Mbit/s, true = 100Mbit/s)
         r.set_fes(match auto_neg_result.speed {
-            phy::Speed::Speed100M => true,
-            phy::Speed::Speed10M => false,
-        });
+                      phy::Speed::Speed100M => true,
+                      phy::Speed::Speed10M => false,
+                  });
         // duplex mode
         r.set_dm(auto_neg_result.duplex);
 
@@ -163,17 +163,17 @@ pub fn init(rcc: &mut Rcc,
 
     // interrupt enable register
     ethernet_dma.dmaier.update(|r| {
-        r.set_nise(true); // Normal interrupt summary enable
-        r.set_rie(true); // Receive interrupt enable
-    });
+                                   r.set_nise(true); // Normal interrupt summary enable
+                                   r.set_rie(true); // Receive interrupt enable
+                               });
 
     // Initialize MAC address in ethernet MAC
     ethernet_mac.maca0hr.update(|r| {
-        r.set_maca0h(0 << 8 | 0); // high register
-    });
+                                    r.set_maca0h(0 << 8 | 0); // high register
+                                });
     ethernet_mac.maca0lr.update(|r| {
-        r.set_maca0l(0 << 24 | 0 << 16 | 0 << 8 | 2); // low register
-    });
+                                    r.set_maca0l(0 << 24 | 0 << 16 | 0 << 8 | 2); // low register
+                                });
 
     Ok(())
 }
@@ -181,16 +181,16 @@ pub fn init(rcc: &mut Rcc,
 pub fn start(ethernet_mac: &mut EthernetMac, ethernet_dma: &mut EthernetDma) {
     // enable MAC transmission and reception
     ethernet_mac.maccr.update(|r| {
-        r.set_te(true);
-        r.set_re(true);
-    });
+                                  r.set_te(true);
+                                  r.set_re(true);
+                              });
 
     // flush transmit FIFO and enable DMA transmission/reception
     ethernet_dma.dmaomr.update(|r| {
-        r.set_ftf(true);
-        r.set_st(true);
-        r.set_sr(true);
-    });
+                                   r.set_ftf(true);
+                                   r.set_st(true);
+                                   r.set_sr(true);
+                               });
 }
 
 pub fn init_pins(gpio: &mut Gpio) {

@@ -111,17 +111,17 @@ fn main(hw: board::Hardware) -> ! {
     // configure led pin as output pin
     let led_pin = (gpio::Port::PortI, gpio::Pin::Pin1);
     let mut led = gpio.to_output(led_pin,
-                   gpio::OutputType::PushPull,
-                   gpio::OutputSpeed::Low,
-                   gpio::Resistor::NoPull)
+                                 gpio::OutputType::PushPull,
+                                 gpio::OutputSpeed::Low,
+                                 gpio::Resistor::NoPull)
         .expect("led pin already in use");
 
     // turn led on
     led.set(true);
 
     let button_pin = (gpio::Port::PortI, gpio::Pin::Pin11);
-    let button = gpio.to_input(button_pin, gpio::Resistor::NoPull)
-        .expect("button pin already in use");
+    let button =
+        gpio.to_input(button_pin, gpio::Resistor::NoPull).expect("button pin already in use");
 
     // init sdram (needed for display buffer)
     sdram::init(rcc, fmc, &mut gpio);
@@ -147,7 +147,7 @@ fn main(hw: board::Hardware) -> ! {
                                                        &mut gpio,
                                                        ethernet_mac,
                                                        ethernet_dma)
-        .expect("ethernet init failed");
+            .expect("ethernet init failed");
 
     lcd.clear_screen();
 

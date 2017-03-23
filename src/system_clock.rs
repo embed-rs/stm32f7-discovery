@@ -35,9 +35,9 @@ pub fn init(rcc: &mut Rcc, pwr: &mut Pwr, flash: &mut Flash) {
 
     // Reset HSEON and HSEBYP bits before configuring the HSE
     rcc.cr.update(|r| {
-        r.set_hseon(false);
-        r.set_hsebyp(false);
-    });
+                      r.set_hseon(false);
+                      r.set_hsebyp(false);
+                  });
     // wait till HSE is disabled
     while rcc.cr.read().hserdy() {}
     // turn HSE on

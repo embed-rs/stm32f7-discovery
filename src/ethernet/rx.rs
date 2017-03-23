@@ -72,7 +72,10 @@ impl RxDescriptor {
     }
 
     pub fn frame_len(&self) -> usize {
-        self.word_0.get_bits(16..30).try_into().unwrap()
+        self.word_0
+            .get_bits(16..30)
+            .try_into()
+            .unwrap()
     }
 
     pub fn is_last_descriptor(&self) -> bool {

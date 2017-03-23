@@ -75,9 +75,9 @@ pub fn init(ethernet_mac: &mut EthernetMac) -> Result<AutoNegotiationResult, Err
         other => unreachable!("invalid auto-negotiation value: {:#b}", other),
     };
     Ok(AutoNegotiationResult {
-        duplex: duplex,
-        speed: speed,
-    })
+           duplex: duplex,
+           speed: speed,
+       })
 }
 
 fn phy_read(ethernet_mac: &mut EthernetMac, phy_address: u8, register: u8) -> u16 {
@@ -108,11 +108,11 @@ fn phy_write(ethernet_mac: &mut EthernetMac, phy_address: u8, register: u8, valu
 
     // set the MII address register
     ethernet_mac.macmiiar.update(|r| {
-        r.set_pa(phy_address); // set phy address
-        r.set_mr(register); // set mii register address
-        r.set_mw(true); // MII write operation (true = write)
-        r.set_mb(true); // MII busy
-    });
+                                     r.set_pa(phy_address); // set phy address
+                                     r.set_mr(register); // set mii register address
+                                     r.set_mw(true); // MII write operation (true = write)
+                                     r.set_mb(true); // MII busy
+                                 });
 
     // wait for completion (busy flag cleared)
     while ethernet_mac.macmiiar.read().mb() {}
