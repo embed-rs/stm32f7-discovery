@@ -45,11 +45,16 @@ impl From<()> for Error {
 }
 
 const MTU: usize = 1536;
+const ETH_ADDR: EthernetAddress = EthernetAddress::new([0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef]);
 
 pub struct EthernetDevice {
     rx: RxDevice,
     tx: TxDevice,
     ethernet_dma: &'static mut EthernetDma,
+    ipv4_addr: Option<Ipv4Address>,
+    requested_ipv4_addr: Option<Ipv4Address>,
+    last_discover_at: usize,
+    arp_cache: BTreeMap<Ipv4Address, EthernetAddress>,
 }
 
 impl EthernetDevice {
@@ -81,11 +86,58 @@ impl EthernetDevice {
             rx: rx_device,
             tx: tx_device,
             ethernet_dma: ethernet_dma,
-        })
+            ipv4_addr: None,
+            requested_ipv4_addr: None,
+            last_discover_at: 0,
+            arp_cache: BTreeMap::new(),
+        };
+
+        device.send_dhcp_discover()?;
+
+        Ok(device)
     }
 
-    pub fn dump_next_packet(&mut self) -> Result<(), Error> {
-        use smoltcp::wire::{EthernetFrame, EthernetProtocol};
+    fn start_send(&mut self) {
+        match self.ethernet_dma
+                  .dmasr
+                  .read()
+                  .tps() { // transmit process state
+            0b000 => panic!("stopped"), // stopped
+            0b001 | 0b010 | 0b011 | 0b111 => {
+                println!("running");
+            } // running
+            0b110 => {
+                // suspended
+                if !self.tx.queue_empty() {
+                    // write poll demand register
+                    let mut poll_demand = ethernet_dma::Dmatpdr::default();
+                    poll_demand.set_tpd(0); // any value
+                    self.ethernet_dma.dmatpdr.write(poll_demand);
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn send_dhcp_discover(&mut self) -> Result<(), Error> {
+        use net::{dhcp, TxPacket, WriteOut};
+        use system_clock;
+
+        if system_clock::ticks() - self.last_discover_at < 5000 {
+            return Ok(());
+        }
+
+        let packet = dhcp::new_discover_msg(ETH_ADDR);
+        let mut tx_packet = TxPacket::new(packet.len());
+        packet.write_out(&mut tx_packet)?;
+
+        self.tx.insert(tx_packet.into_boxed_slice());
+        self.start_send();
+
+        self.last_discover_at = system_clock::ticks();
+
+        Ok(())
+    }
 
         let missed_packets = self.ethernet_dma.dmamfbocr.read().mfc();
         if missed_packets > 20 {
