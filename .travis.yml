@@ -1,5 +1,12 @@
+dist: trusty
 language: rust
 rust: nightly
+
+addons:
+  apt:
+    packages:
+      - gcc-arm-none-eabi
+      - libnewlib-arm-none-eabi
 
 before_script:
 - rustup component add rust-src
