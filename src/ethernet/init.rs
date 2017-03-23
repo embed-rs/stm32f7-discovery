@@ -97,7 +97,7 @@ pub fn init(rcc: &mut Rcc,
     // frame filter register
     ethernet_mac.macffr.update(|r| {
         r.set_pm(false); // Promiscuous mode
-        r.set_ra(false); // receive all (ignoring address filters)
+        r.set_ra(true); // receive all (ignoring address filters)
         r.set_hpf(false); // Hash or perfect filter
         r.set_saf(false); // Source address filter
         r.set_saif(false); // Source address inverse filtering
