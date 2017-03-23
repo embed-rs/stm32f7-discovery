@@ -1,12 +1,14 @@
 use alloc::boxed::Box;
-use collections::vec::Vec;
+use collections::{Vec, BTreeMap};
 
 use board::{rcc, syscfg};
 use board::ethernet_dma::{self, EthernetDma};
-use board::ethernet_mac::EthernetMac;
+use board::ethernet_mac::{self, EthernetMac};
 use embedded::interfaces::gpio;
-use smoltcp;
 use volatile::Volatile;
+use net::ipv4::Ipv4Address;
+use net::ethernet::{EthernetAddress, EthernetPacket};
+use net::{self, TxPacket};
 
 mod init;
 mod phy;
@@ -18,12 +20,27 @@ pub enum Error {
     Exhausted,
     Checksum,
     Truncated,
-    Parsing(smoltcp::Error),
+    NoIp,
+    Unknown,
+    Parsing(net::ParseError),
+    Initialization(init::Error),
 }
 
-impl From<smoltcp::Error> for Error {
-    fn from(err: smoltcp::Error) -> Error {
+impl From<net::ParseError> for Error {
+    fn from(err: net::ParseError) -> Error {
         Error::Parsing(err)
+    }
+}
+
+impl From<init::Error> for Error {
+    fn from(err: init::Error) -> Error {
+        Error::Initialization(err)
+    }
+}
+
+impl From<()> for Error {
+    fn from(_: ()) -> Error {
+        Error::Unknown
     }
 }
 
