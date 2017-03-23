@@ -6,7 +6,7 @@ use embedded::interfaces::gpio::Gpio;
 use system_clock;
 use super::phy;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
     PhyError(phy::Error),
 }

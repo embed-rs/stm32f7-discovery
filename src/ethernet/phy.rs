@@ -14,7 +14,7 @@ const AUTONEGOTIATION_RESTART: u16 = 1 << 9;
 
 const TIMEOUT: usize = 5_000;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
     LinkTimeout,
     AutoNegotiationTimeout,
