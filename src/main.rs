@@ -1,16 +1,21 @@
 #![feature(lang_items)]
 #![feature(const_fn)]
+#![feature(alloc, collections)]
 
 #![no_std]
 #![no_main]
 
+#[macro_use]
 extern crate novemb_rs_stm32f7 as stm32f7;
 
 // initialization routines for .data and .bss
 extern crate r0;
+extern crate alloc;
+#[macro_use]
+extern crate collections;
 
 // hardware register structs with accessor methods
-use stm32f7::{system_clock, sdram, lcd, i2c, audio, touch, board, embedded};
+use stm32f7::{system_clock, sdram, lcd, i2c, audio, touch, board, ethernet, embedded};
 
 
 #[no_mangle]
@@ -36,11 +41,19 @@ pub unsafe extern "C" fn reset() -> ! {
     // zeroes the .bss section
     r0::zero_bss(bss_start, bss_end);
 
+    stm32f7::heap::init();
+
     main(board::hw());
 }
 
 fn main(hw: board::Hardware) -> ! {
     use embedded::interfaces::gpio::{self, Gpio};
+
+    println!("Entering main");
+
+    let x = vec![1, 2, 3, 4, 5];
+    assert_eq!(x.len(), 5);
+    assert_eq!(x[3], 4);
 
     let board::Hardware { rcc,
                           pwr,
@@ -60,6 +73,9 @@ fn main(hw: board::Hardware) -> ! {
                           gpio_k,
                           i2c_3,
                           sai_2,
+                          syscfg,
+                          ethernet_mac,
+                          ethernet_dma,
                           .. } = hw;
 
     let mut gpio = Gpio::new(gpio_a,
@@ -94,25 +110,23 @@ fn main(hw: board::Hardware) -> ! {
     // configure led pin as output pin
     let led_pin = (gpio::Port::PortI, gpio::Pin::Pin1);
     let mut led = gpio.to_output(led_pin,
-                   gpio::OutputType::PushPull,
-                   gpio::OutputSpeed::Low,
-                   gpio::Resistor::NoPull)
+                                 gpio::OutputType::PushPull,
+                                 gpio::OutputSpeed::Low,
+                                 gpio::Resistor::NoPull)
         .expect("led pin already in use");
 
     // turn led on
     led.set(true);
 
     let button_pin = (gpio::Port::PortI, gpio::Pin::Pin11);
-    let button = gpio.to_input(button_pin, gpio::Resistor::NoPull)
-        .expect("button pin already in use");
+    let button =
+        gpio.to_input(button_pin, gpio::Resistor::NoPull).expect("button pin already in use");
 
     // init sdram (needed for display buffer)
     sdram::init(rcc, fmc, &mut gpio);
 
     // lcd controller
     let mut lcd = lcd::init(ltdc, rcc, &mut gpio);
-    lcd.clear_screen();
-    lcd.test_pixels();
 
     // i2c
     i2c::init_pins_and_clocks(rcc, &mut gpio);
@@ -124,6 +138,16 @@ fn main(hw: board::Hardware) -> ! {
     audio::init_sai_2_pins(&mut gpio);
     audio::init_sai_2(sai_2, rcc);
     assert!(audio::init_wm8994(&mut i2c_3).is_ok());
+
+    // ethernet
+    let mut eth_device = ethernet::EthernetDevice::new(Default::default(),
+                                                       Default::default(),
+                                                       rcc,
+                                                       syscfg,
+                                                       &mut gpio,
+                                                       ethernet_mac,
+                                                       ethernet_dma)
+            .expect("ethernet init failed");
 
     lcd.clear_screen();
 
@@ -162,6 +186,17 @@ fn main(hw: board::Hardware) -> ! {
         // poll for new touch data
         for touch in &touch::touches(&mut i2c_3).unwrap() {
             lcd.print_point_at(touch.x, touch.y);
+        }
+
+        // handle new ethernet packets
+        loop {
+            if let Err(err) = eth_device.handle_next_packet() {
+                match err {
+                    stm32f7::ethernet::Error::Exhausted => {}
+                    _ => {} //println!("err {:#?}", e),
+                }
+                break;
+            }
         }
 
         button_pressed_old = button_pressed;

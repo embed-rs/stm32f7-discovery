@@ -57,9 +57,9 @@ pub fn init(rcc: &mut Rcc, fmc: &mut Fmc, gpio: &mut Gpio) {
 
     // set refresh counter
     fmc.sdrtr.update(|r| {
-        r.set_count(0x301);
-        r.set_reie(false);
-    });
+                         r.set_count(0x301);
+                         r.set_reie(false);
+                     });
 
     // test sdram
     use core::ptr;

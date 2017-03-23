@@ -140,9 +140,9 @@ pub fn init_sai_2(sai: &mut Sai, rcc: &mut Rcc) {
     // PLLI2S_VCO Output = PLLI2S_VCO Input * PLLI2SN
     // SAI_CLK(first level) = PLLI2S_VCO Output/PLLI2SQ
     rcc.plli2scfgr.update(|r| {
-        r.set_plli2sn(344);
-        r.set_plli2sq(7);
-    });
+                              r.set_plli2sn(344);
+                              r.set_plli2sq(7);
+                          });
 
     // SAI_CLK_x = SAI_CLK(first level)/PLLI2SDIVQ
     rcc.dkcfgr1.update(|r| r.set_plli2sdiv(1 - 1));
