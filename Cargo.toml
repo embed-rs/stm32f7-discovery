@@ -2,6 +2,7 @@
 authors = ["Philipp Oppermann <dev@phil-opp.com>"]
 name = "stm32f7_discovery"
 version = "0.1.0"
+license = "MIT/Apache-2.0"
 
 [[bin]]
 doc = false
