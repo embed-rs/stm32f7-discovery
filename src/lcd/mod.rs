@@ -136,4 +136,16 @@ impl Lcd {
 
         unsafe { ptr::write_volatile(pixel_color, 0xffff) };
     }
+
+    pub fn print_point_color_at(&mut self, x: u16, y: u16, color: u16) {
+        assert!(x < 480);
+        assert!(y < 272);
+
+        // layer 2
+        let addr: u32 = 0xC000_0000 + (480 * 272 * 2);
+        let pixel = u32::from(y) * 480 + u32::from(x);
+        let pixel_color = (addr + pixel * 2) as *mut u16;
+
+        unsafe { ptr::write_volatile(pixel_color, color) };
+    }
 }
