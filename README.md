@@ -10,6 +10,7 @@
     * mac os: `brew install stlink`
     * windows: unzip `stlink-1.3.1-win32.zip`
 2. install arm cross compilers
+    * arch: `sudo pacman -S arm-none-eabi-gcc arm-none-eabi-gdb`
     * debian/ubuntu: `sudo apt-get install gcc-arm-none-eabi gdb-arm-none-eabi`
     * macOS: `brew tap osx-cross/arm && brew install arm-gcc-bin`
     * windows:
