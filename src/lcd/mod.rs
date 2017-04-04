@@ -21,7 +21,9 @@ pub struct Lcd {
 
 impl Lcd {
     pub fn set_background_color(&mut self, color: Color) {
-        self.controller.bccr.update(|r| r.set_bc(color.to_rgb()));
+        self.controller
+            .bccr
+            .update(|r| r.set_bc(color.to_rgb()));
     }
 
     pub fn test_pixels(&mut self) {

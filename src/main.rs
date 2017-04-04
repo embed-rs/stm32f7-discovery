@@ -55,28 +55,30 @@ fn main(hw: board::Hardware) -> ! {
     assert_eq!(x.len(), 5);
     assert_eq!(x[3], 4);
 
-    let board::Hardware { rcc,
-                          pwr,
-                          flash,
-                          fmc,
-                          ltdc,
-                          gpio_a,
-                          gpio_b,
-                          gpio_c,
-                          gpio_d,
-                          gpio_e,
-                          gpio_f,
-                          gpio_g,
-                          gpio_h,
-                          gpio_i,
-                          gpio_j,
-                          gpio_k,
-                          i2c_3,
-                          sai_2,
-                          syscfg,
-                          ethernet_mac,
-                          ethernet_dma,
-                          .. } = hw;
+    let board::Hardware {
+        rcc,
+        pwr,
+        flash,
+        fmc,
+        ltdc,
+        gpio_a,
+        gpio_b,
+        gpio_c,
+        gpio_d,
+        gpio_e,
+        gpio_f,
+        gpio_g,
+        gpio_h,
+        gpio_i,
+        gpio_j,
+        gpio_k,
+        i2c_3,
+        sai_2,
+        syscfg,
+        ethernet_mac,
+        ethernet_dma,
+        ..
+    } = hw;
 
     let mut gpio = Gpio::new(gpio_a,
                              gpio_b,
@@ -93,19 +95,20 @@ fn main(hw: board::Hardware) -> ! {
     system_clock::init(rcc, pwr, flash);
 
     // enable all gpio ports
-    rcc.ahb1enr.update(|r| {
-        r.set_gpioaen(true);
-        r.set_gpioben(true);
-        r.set_gpiocen(true);
-        r.set_gpioden(true);
-        r.set_gpioeen(true);
-        r.set_gpiofen(true);
-        r.set_gpiogen(true);
-        r.set_gpiohen(true);
-        r.set_gpioien(true);
-        r.set_gpiojen(true);
-        r.set_gpioken(true);
-    });
+    rcc.ahb1enr
+        .update(|r| {
+            r.set_gpioaen(true);
+            r.set_gpioben(true);
+            r.set_gpiocen(true);
+            r.set_gpioden(true);
+            r.set_gpioeen(true);
+            r.set_gpiofen(true);
+            r.set_gpiogen(true);
+            r.set_gpiohen(true);
+            r.set_gpioien(true);
+            r.set_gpiojen(true);
+            r.set_gpioken(true);
+        });
 
     // configure led pin as output pin
     let led_pin = (gpio::Port::PortI, gpio::Pin::Pin1);
@@ -119,8 +122,8 @@ fn main(hw: board::Hardware) -> ! {
     led.set(true);
 
     let button_pin = (gpio::Port::PortI, gpio::Pin::Pin11);
-    let button =
-        gpio.to_input(button_pin, gpio::Resistor::NoPull).expect("button pin already in use");
+    let button = gpio.to_input(button_pin, gpio::Resistor::NoPull)
+        .expect("button pin already in use");
 
     // init sdram (needed for display buffer)
     sdram::init(rcc, fmc, &mut gpio);

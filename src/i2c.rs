@@ -28,12 +28,13 @@ pub fn init_pins_and_clocks(rcc: &mut Rcc, gpio: &mut Gpio) {
     use embedded::interfaces::gpio::Pin::*;
 
     // enable clocks
-    rcc.apb1enr.update(|r| {
-                           r.set_i2c1en(true);
-                           r.set_i2c2en(true);
-                           r.set_i2c3en(true);
-                           r.set_i2c4en(true);
-                       });
+    rcc.apb1enr
+        .update(|r| {
+                    r.set_i2c1en(true);
+                    r.set_i2c2en(true);
+                    r.set_i2c3en(true);
+                    r.set_i2c4en(true);
+                });
 
     let i2c1_scl = (PortB, Pin8);
     let i2c1_sda = (PortB, Pin9);
@@ -58,39 +59,44 @@ pub fn init(i2c: &'static mut i2c::I2c) -> I2C {
     i2c.cr1.update(|r| r.set_pe(false)); // peripheral_enable
 
     // configure timing register TODO: check/understand values
-    i2c.timingr.update(|r| {
-        r.set_presc(0x4); // timing_prescaler
-        r.set_scldel(0x9); // data_setup_time
-        r.set_sdadel(0x1); // data_hold_time
-        r.set_sclh(0x27); // scl_high_period
-        r.set_scll(0x32); // scl_low_period
-    });
+    i2c.timingr
+        .update(|r| {
+                    r.set_presc(0x4); // timing_prescaler
+                    r.set_scldel(0x9); // data_setup_time
+                    r.set_sdadel(0x1); // data_hold_time
+                    r.set_sclh(0x27); // scl_high_period
+                    r.set_scll(0x32); // scl_low_period
+                });
 
     // configure oar1
     i2c.oar1.update(|r| r.set_oa1en(false)); // own_address_1_enable
-    i2c.oar1.update(|r| {
-                        r.set_oa1(0x00); // own_address_1
-                        r.set_oa1mode(false); // 10 bit mode
-                        r.set_oa1en(false); // TODO
-                    });
+    i2c.oar1
+        .update(|r| {
+                    r.set_oa1(0x00); // own_address_1
+                    r.set_oa1mode(false); // 10 bit mode
+                    r.set_oa1en(false); // TODO
+                });
 
     // configure cr2
-    i2c.cr2.update(|r| {
-                       r.set_add10(false); // 10_bit_addressing mode
-                       r.set_autoend(false); // automatic_end_mode
-                   });
+    i2c.cr2
+        .update(|r| {
+                    r.set_add10(false); // 10_bit_addressing mode
+                    r.set_autoend(false); // automatic_end_mode
+                });
 
     // configure oar2
-    i2c.oar2.update(|r| {
-                        r.set_oa2en(false); // own_address_2_enable
-                    });
+    i2c.oar2
+        .update(|r| {
+                    r.set_oa2en(false); // own_address_2_enable
+                });
 
     // configure cr1
-    i2c.cr1.update(|r| {
-                       r.set_gcen(false); // general_call
-                       r.set_nostretch(false); // clock_stretching_disable
-                       r.set_pe(true); // peripheral_enable
-                   });
+    i2c.cr1
+        .update(|r| {
+                    r.set_gcen(false); // general_call
+                    r.set_nostretch(false); // clock_stretching_disable
+                    r.set_pe(true); // peripheral_enable
+                });
 
     I2C(i2c)
 }
@@ -160,10 +166,7 @@ impl<'a, T: RegisterType> I2cConnection<'a, T> {
         cr2.set_rd_wrn(read); // read_transfer
         cr2.set_nbytes(bytes); // number_of_bytes
         cr2.set_autoend(false); // automatic_end_mode
-        self.i2c
-            .0
-            .cr2
-            .write(cr2);
+        self.i2c.0.cr2.write(cr2);
     }
 
     fn write_bytes<ITER>(&mut self, bytes: ITER) -> Result<(), Error>
@@ -177,10 +180,7 @@ impl<'a, T: RegisterType> I2cConnection<'a, T> {
 
         for b in bytes {
             self.i2c.wait_for_txis()?;
-            self.i2c
-                .0
-                .txdr
-                .update(|r| r.set_txdata(b)); // transmit_data
+            self.i2c.0.txdr.update(|r| r.set_txdata(b)); // transmit_data
         }
 
         self.i2c.wait_for_transfer_complete()?;
@@ -188,10 +188,7 @@ impl<'a, T: RegisterType> I2cConnection<'a, T> {
         self.clear_status_flags();
 
         // reset cr2
-        self.i2c
-            .0
-            .cr2
-            .write(Default::default());
+        self.i2c.0.cr2.write(Default::default());
 
         Ok(())
     }
@@ -208,11 +205,7 @@ impl<'a, T: RegisterType> I2cConnection<'a, T> {
         // read data from receive data register
         for b in buffer {
             self.i2c.wait_for_rxne()?;
-            *b = self.i2c
-                .0
-                .rxdr
-                .read()
-                .rxdata(); // receive_data
+            *b = self.i2c.0.rxdr.read().rxdata(); // receive_data
         }
 
         self.i2c.wait_for_transfer_complete()?;
@@ -220,10 +213,7 @@ impl<'a, T: RegisterType> I2cConnection<'a, T> {
         self.clear_status_flags();
 
         // reset cr2
-        self.i2c
-            .0
-            .cr2
-            .write(Default::default());
+        self.i2c.0.cr2.write(Default::default());
 
         Ok(())
     }
@@ -231,18 +221,12 @@ impl<'a, T: RegisterType> I2cConnection<'a, T> {
     fn pre(&mut self) {
         self.clear_status_flags();
         // flush transmit data register
-        self.i2c
-            .0
-            .isr
-            .update(|r| r.set_txe(true)); // flush_txdr
+        self.i2c.0.isr.update(|r| r.set_txe(true)); // flush_txdr
     }
 
     fn clear_status_flags(&mut self) {
         let clear_all = icr_clear_all();
-        self.i2c
-            .0
-            .icr
-            .write(clear_all);
+        self.i2c.0.icr.write(clear_all);
     }
 
     pub fn read(&mut self, register_address: T) -> Result<T, Error> {
@@ -373,12 +357,13 @@ impl I2C {
     pub fn test_1(&mut self) {
         let mut i2c = &mut self.0;
 
-        i2c.cr2.update(|r| {
-                           r.set_sadd(Address::bits_7(0b1010101).0); // slave_address
-                           r.set_start(true); // start_generation
-                           r.set_nbytes(0); // number_of_bytes
-                           r.set_autoend(true); // automatic_end_mode
-                       });
+        i2c.cr2
+            .update(|r| {
+                        r.set_sadd(Address::bits_7(0b1010101).0); // slave_address
+                        r.set_start(true); // start_generation
+                        r.set_nbytes(0); // number_of_bytes
+                        r.set_autoend(true); // automatic_end_mode
+                    });
 
         loop {
             let isr = i2c.isr.read();
@@ -400,12 +385,13 @@ impl I2C {
 
         let mut addr = 0;
         loop {
-            i2c.cr2.update(|r| {
-                               r.set_sadd(Address::bits_7(addr).0); // slave_address
-                               r.set_start(true); // start_generation
-                               r.set_nbytes(0); // number_of_bytes
-                               r.set_autoend(true); // automatic_end_mode
-                           });
+            i2c.cr2
+                .update(|r| {
+                            r.set_sadd(Address::bits_7(addr).0); // slave_address
+                            r.set_start(true); // start_generation
+                            r.set_nbytes(0); // number_of_bytes
+                            r.set_autoend(true); // automatic_end_mode
+                        });
 
             let mut isr = i2c.isr.read();
             loop {

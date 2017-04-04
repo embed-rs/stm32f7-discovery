@@ -83,13 +83,11 @@ impl TxDescriptor {
     }
 
     fn buffer_1_size(&self) -> usize {
-        self.word_1
-            .get_bits(0..13)
-            .try_into()
-            .unwrap()
+        self.word_1.get_bits(0..13).try_into().unwrap()
     }
 
     fn set_buffer_1_size(&mut self, size: usize) {
-        self.word_1.set_bits(0..13, size.try_into().expect("buffer too large"));
+        self.word_1
+            .set_bits(0..13, size.try_into().expect("buffer too large"));
     }
 }

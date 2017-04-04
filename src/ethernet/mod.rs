@@ -106,10 +106,7 @@ impl EthernetDevice {
     }
 
     fn start_send(&mut self) {
-        match self.ethernet_dma
-                  .dmasr
-                  .read()
-                  .tps() { // transmit process state
+        match self.ethernet_dma.dmasr.read().tps() { // transmit process state
             0b000 => panic!("stopped"), // stopped
             0b001 | 0b010 | 0b011 | 0b111 => {
                 println!("running");
@@ -148,10 +145,7 @@ impl EthernetDevice {
     }
 
     pub fn handle_next_packet(&mut self) -> Result<(), Error> {
-        let missed_packets = self.ethernet_dma
-            .dmamfbocr
-            .read()
-            .mfc();
+        let missed_packets = self.ethernet_dma.dmamfbocr.read().mfc();
         if missed_packets > 20 {
             println!("missed packets: {}", missed_packets);
         }
@@ -172,97 +166,114 @@ impl EthernetDevice {
     }
 
     fn process_next_packet(&mut self) -> Result<Option<TxPacket>, Error> {
-        let &mut EthernetDevice { ref mut rx,
-                                  ref mut ipv4_addr,
-                                  ref mut requested_ipv4_addr,
-                                  ref mut arp_cache,
-                                  .. } = self;
+        let &mut EthernetDevice {
+                     ref mut rx,
+                     ref mut ipv4_addr,
+                     ref mut requested_ipv4_addr,
+                     ref mut arp_cache,
+                     ..
+                 } = self;
 
         rx.receive(|data| -> Result<_, Error> {
-            use net;
-            use net::ethernet::EthernetKind;
-            use net::arp;
-            use net::ipv4::{Ipv4Packet, Ipv4Kind};
-            use net::udp::{UdpPacket, UdpKind};
-            use net::dhcp::{self, DhcpPacket, DhcpType};
-            use net::icmp::IcmpType;
+                use net;
+                use net::ethernet::EthernetKind;
+                use net::arp;
+                use net::ipv4::{Ipv4Packet, Ipv4Kind};
+                use net::udp::{UdpPacket, UdpKind};
+                use net::dhcp::{self, DhcpPacket, DhcpType};
+                use net::icmp::IcmpType;
 
-            let EthernetPacket{header: _, payload} = net::parse(data)?;
+                let EthernetPacket { header: _, payload } = net::parse(data)?;
 
-            match payload {
-                // DHCP offer or ack for us
-                EthernetKind::Ipv4(Ipv4Packet{header: _, payload:
-                    Ipv4Kind::Udp(UdpPacket{header:_, payload:
-                    UdpKind::Dhcp(DhcpPacket{mac, operation, ..})})}) if mac == ETH_ADDR =>
-                {
-                    match operation {
-                        DhcpType::Offer{ip, dhcp_server_ip} => {
-                            println!("DHCP offer: {:?}", ip);
-                            if requested_ipv4_addr.is_none() {
-                                *requested_ipv4_addr = Some(ip);
-                                let reply = dhcp::new_request_msg(ETH_ADDR, ip, dhcp_server_ip);
+                match payload {
+                    // DHCP offer or ack for us
+                    EthernetKind::Ipv4(Ipv4Packet {
+                                           header: _,
+                                           payload: Ipv4Kind::Udp(UdpPacket {
+                                                             header: _,
+                                                             payload: UdpKind::Dhcp(DhcpPacket {
+                                                                               mac,
+                                                                               operation,
+                                                                               ..
+                                                                           }),
+                                                         }),
+                                       }) if mac == ETH_ADDR => {
+                        match operation {
+                            DhcpType::Offer { ip, dhcp_server_ip } => {
+                                println!("DHCP offer: {:?}", ip);
+                                if requested_ipv4_addr.is_none() {
+                                    *requested_ipv4_addr = Some(ip);
+                                    let reply = dhcp::new_request_msg(ETH_ADDR, ip, dhcp_server_ip);
+                                    return Ok(Some(TxPacket::write_out(reply)?));
+                                }
+                            }
+                            DhcpType::Ack { ip } => {
+                                assert_eq!(Some(ip), *requested_ipv4_addr);
+                                println!("DHCP ack: {:?}", ip);
+                                *ipv4_addr = Some(ip);
+                            }
+                            op => panic!("Unknown dhcp operation {:?}", op),
+                        }
+                    }
+
+                    // Arp for our ip
+                    EthernetKind::Arp(arp) if Some(arp.dst_ip) == *ipv4_addr => {
+                        use net::arp::ArpOperation;
+
+                        arp_cache.insert(arp.src_ip, arp.src_mac);
+
+                        match arp.operation {
+                            ArpOperation::Request => {
+                                println!("arp request for our ip from {:?} ({:?})",
+                                         arp.src_ip,
+                                         arp.src_mac);
+                                let reply = arp.response_packet(ETH_ADDR);
                                 return Ok(Some(TxPacket::write_out(reply)?));
                             }
-                        }
-                        DhcpType::Ack{ip} => {
-                            assert_eq!(Some(ip), *requested_ipv4_addr);
-                            println!("DHCP ack: {:?}", ip);
-                            *ipv4_addr = Some(ip);
-                        }
-                        op => panic!("Unknown dhcp operation {:?}", op),
-                    }
-                }
-
-                // Arp for our ip
-                EthernetKind::Arp(arp) if Some(arp.dst_ip) == *ipv4_addr => {
-                    use net::arp::ArpOperation;
-
-                    arp_cache.insert(arp.src_ip, arp.src_mac);
-
-                    match arp.operation {
-                        ArpOperation::Request => {
-                            println!("arp request for our ip from {:?} ({:?})", arp.src_ip,
-                                arp.src_mac);
-                            let reply = arp.response_packet(ETH_ADDR);
-                            return Ok(Some(TxPacket::write_out(reply)?));
-                        }
-                        ArpOperation::Response => {
-                            println!("arp response from {:?} for ip {:?}", arp.src_mac,
-                                arp.src_ip);
-                        },
-                    }
-                }
-
-                // ICMP echo request
-                EthernetKind::Ipv4(Ipv4Packet{header: ip_header, payload: Ipv4Kind::Icmp(icmp)})
-                    if Some(ip_header.dst_addr) == *ipv4_addr =>
-                {
-                    match icmp.type_ {
-                        IcmpType::EchoRequest{..} => {
-                            //println!("icmp echo request");
-                            let src_ip = ip_header.dst_addr;
-                            let dst_ip = ip_header.src_addr;
-                            if let Some(&dst_mac) = arp_cache.get(&dst_ip) {
-                                let reply = icmp.echo_reply_packet(ETH_ADDR, dst_mac, src_ip,
-                                    dst_ip);
-                                return Ok(Some(TxPacket::write_out(reply)?));
-                            } else {
-                                let arp_request = arp::new_request_packet(ETH_ADDR, src_ip, dst_ip);
-                                return Ok(Some(TxPacket::write_out(arp_request).unwrap()));
+                            ArpOperation::Response => {
+                                println!("arp response from {:?} for ip {:?}",
+                                         arp.src_mac,
+                                         arp.src_ip);
                             }
                         }
-                        IcmpType::EchoReply{id, sequence_number} => {
-                            println!("icmp echo reply {{id: {}, sequence_number: {}}}", id,
-                                sequence_number);
+                    }
+
+                    // ICMP echo request
+                    EthernetKind::Ipv4(Ipv4Packet {
+                                           header: ip_header,
+                                           payload: Ipv4Kind::Icmp(icmp),
+                                       }) if Some(ip_header.dst_addr) == *ipv4_addr => {
+                        match icmp.type_ {
+                            IcmpType::EchoRequest { .. } => {
+                                //println!("icmp echo request");
+                                let src_ip = ip_header.dst_addr;
+                                let dst_ip = ip_header.src_addr;
+                                if let Some(&dst_mac) = arp_cache.get(&dst_ip) {
+                                    let reply =
+                                        icmp.echo_reply_packet(ETH_ADDR, dst_mac, src_ip, dst_ip);
+                                    return Ok(Some(TxPacket::write_out(reply)?));
+                                } else {
+                                    let arp_request =
+                                        arp::new_request_packet(ETH_ADDR, src_ip, dst_ip);
+                                    return Ok(Some(TxPacket::write_out(arp_request).unwrap()));
+                                }
+                            }
+                            IcmpType::EchoReply {
+                                id,
+                                sequence_number,
+                            } => {
+                                println!("icmp echo reply {{id: {}, sequence_number: {}}}",
+                                         id,
+                                         sequence_number);
+                            }
                         }
                     }
+
+                    _ => {} //{println!("{:?}", other)},
                 }
 
-                _ => {}, //{println!("{:?}", other)},
-            }
-
-            Ok(None)
-        })?
+                Ok(None)
+            })?
     }
 }
 

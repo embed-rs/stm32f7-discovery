@@ -18,61 +18,69 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
     rcc.cr.update(|r| r.set_pllsaion(false));
     while rcc.cr.read().pllsairdy() {}
 
-    rcc.pllsaicfgr.update(|r| {
-                              r.set_pllsain(192);
-                              r.set_pllsair(5);
-                          });
+    rcc.pllsaicfgr
+        .update(|r| {
+                    r.set_pllsain(192);
+                    r.set_pllsair(5);
+                });
 
     // set division factor for LCD_CLK
-    rcc.dkcfgr1.update(|r| {
-                           r.set_pllsaidivr(0b01 /* = 4 */)
-                       });
+    rcc.dkcfgr1
+        .update(|r| {
+                    r.set_pllsaidivr(0b01 /* = 4 */)
+                });
 
     // enable PLLSAI clock
     rcc.cr.update(|r| r.set_pllsaion(true));
     while !rcc.cr.read().pllsairdy() {}
 
     // configure the HS, VS, DE and PC polarity
-    ltdc.gcr.update(|r| {
-                        r.set_pcpol(false);
-                        r.set_depol(false);
-                        r.set_hspol(false);
-                        r.set_vspol(false);
-                    });
+    ltdc.gcr
+        .update(|r| {
+                    r.set_pcpol(false);
+                    r.set_depol(false);
+                    r.set_hspol(false);
+                    r.set_vspol(false);
+                });
 
     // set synchronization size
-    ltdc.sscr.update(|r| {
-                         r.set_hsw(41 - 1); // horizontal_sync_width
-                         r.set_vsh(10 - 1); // vertical_sync_height
-                     });
+    ltdc.sscr
+        .update(|r| {
+                    r.set_hsw(41 - 1); // horizontal_sync_width
+                    r.set_vsh(10 - 1); // vertical_sync_height
+                });
 
     // set accumulated back porch
-    ltdc.bpcr.update(|r| {
-                         r.set_ahbp(41 + 13 - 1); // accumulated_horizontal_back_porch
-                         r.set_avbp(10 + 2 - 1); // accumulated_vertical_back_porch
-                     });
+    ltdc.bpcr
+        .update(|r| {
+                    r.set_ahbp(41 + 13 - 1); // accumulated_horizontal_back_porch
+                    r.set_avbp(10 + 2 - 1); // accumulated_vertical_back_porch
+                });
 
     // set accumulated active width
-    ltdc.awcr.update(|r| {
-                         r.set_aaw(480 + 41 + 13 - 1); // accumulated_active_width
-                         r.set_aah(272 + 10 + 2 - 1); // accumulated_active_height
-                     });
+    ltdc.awcr
+        .update(|r| {
+                    r.set_aaw(480 + 41 + 13 - 1); // accumulated_active_width
+                    r.set_aah(272 + 10 + 2 - 1); // accumulated_active_height
+                });
 
     // set total width
-    ltdc.twcr.update(|r| {
-                         r.set_totalw(480 + 41 + 13 + 32 - 1); // total_width
-                         r.set_totalh(272 + 10 + 2 + 2 - 1); // total_height
-                     });
+    ltdc.twcr
+        .update(|r| {
+                    r.set_totalw(480 + 41 + 13 + 32 - 1); // total_width
+                    r.set_totalh(272 + 10 + 2 + 2 - 1); // total_height
+                });
 
     // set background color
     ltdc.bccr.update(|r| r.set_bc(0x0000ff)); // background_color blue
 
 
     // enable the transfer error interrupt and the FIFO underrun interrupt
-    ltdc.ier.update(|r| {
-                        r.set_terrie(true); // TRANSFER_ERROR_INTERRUPT_ENABLE
-                        r.set_fuie(true); // FIFO_UNDERRUN_INTERRUPT_ENABLE
-                    });
+    ltdc.ier
+        .update(|r| {
+                    r.set_terrie(true); // TRANSFER_ERROR_INTERRUPT_ENABLE
+                    r.set_fuie(true); // FIFO_UNDERRUN_INTERRUPT_ENABLE
+                });
 
     // enable LTDC
     ltdc.gcr.update(|r| r.set_ltdcen(true));
@@ -80,42 +88,48 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
     // configure layers
 
     // configure horizontal start and stop position
-    ltdc.l1whpcr.update(|r| {
-                            r.set_whstpos(0 + 41 + 13); // window_horizontal_start_position
-                            r.set_whsppos(480 + 41 + 13 - 1); // window_horizontal_stop_position
-                        });
-    ltdc.l2whpcr.update(|r| {
-                            r.set_whstpos(0 + 41 + 13); // window_horizontal_start_position
-                            r.set_whsppos(480 + 41 + 13 - 1); // window_horizontal_stop_position
-                        });
+    ltdc.l1whpcr
+        .update(|r| {
+                    r.set_whstpos(0 + 41 + 13); // window_horizontal_start_position
+                    r.set_whsppos(480 + 41 + 13 - 1); // window_horizontal_stop_position
+                });
+    ltdc.l2whpcr
+        .update(|r| {
+                    r.set_whstpos(0 + 41 + 13); // window_horizontal_start_position
+                    r.set_whsppos(480 + 41 + 13 - 1); // window_horizontal_stop_position
+                });
 
     // configure vertical start and stop position
-    ltdc.l1wvpcr.update(|r| {
-                            r.set_wvstpos(0 + 10 + 2); // window_vertical_start_position
-                            r.set_wvsppos(272 + 10 + 2 - 1); // window_vertical_stop_position
-                        });
-    ltdc.l2wvpcr.update(|r| {
-                            r.set_wvstpos(0 + 10 + 2); // window_vertical_start_position
-                            r.set_wvsppos(272 + 10 + 2 - 1); // window_vertical_stop_position
-                        });
+    ltdc.l1wvpcr
+        .update(|r| {
+                    r.set_wvstpos(0 + 10 + 2); // window_vertical_start_position
+                    r.set_wvsppos(272 + 10 + 2 - 1); // window_vertical_stop_position
+                });
+    ltdc.l2wvpcr
+        .update(|r| {
+                    r.set_wvstpos(0 + 10 + 2); // window_vertical_start_position
+                    r.set_wvsppos(272 + 10 + 2 - 1); // window_vertical_stop_position
+                });
 
     // specify pixed format
     ltdc.l1pfcr.update(|r| r.set_pf(0b011)); // set_pixel_format to ARGB1555
     ltdc.l2pfcr.update(|r| r.set_pf(0b011)); // set_pixel_format to ARGB1555
 
     // configure default color values
-    ltdc.l1dccr.update(|r| {
-                           r.set_dcalpha(0);
-                           r.set_dcred(0);
-                           r.set_dcgreen(0);
-                           r.set_dcblue(0);
-                       });
-    ltdc.l2dccr.update(|r| {
-                           r.set_dcalpha(0);
-                           r.set_dcred(0);
-                           r.set_dcgreen(0);
-                           r.set_dcblue(0);
-                       });
+    ltdc.l1dccr
+        .update(|r| {
+                    r.set_dcalpha(0);
+                    r.set_dcred(0);
+                    r.set_dcgreen(0);
+                    r.set_dcblue(0);
+                });
+    ltdc.l2dccr
+        .update(|r| {
+                    r.set_dcalpha(0);
+                    r.set_dcred(0);
+                    r.set_dcgreen(0);
+                    r.set_dcblue(0);
+                });
 
     // specify constant alpha value
     ltdc.l1cacr.update(|r| r.set_consta(255)); // constant_alpha
@@ -134,17 +148,20 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
     // configure color frame buffer start address
     const SDRAM_START: u32 = 0xC000_0000;
     ltdc.l1cfbar.update(|r| r.set_cfbadd(SDRAM_START));
-    ltdc.l2cfbar.update(|r| r.set_cfbadd(SDRAM_START + 480 * 272 * 2));
+    ltdc.l2cfbar
+        .update(|r| r.set_cfbadd(SDRAM_START + 480 * 272 * 2));
 
     // configure color frame buffer line length and pitch
-    ltdc.l1cfblr.update(|r| {
-                            r.set_cfbp(480 * 2); // pitch
-                            r.set_cfbll(480 * 2 + 3); // line_length
-                        });
-    ltdc.l2cfblr.update(|r| {
-                            r.set_cfbp(480 * 2); // pitch
-                            r.set_cfbll(480 * 2 + 3); // line_length
-                        });
+    ltdc.l1cfblr
+        .update(|r| {
+                    r.set_cfbp(480 * 2); // pitch
+                    r.set_cfbll(480 * 2 + 3); // line_length
+                });
+    ltdc.l2cfblr
+        .update(|r| {
+                    r.set_cfbp(480 * 2); // pitch
+                    r.set_cfbll(480 * 2 + 3); // line_length
+                });
 
     // configure frame buffer line number
     ltdc.l1cfblnr.update(|r| r.set_cfblnbr(272)); // line_number
