@@ -100,8 +100,8 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
                         });
 
     // specify pixed format
-    ltdc.l1pfcr.update(|r| r.set_pf(0b010)); // set_pixel_format to RGB565
-    ltdc.l2pfcr.update(|r| r.set_pf(0b010)); // set_pixel_format to RGB565
+    ltdc.l1pfcr.update(|r| r.set_pf(0b011)); // set_pixel_format to ARGB1555
+    ltdc.l2pfcr.update(|r| r.set_pf(0b011)); // set_pixel_format to ARGB1555
 
     // configure default color values
     ltdc.l1dccr.update(|r| {
@@ -118,8 +118,8 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
                        });
 
     // specify constant alpha value
-    ltdc.l1cacr.update(|r| r.set_consta(200)); // constant_alpha
-    ltdc.l2cacr.update(|r| r.set_consta(150)); // constant_alpha
+    ltdc.l1cacr.update(|r| r.set_consta(255)); // constant_alpha
+    ltdc.l2cacr.update(|r| r.set_consta(255)); // constant_alpha
 
     // specify blending factors
     ltdc.l1bfcr.update(|r| {
