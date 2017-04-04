@@ -38,6 +38,7 @@ const SYS_WRITE: usize = 0x05;
 /// on the host. Returns `0` on success or number of unwritten bytes
 /// otherwise.
 fn svc_sys_write(fd: usize, data: &[u8]) -> usize {
+    return 0; // disable semi-hosting for now due to errors in the gdb script
     let args = SvcWriteCall {
         fd: fd,
         addr: data.as_ptr(),
