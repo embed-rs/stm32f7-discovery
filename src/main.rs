@@ -43,6 +43,12 @@ pub unsafe extern "C" fn reset() -> ! {
 
     stm32f7::heap::init();
 
+    // enable floating point unit
+    unsafe {
+        let scb = stm32f7::cortex_m::peripheral::scb_mut();
+        scb.cpacr.modify(|v| v | 0b1111 << 20);
+    }
+
     main(board::hw());
 }
 

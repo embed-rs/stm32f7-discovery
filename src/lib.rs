@@ -13,7 +13,7 @@ extern crate rlibc;
 pub extern crate embedded_stm32f7 as board;
 pub extern crate embedded;
 // low level access to the cortex-m cpu
-extern crate cortex_m;
+pub extern crate cortex_m;
 // volatile wrapper types
 extern crate volatile;
 // allocator
