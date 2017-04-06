@@ -33,4 +33,41 @@ impl Color {
             alpha: 255,
         }
     }
+
+    pub fn to_rgb888(&self) -> u32 {
+        self.to_rgb()
+    }
+
+    pub fn from_rgb888(color: u32) -> Color {
+        Color::from_hex(color)
+    }
+
+    pub fn to_argb8888(&self) -> u32 {
+        (u32::from(self.alpha) << 24) | self.to_rgb888()
+    }
+
+    pub fn from_argb8888(color: u32) -> Color {
+        Color {
+            red: (color >> 16) as u8,
+            green: (color >> 8) as u8,
+            blue: color as u8,
+            alpha: (color >> 24) as u8,
+        }
+    }
+
+    pub fn to_argb1555(&self) -> u16 {
+        (u16::from(self.alpha) & 0x80) << 8
+            | (u16::from(self.red) & 0xf8) << 7
+            | (u16::from(self.green) & 0xf8) << 2
+            | (u16::from(self.blue) & 0xf8) >> 3
+    }
+
+    pub fn from_argb1555(color: u16) -> Color {
+        Color {
+            alpha: ((color >> 8) & 0x80) as u8,
+            red: ((color >> 7) & 0xf8) as u8,
+            green: ((color >> 2) & 0xf8) as u8,
+            blue: ((color << 3) & 0xf8) as u8
+        }
+    }
 }
