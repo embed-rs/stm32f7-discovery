@@ -168,6 +168,14 @@ impl<'a> Writer<'a> {
             self.print_char(c);
         }
     }
+
+    pub fn set_offset(&mut self, off_x: usize, off_y: usize) {
+        self.text_writer.set_offset(off_x, off_y);
+    }
+
+    pub fn width_height(&self, s: &str) -> (u32, u32) {
+        self.text_writer.width_height(s)
+    }
 }
 
 impl<'a> fmt::Write for Writer<'a> {
