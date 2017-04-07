@@ -25,7 +25,7 @@ impl Color {
     }
 
     pub fn from_hex(color: u32) -> Color {
-        assert!(color >> (8 * 3) == 0);
+        assert_eq!(color >> (8 * 3), 0);
         Color {
             red: (color >> 16) as u8,
             green: (color >> 8) as u8,

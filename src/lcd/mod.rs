@@ -101,20 +101,16 @@ impl Lcd {
                 if i >= self.prev_value.0 && i <= value0 {
                     color |= 0xff00;
                 }
-            } else {
-                if i <= self.prev_value.0 && i >= value0 {
-                    color |= 0xff00;
-                }
+            } else if i <= self.prev_value.0 && i >= value0 {
+                color |= 0xff00;
             }
 
             if value1 >= self.prev_value.1 {
                 if i >= self.prev_value.0 && i <= value1 {
                     color |= 0x00ff;
                 }
-            } else {
-                if i <= self.prev_value.0 && i >= value1 {
-                    color |= 0x00ff;
-                }
+            } else if i <= self.prev_value.0 && i >= value1 {
+                color |= 0x00ff;
             }
 
             let pixel = i * 480 + self.next_col;

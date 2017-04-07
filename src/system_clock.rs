@@ -72,7 +72,7 @@ pub fn init(rcc: &mut Rcc, pwr: &mut Pwr, flash: &mut Flash) {
     flash.acr.update(|r| r.set_latency(5));
     // Check that the new number of wait states is taken into account to access the Flash
     // memory by reading the FLASH_ACR register
-    assert!(flash.acr.read().latency() == 5);
+    assert_eq!(flash.acr.read().latency(), 5);
 
     const NO_DIVIDE: u8 = 0;
     const SYSTEM_CLOCK_PLL: u8 = 0b10;
