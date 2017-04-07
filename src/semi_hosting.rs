@@ -37,6 +37,7 @@ const SYS_WRITE: usize = 0x05;
 /// Semi-hosting: `SYS_WRITE`. Writes `data` to file descriptor `fd`
 /// on the host. Returns `0` on success or number of unwritten bytes
 /// otherwise.
+#[allow(unreachable_code, unused_variables)]
 fn svc_sys_write(fd: usize, data: &[u8]) -> usize {
     return 0; // disable semi-hosting for now due to errors in the gdb script
     let args = SvcWriteCall {
