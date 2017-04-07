@@ -3,7 +3,7 @@ name = "stm32f7_discovery"
 version = "0.1.0"
 dependencies = [
  "alloc-cortex-m 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "arrayvec 0.3.21 (registry+https://github.com/rust-lang/crates.io-index)",
+ "arrayvec 0.3.22 (registry+https://github.com/rust-lang/crates.io-index)",
  "bit_field 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -28,7 +28,7 @@ dependencies = [
 
 [[package]]
 name = "arrayvec"
-version = "0.3.21"
+version = "0.3.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "nodrop 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -81,7 +81,7 @@ name = "embedded"
 version = "0.3.0"
 source = "git+https://github.com/embed-rs/embedded-rs.git#c7f47a6ca17b60bae395d5532fd55c1ddc2132c4"
 dependencies = [
- "arrayvec 0.3.21 (registry+https://github.com/rust-lang/crates.io-index)",
+ "arrayvec 0.3.22 (registry+https://github.com/rust-lang/crates.io-index)",
  "bit_field 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "compiler-builtins-snapshot 0.0.20161008+c56faf22abb39724008148d58f12bcd43b6d236b (registry+https://github.com/rust-lang/crates.io-index)",
@@ -91,7 +91,7 @@ dependencies = [
 [[package]]
 name = "embedded_stm32f7"
 version = "0.1.0"
-source = "git+https://github.com/embed-rs/embedded_stm32f7.git#1b81819811592fd58b608129222233b461be3225"
+source = "git+https://github.com/embed-rs/embedded_stm32f7.git#5997d961997ad16c67a8759712df2192aa94e920"
 dependencies = [
  "bit_field 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "embedded 0.3.0 (git+https://github.com/embed-rs/embedded-rs.git)",
@@ -107,7 +107,7 @@ source = "git+https://github.com/phil-opp/font-rs.git?branch=no-std#da1190bc43e6
 [[package]]
 name = "font_render"
 version = "0.1.0"
-source = "git+https://github.com/Rust-Mikrocontroller-Praktikum-2017/font_render.git#78cd80dd01fa97c6d88022446b39b4b518d47861"
+source = "git+https://github.com/Rust-Mikrocontroller-Praktikum-2017/font_render.git#ca23d7310921895fa4422f4e6d226b5c619520b5"
 dependencies = [
  "font-rs 0.0.2 (git+https://github.com/phil-opp/font-rs.git?branch=no-std)",
  "stb_truetype 0.2.1 (git+https://github.com/phil-opp/stb_truetype-rs.git)",
@@ -121,7 +121,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "net"
 version = "0.1.0"
-source = "git+https://github.com/embed-rs/net.git#89c98a8d3ded79d56a66b03e824a38b9059b0235"
+source = "git+https://github.com/embed-rs/net.git#399e76a760364f5394fe43dbe28204b4e1eab1cf"
 dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -179,7 +179,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [metadata]
 "checksum alloc-cortex-m 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "fb73e5e379a7600089a76c52bbd50b2b14934a406c1728be19cdb5b23635448f"
-"checksum arrayvec 0.3.21 (registry+https://github.com/rust-lang/crates.io-index)" = "164cb8f559a0e097229af8ed6cb0bcf8c5193a5581fc3a183785048049eb18b4"
+"checksum arrayvec 0.3.22 (registry+https://github.com/rust-lang/crates.io-index)" = "35c1e907260135089def5aac0c66ca42624f2ed60652451812fedbc5a574baed"
 "checksum bit_field 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8c7f2626c064227bf8d383b35223f8ac9b7d33a7999f7bd9a5b5e491583061f6"
 "checksum bit_field 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2f2608c2dbf1057804d86937a32731a17458a60b10e83ad91c1c35c36e522f5d"
 "checksum bit_field 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ff91a64014e1bc53bf643920f2c9ab5f0980d92a0948295f3ee550e9266849ad"
