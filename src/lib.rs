@@ -26,6 +26,7 @@ extern crate bit_field;
 extern crate spin;
 extern crate byteorder;
 extern crate net;
+extern crate font_render;
 
 #[macro_use]
 pub mod semi_hosting;

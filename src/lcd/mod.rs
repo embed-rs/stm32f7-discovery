@@ -5,7 +5,8 @@ pub use self::init::init;
 
 use board::ltdc::Ltdc;
 use embedded::interfaces::gpio::OutputPin;
-use core::ptr;
+use font_render;
+use core::{fmt, ptr};
 
 mod init;
 mod color;
@@ -124,26 +125,54 @@ impl Lcd {
     }
 
     pub fn print_point_at(&mut self, x: u16, y: u16) {
-        assert!(x < 480);
-        assert!(y < 272);
-
-        // layer 2
-        let addr: u32 = 0xC000_0000 + (480 * 272 * 2);
-        let pixel = u32::from(y) * 480 + u32::from(x);
-        let pixel_color = (addr + pixel * 2) as *mut u16;
-
-        unsafe { ptr::write_volatile(pixel_color, 0xffff) };
+        self.print_point_color_at(x, y, Color::from_hex(0xffffffff));
     }
 
-    pub fn print_point_color_at(&mut self, x: u16, y: u16, color: u16) {
+    pub fn print_point_color_at(&mut self, x: u16, y: u16, color: Color) {
         assert!(x < 480);
         assert!(y < 272);
 
         // layer 2
         let addr: u32 = 0xC000_0000 + (480 * 272 * 2);
         let pixel = u32::from(y) * 480 + u32::from(x);
-        let pixel_color = (addr + pixel * 2) as *mut u16;
+        let pixel_color = (addr + pixel * 4) as *mut u32;
 
-        unsafe { ptr::write_volatile(pixel_color, color) };
+        unsafe { ptr::write_volatile(pixel_color, color.to_argb8888()) };
+    }
+
+    pub fn text_writer(&mut self) -> Result<Writer, font_render::Error> {
+        Ok(Writer {
+            lcd: self,
+            text_writer: font_render::TextWriter::default()?,
+        })
+    }
+}
+
+pub struct Writer<'a> {
+    lcd: &'a mut Lcd,
+    text_writer: font_render::TextWriter<'a>,
+}
+
+impl<'a> Writer<'a> {
+    pub fn print_char(&mut self, c: char) {
+        let &mut Self { ref mut text_writer, ref mut lcd} = self;
+
+        text_writer.print_char(c, |coords, value| {
+            let color = Color::rgba(255, 255, 255, value);
+            lcd.print_point_color_at(coords.x as u16, coords.y as u16, color);
+        });
+    }
+
+    pub fn print_str(&mut self, s: &str) {
+        for c in s.chars() {
+            self.print_char(c);
+        }
+    }
+}
+
+impl<'a> fmt::Write for Writer<'a> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.print_str(s);
+        Ok(())
     }
 }

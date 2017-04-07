@@ -18,6 +18,7 @@ rlibc = "1.0.0"
 spin = "0.4.5"
 volatile = "0.2.1"
 net = {git = "https://github.com/embed-rs/net.git"}
+font_render = {git = "https://github.com/Rust-Mikrocontroller-Praktikum-2017/font_render.git"}
 
 [dependencies.arrayvec]
 default-features = false

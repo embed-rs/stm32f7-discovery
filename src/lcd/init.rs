@@ -113,7 +113,7 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
 
     // specify pixed format
     ltdc.l1pfcr.update(|r| r.set_pf(0b011)); // set_pixel_format to ARGB1555
-    ltdc.l2pfcr.update(|r| r.set_pf(0b011)); // set_pixel_format to ARGB1555
+    ltdc.l2pfcr.update(|r| r.set_pf(0b000)); // set_pixel_format to ARGB8888
 
     // configure default color values
     ltdc.l1dccr
