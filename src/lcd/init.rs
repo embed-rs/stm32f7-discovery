@@ -159,8 +159,8 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
                 });
     ltdc.l2cfblr
         .update(|r| {
-                    r.set_cfbp(480 * 2); // pitch
-                    r.set_cfbll(480 * 2 + 3); // line_length
+                    r.set_cfbp(480 * 4); // pitch
+                    r.set_cfbll(480 * 4 + 3); // line_length
                 });
 
     // configure frame buffer line number

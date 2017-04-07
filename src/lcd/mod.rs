@@ -69,7 +69,7 @@ impl Lcd {
         for i in 0..272 {
             for j in 0..480 {
                 let pixel = i * 480 + j;
-                let pixel_color = (addr + pixel * 2) as *mut u16;
+                let pixel_color = (addr + pixel * 4) as *mut u32;
                 unsafe { ptr::write_volatile(pixel_color, 0) };
             }
         }
