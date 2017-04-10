@@ -88,7 +88,9 @@ pub mod random;
 #[lang = "panic_fmt"]
 #[no_mangle]
 pub extern "C" fn panic_fmt(fmt: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
-    println_err!("\nPANIC in {} at line {}:", file, line);
-    println_err!("    {}", fmt);
+    println!("\nPANIC in {} at line {}:", file, line);
+    println!("    {}", fmt);
+    hprintln_err!("\nPANIC in {} at line {}:", file, line);
+    hprintln_err!("    {}", fmt);
     loop {}
 }
