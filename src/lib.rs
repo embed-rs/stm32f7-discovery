@@ -30,6 +30,46 @@ extern crate byteorder;
 extern crate net;
 extern crate font_render;
 
+use core::fmt;
+
+#[macro_export]
+macro_rules! println {
+    ($fmt:expr) => (print!(concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
+}
+
+#[macro_export]
+macro_rules! print {
+    ($($arg:tt)*) => ({
+        $crate::print(format_args!($($arg)*));
+    });
+}
+
+use spin::Mutex;
+use lcd::TextWriter;
+
+static STDOUT: Mutex<Option<TextWriter<lcd::FramebufferAl88>>> = Mutex::new(None);
+
+pub fn print(args: fmt::Arguments) {
+    use core::fmt::Write;
+
+    match *STDOUT.lock() {
+        None => {},
+        Some(ref mut stdout) => {
+            let _ = stdout.write_fmt(args);
+        },
+    };
+}
+
+pub fn init_stdout(layer: lcd::Layer<lcd::FramebufferAl88>) {
+    static mut LAYER: Option<lcd::Layer<lcd::FramebufferAl88>> = None;
+
+    let mut layer = unsafe {LAYER.get_or_insert_with(|| layer)};
+
+    let mut stdout = STDOUT.lock();
+    *stdout = Some(layer.text_writer().unwrap());
+}
+
 #[macro_use]
 pub mod semi_hosting;
 pub mod exceptions;
