@@ -124,7 +124,7 @@ impl<T: Framebuffer> Layer<T> {
     }
 
     pub fn print_point_at(&mut self, x: usize, y: usize) {
-        self.print_point_color_at(x, y, Color::from_hex(0xffffffff));
+        self.print_point_color_at(x, y, Color::from_hex(0xffffff));
     }
 
     pub fn print_point_color_at(&mut self, x: usize, y: usize, color: Color) {
