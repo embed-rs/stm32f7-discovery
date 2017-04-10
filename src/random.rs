@@ -57,7 +57,6 @@ impl Rng {
     pub fn init(rng: &'static mut board::rng::Rng, rcc: &mut board::rcc::Rcc) -> Result<Rng, ErrorType> {
 
         let control_register = rng.cr.read().rngen();
-        // let reg_content = unsafe { ptr::read_volatile(RNG_CR as *mut u32) };
         if control_register {
             return Err(ErrorType::AlreadyEnabled);
         }
@@ -76,19 +75,8 @@ impl Rng {
 
     /// For Testing purposes. Do not use except for debugging!
     pub fn tick(&mut self) -> u32 {
-        match self.poll_and_get() {
 
-            Ok(number) => {
-                return number;
-            }
-            Err(e) => {
-                match e {
-                    _ => {
-                        return 0;
-                    }
-                }
-            }
-        }
+        self.poll_and_get().unwrap_or(0)
     }
 
 
@@ -96,7 +84,6 @@ impl Rng {
     /// Returns Ok(number) or Err!
     pub fn poll_and_get(&mut self) -> Result<u32, ErrorType> {
 
-        // let status = unsafe { ptr::read_volatile(RNG_STATUS as *mut u32) };
         let status = self.board_rng.sr.read();
 
         if status.ceis() {
