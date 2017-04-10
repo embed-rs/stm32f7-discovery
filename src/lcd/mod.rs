@@ -18,9 +18,8 @@ pub struct Lcd {
     controller: &'static mut Ltdc,
     display_enable: OutputPin,
     backlight_enable: OutputPin,
-    next_pixel: u32,
-    next_col: u32,
-    prev_value: (u32, u32),
+    layer_1_in_use: bool,
+    layer_2_in_use: bool,
 }
 
 impl Lcd {
@@ -28,60 +27,133 @@ impl Lcd {
         self.controller.bccr.update(|r| r.set_bc(color.to_rgb()));
     }
 
-    pub fn test_pixels(&mut self) {
-        let colors = [0xffff, 0xcccc, 0x9999, 0x6666, 0x3333, 0x0, 0xff00, 0x00ff];
-
-        // layer 1: horizontal stripes
-        let addr: u32 = 0xC000_0000;
-        for i in 0..272 {
-            for j in 0..480 {
-                let pixel = i * 480 + j;
-                let pixel_color = (addr + pixel * 2) as *mut u16;
-                unsafe { ptr::write_volatile(pixel_color, colors[(i / 10) as usize & 7]) };
-            }
+    pub fn layer_1(&mut self) -> Option<Layer<FramebufferArgb8888>> {
+        if self.layer_1_in_use {
+            None
+        } else {
+            Some(Layer { framebuffer: FramebufferArgb8888::new(LAYER_1_START) })
         }
+    }
 
-        let colors = [0xcccc, 0x9999, 0x6666, 0x3333, 0x0, 0xff00, 0x00ff, 0xffff];
+    pub fn layer_2(&mut self) -> Option<Layer<FramebufferAl88>> {
+        if self.layer_2_in_use {
+            None
+        } else {
+            Some(Layer { framebuffer: FramebufferAl88::new(LAYER_2_START) })
+        }
+    }
+}
 
-        // layer 2: vertical stripes
-        let addr: u32 = 0xC000_0000 + (480 * 272 * 2);
+pub trait Framebuffer {
+    fn set_pixel(&mut self, x: usize, y: usize, color: Color);
+}
+
+pub struct FramebufferArgb8888 {
+    base_addr: usize,
+}
+
+impl FramebufferArgb8888 {
+    fn new(base_addr: usize) -> Self {
+        Self { base_addr }
+    }
+}
+
+impl Framebuffer for FramebufferArgb8888 {
+    fn set_pixel(&mut self, x: usize, y: usize, color: Color) {
+        let pixel = y * 480 + x;
+        let pixel_ptr = (self.base_addr + pixel * 4) as *mut u32;
+        unsafe { ptr::write_volatile(pixel_ptr, color.to_argb8888()) };
+    }
+}
+
+pub struct FramebufferAl88 {
+    base_addr: usize,
+}
+
+
+impl FramebufferAl88 {
+    fn new(base_addr: usize) -> Self {
+        Self { base_addr }
+    }
+}
+
+impl Framebuffer for FramebufferAl88 {
+    fn set_pixel(&mut self, x: usize, y: usize, color: Color) {
+        let pixel = y * 480 + x;
+        let pixel_ptr = (self.base_addr + pixel * 2) as *mut u16;
+        unsafe { ptr::write_volatile(pixel_ptr, (color.alpha as u16) << 8 | 0xff) };
+    }
+}
+
+pub struct Layer<T> {
+    framebuffer: T,
+}
+
+impl<T: Framebuffer> Layer<T> {
+    pub fn horizontal_stripes(&mut self) {
+        let colors = [0xffffff, 0xcccccc, 0x999999, 0x666666, 0x333333, 0x0, 0xff0000, 0x0000ff];
+
+        // horizontal stripes
         for i in 0..272 {
             for j in 0..480 {
-                let pixel = i * 480 + j;
-                let pixel_color = (addr + pixel * 2) as *mut u16;
-                unsafe { ptr::write_volatile(pixel_color, colors[(j / 10) as usize & 7]) };
+                self.framebuffer
+                    .set_pixel(j, i, Color::from_rgb888(colors[i / 10]));
             }
         }
     }
 
-    pub fn clear_screen(&mut self) {
-        // layer 1
-        let addr: u32 = 0xC000_0000;
-        for i in 0..272 {
-            for j in 0..480 {
-                let pixel = i * 480 + j;
-                let pixel_color = (addr + pixel * 2) as *mut u16;
-                unsafe { ptr::write_volatile(pixel_color, 0) };
-            }
-        }
+    pub fn vertical_stripes(&mut self) {
+        let colors = [0xcccccc, 0x999999, 0x666666, 0x333333, 0x0, 0xff0000, 0x0000ff, 0xffffff];
 
-        // layer 2
-        let addr: u32 = 0xC000_0000 + (480 * 272 * 2);
+        // vertical stripes
         for i in 0..272 {
             for j in 0..480 {
-                let pixel = i * 480 + j;
-                let pixel_color = (addr + pixel * 2) as *mut u16;
-                unsafe { ptr::write_volatile(pixel_color, 0) };
+                self.framebuffer
+                    .set_pixel(j, i, Color::from_rgb888(colors[j / 10]));
             }
         }
     }
 
-    pub fn set_next_pixel(&mut self, color: u16) {
-        // layer 1
-        let addr: u32 = 0xC000_0000;
-        let pixel_color = (addr + self.next_pixel * 2) as *mut u16;
-        unsafe { ptr::write_volatile(pixel_color, color) };
+    pub fn clear(&mut self) {
+        for i in 0..272 {
+            for j in 0..480 {
+                self.framebuffer.set_pixel(j, i, Color::from_argb8888(0));
+            }
+        }
+    }
 
+    pub fn print_point_at(&mut self, x: usize, y: usize) {
+        self.print_point_color_at(x, y, Color::from_hex(0xffffffff));
+    }
+
+    pub fn print_point_color_at(&mut self, x: usize, y: usize, color: Color) {
+        assert!(x < 480);
+        assert!(y < 272);
+
+        self.framebuffer.set_pixel(x, y, color);
+    }
+
+    pub fn audio_writer(&mut self) -> AudioWriter<T> {
+        AudioWriter {
+            layer: self,
+            next_pixel: 0,
+            next_col: 0,
+            prev_value: (0, 0),
+        }
+    }
+}
+
+pub struct AudioWriter<'a, T: Framebuffer + 'a> {
+    layer: &'a mut Layer<T>,
+    next_pixel: usize,
+    next_col: usize,
+    prev_value: (u32, u32),
+}
+
+impl<'a, T: Framebuffer + 'a> AudioWriter<'a, T> {
+    pub fn set_next_pixel(&mut self, color: Color) {
+        self.layer
+            .print_point_color_at(self.next_pixel % 480, self.next_pixel / 480, color);
         self.next_pixel = (self.next_pixel + 1) % (272 * 480);
     }
 
@@ -94,58 +166,35 @@ impl Lcd {
         let value1 = value1 as u16 as u32;
         let value1 = value1 / 241;
 
-        // layer 1
-        let addr: u32 = 0xC000_0000;
         for i in 0..272 {
-            let mut color = 0;
+            let mut color = Color::from_argb8888(0);
 
             if value0 >= self.prev_value.0 {
                 if i >= self.prev_value.0 && i <= value0 {
-                    color |= 0xff00;
+                    color.red = 0xff;
+                    color.alpha = 0xff;
                 }
             } else if i <= self.prev_value.0 && i >= value0 {
-                color |= 0xff00;
+                color.red = 0xff;
+                color.alpha = 0xff;
             }
 
             if value1 >= self.prev_value.1 {
                 if i >= self.prev_value.0 && i <= value1 {
-                    color |= 0x00ff;
+                    color.green = 0xff;
+                    color.alpha = 0xff;
                 }
             } else if i <= self.prev_value.0 && i >= value1 {
-                color |= 0x00ff;
+                color.green = 0xff;
+                color.alpha = 0xff;
             }
 
-            let pixel = i * 480 + self.next_col;
-            let pixel_color = (addr + pixel * 2) as *mut u16;
-            unsafe { ptr::write_volatile(pixel_color, color) };
+            let i = i as usize;
+            self.layer.print_point_color_at(self.next_col, i, color);
         }
 
 
         self.next_col = (self.next_col + 1) % 480;
         self.prev_value = (value0, value1);
-    }
-
-    pub fn print_point_at(&mut self, x: u16, y: u16) {
-        assert!(x < 480);
-        assert!(y < 272);
-
-        // layer 2
-        let addr: u32 = 0xC000_0000 + (480 * 272 * 2);
-        let pixel = u32::from(y) * 480 + u32::from(x);
-        let pixel_color = (addr + pixel * 2) as *mut u16;
-
-        unsafe { ptr::write_volatile(pixel_color, 0xffff) };
-    }
-
-    pub fn print_point_color_at(&mut self, x: u16, y: u16, color: u16) {
-        assert!(x < 480);
-        assert!(y < 272);
-
-        // layer 2
-        let addr: u32 = 0xC000_0000 + (480 * 272 * 2);
-        let pixel = u32::from(y) * 480 + u32::from(x);
-        let pixel_color = (addr + pixel * 2) as *mut u16;
-
-        unsafe { ptr::write_volatile(pixel_color, color) };
     }
 }
