@@ -4,6 +4,8 @@
 #![feature(asm)]
 #![feature(alloc, collections)]
 #![feature(try_from)]
+#![feature(drop_types_in_const)]
+#![feature(option_entry)]
 
 #![no_std]
 
