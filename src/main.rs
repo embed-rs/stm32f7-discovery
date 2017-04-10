@@ -18,7 +18,6 @@ extern crate collections;
 // hardware register structs with accessor methods
 use stm32f7::{system_clock, sdram, lcd, i2c, audio, touch, board, ethernet, embedded};
 
-
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
     extern "C" {
@@ -56,8 +55,6 @@ pub unsafe extern "C" fn reset() -> ! {
 #[inline(never)]    //             reset() before the FPU is initialized
 fn main(hw: board::Hardware) -> ! {
     use embedded::interfaces::gpio::{self, Gpio};
-
-    println!("Entering main");
 
     let x = vec![1, 2, 3, 4, 5];
     assert_eq!(x.len(), 5);
@@ -138,6 +135,13 @@ fn main(hw: board::Hardware) -> ! {
 
     // lcd controller
     let mut lcd = lcd::init(ltdc, rcc, &mut gpio);
+    let mut layer_1 = lcd.layer_1().unwrap();
+    let mut layer_2 = lcd.layer_2().unwrap();
+
+    layer_1.clear();
+    layer_2.clear();
+
+    stm32f7::init_stdout(layer_2);
 
     // i2c
     i2c::init_pins_and_clocks(rcc, &mut gpio);
@@ -162,7 +166,9 @@ fn main(hw: board::Hardware) -> ! {
         println!("ethernet init failed: {:?}", e);
     }
 
-    lcd.clear_screen();
+    println!("Hello World!\n      bla\n");
+    println!("{:#?}", &[1213,20123,32345,426,53456,586754,61223]);
+    println!("\n\nLorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. ");
 
     touch::check_family_id(&mut i2c_3).unwrap();
 
@@ -194,11 +200,11 @@ fn main(hw: board::Hardware) -> ! {
         while !sai_2.bsr.read().freq() {} // fifo_request_flag
         let data1 = sai_2.bdr.read().data();
 
-        lcd.set_next_col(data0, data1);
+        layer_1.audio_writer().set_next_col(data0, data1);
 
         // poll for new touch data
         for touch in &touch::touches(&mut i2c_3).unwrap() {
-            lcd.print_point_at(touch.x, touch.y);
+            layer_1.print_point_at(touch.x as usize, touch.y as usize);
         }
 
         // handle new ethernet packets
