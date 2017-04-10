@@ -97,7 +97,8 @@ pub fn init(i2c: &'static mut i2c::I2c) -> I2C {
                     r.set_nostretch(false); // clock_stretching_disable
                     r.set_pe(true); // peripheral_enable
                 });
-
+    // wait that init can finish
+    ::system_clock::wait(50);
     I2C(i2c)
 }
 
