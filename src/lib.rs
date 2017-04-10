@@ -70,6 +70,12 @@ pub fn init_stdout(layer: lcd::Layer<lcd::FramebufferAl88>) {
     *stdout = Some(layer.text_writer().unwrap());
 }
 
+pub fn with_stdout<F>(f: F) where F: FnOnce(&mut TextWriter<lcd::FramebufferAl88>) {
+    if let Some(ref mut stdout) = *STDOUT.lock() {
+        f(stdout);
+    }
+}
+
 #[macro_use]
 pub mod semi_hosting;
 pub mod exceptions;
