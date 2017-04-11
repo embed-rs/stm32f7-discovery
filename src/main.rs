@@ -171,6 +171,7 @@ fn main(hw: board::Hardware) -> ! {
 
     touch::check_family_id(&mut i2c_3).unwrap();
 
+    let mut audio_writer = layer_1.audio_writer();
     let mut last_led_toggle = system_clock::ticks();
     let mut last_color_change = system_clock::ticks();
     let mut button_pressed_old = false;
@@ -199,11 +200,11 @@ fn main(hw: board::Hardware) -> ! {
         while !sai_2.bsr.read().freq() {} // fifo_request_flag
         let data1 = sai_2.bdr.read().data();
 
-        layer_1.audio_writer().set_next_col(data0, data1);
+        audio_writer.set_next_col(data0, data1);
 
         // poll for new touch data
         for touch in &touch::touches(&mut i2c_3).unwrap() {
-            layer_1.print_point_at(touch.x as usize, touch.y as usize);
+            audio_writer.layer().print_point_at(touch.x as usize, touch.y as usize);
         }
 
         // handle new ethernet packets
