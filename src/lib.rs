@@ -48,7 +48,7 @@ macro_rules! print {
 use spin::Mutex;
 use lcd::TextWriter;
 
-static STDOUT: Mutex<Option<TextWriter<lcd::FramebufferAl88>>> = Mutex::new(None);
+static STDOUT: Mutex<Option<TextWriter<lcd::FramebufferArgb4444>>> = Mutex::new(None);
 
 pub fn print(args: fmt::Arguments) {
     use core::fmt::Write;
@@ -61,8 +61,8 @@ pub fn print(args: fmt::Arguments) {
     };
 }
 
-pub fn init_stdout(layer: lcd::Layer<lcd::FramebufferAl88>) {
-    static mut LAYER: Option<lcd::Layer<lcd::FramebufferAl88>> = None;
+pub fn init_stdout(layer: lcd::Layer<lcd::FramebufferArgb4444>) {
+    static mut LAYER: Option<lcd::Layer<lcd::FramebufferArgb4444>> = None;
 
     let mut layer = unsafe {LAYER.get_or_insert_with(|| layer)};
 
@@ -70,7 +70,7 @@ pub fn init_stdout(layer: lcd::Layer<lcd::FramebufferAl88>) {
     *stdout = Some(layer.text_writer().unwrap());
 }
 
-pub fn with_stdout<F>(f: F) where F: FnOnce(&mut TextWriter<lcd::FramebufferAl88>) {
+pub fn with_stdout<F>(f: F) where F: FnOnce(&mut TextWriter<lcd::FramebufferArgb4444>) {
     if let Some(ref mut stdout) = *STDOUT.lock() {
         f(stdout);
     }

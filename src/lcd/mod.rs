@@ -30,19 +30,19 @@ impl Lcd {
             .update(|r| r.set_bc(color.to_rgb()));
     }
 
-    pub fn layer_1(&mut self) -> Option<Layer<FramebufferArgb8888>> {
+    pub fn layer_1(&mut self) -> Option<Layer<FramebufferArgb4444>> {
         if self.layer_1_in_use {
             None
         } else {
-            Some(Layer{framebuffer: FramebufferArgb8888::new(LAYER_1_START)})
+            Some(Layer{framebuffer: FramebufferArgb4444::new(LAYER_1_START)})
         }
     }
 
-    pub fn layer_2(&mut self) -> Option<Layer<FramebufferAl88>> {
+    pub fn layer_2(&mut self) -> Option<Layer<FramebufferArgb4444>> {
         if self.layer_1_in_use {
             None
         } else {
-            Some(Layer{framebuffer: FramebufferAl88::new(LAYER_2_START)})
+            Some(Layer{framebuffer: FramebufferArgb4444::new(LAYER_2_START)})
         }
     }
 }
@@ -69,10 +69,28 @@ impl Framebuffer for FramebufferArgb8888 {
     }
 }
 
-pub struct FramebufferAl88 {
+pub struct FramebufferArgb4444 {
     base_addr: usize,
 }
 
+impl FramebufferArgb4444 {
+    fn new(base_addr: usize) -> Self {
+        Self { base_addr, }
+    }
+}
+
+impl Framebuffer for FramebufferArgb4444 {
+    fn set_pixel(&mut self, x: usize, y: usize, color: Color) {
+        let pixel = y * 480 + x;
+        let pixel_ptr = (self.base_addr + pixel * 2) as *mut u16;
+        unsafe { ptr::write_volatile(pixel_ptr, color.to_argb4444()) };
+    }
+}
+
+
+pub struct FramebufferAl88 {
+    base_addr: usize,
+}
 
 impl FramebufferAl88 {
     fn new(base_addr: usize) -> Self {
