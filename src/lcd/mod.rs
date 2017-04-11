@@ -39,7 +39,7 @@ impl Lcd {
     }
 
     pub fn layer_2(&mut self) -> Option<Layer<FramebufferArgb4444>> {
-        if self.layer_1_in_use {
+        if self.layer_2_in_use {
             None
         } else {
             Some(Layer{framebuffer: FramebufferArgb4444::new(LAYER_2_START)})
