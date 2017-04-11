@@ -12,7 +12,7 @@ const PHY_RESET: u16 = 1 << 15;
 const AUTONEGOTIATION_ENABLE: u16 = 1 << 12;
 const AUTONEGOTIATION_RESTART: u16 = 1 << 9;
 
-const TIMEOUT: usize = 5_000;
+const TIMEOUT: usize = 0_500;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
