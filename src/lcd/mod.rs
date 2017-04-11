@@ -161,39 +161,53 @@ impl<T: Framebuffer> Layer<T> {
         }
     }
 
-    pub fn text_writer(&mut self) -> Result<TextWriter<T>, font_render::Error> {
-        Ok(TextWriter {
+    pub fn text_writer(&mut self) -> Result<TextWriterImpl<T>, font_render::Error> {
+        Ok(TextWriterImpl {
             layer: self,
             writer: font_render::TextWriter::default()?,
         })
     }
 }
 
-pub struct TextWriter<'a, T: Framebuffer + 'a> {
+pub trait TextWriter {
+    fn print_char(&mut self, c: char);
+
+    fn print_str(&mut self, s: &str) {
+        for c in s.chars() {
+            self.print_char(c);
+        }
+    }
+
+    fn set_offset(&mut self, off_x: usize, off_y: usize);
+
+    fn width_height(&self, s: &str) -> (u32, u32);
+}
+
+pub struct TextWriterImpl<'a, T: Framebuffer + 'a> {
     layer: &'a mut Layer<T>,
     writer: font_render::TextWriter<'a>,
 }
 
-impl<'a, T: Framebuffer> TextWriter<'a, T> {
-    pub fn print_char(&mut self, c: char) {
-        let &mut TextWriter {ref mut layer, ref mut writer} = self;
+impl<'a, T: Framebuffer> TextWriter for TextWriterImpl<'a, T> {
+    fn print_char(&mut self, c: char) {
+        let &mut TextWriterImpl {ref mut layer, ref mut writer} = self;
         writer.print_char(c, |coords, value| {
             let color = Color::rgba(255, 255, 255, value);
             layer.print_point_color_at(coords.x, coords.y, color);
         });
     }
 
-    pub fn print_str(&mut self, s: &str) {
+    fn print_str(&mut self, s: &str) {
         for c in s.chars() {
             self.print_char(c);
         }
     }
 
-    pub fn set_offset(&mut self, off_x: usize, off_y: usize) {
+    fn set_offset(&mut self, off_x: usize, off_y: usize) {
         self.writer.set_offset(off_x, off_y);
     }
 
-    pub fn width_height(&self, s: &str) -> (u32, u32) {
+    fn width_height(&self, s: &str) -> (u32, u32) {
         self.writer.width_height(s)
     }
 }
@@ -258,7 +272,7 @@ impl<'a, T: Framebuffer + 'a> AudioWriter<'a, T> {
 }
 
 
-impl<'a, T: Framebuffer> fmt::Write for TextWriter<'a, T> {
+impl<'a, T: Framebuffer> fmt::Write for TextWriterImpl<'a, T> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         self.print_str(s);
         Ok(())
