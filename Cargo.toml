@@ -14,7 +14,6 @@ bit_field = "0.7.0"
 byteorder = { version = "1.0.0", default-features = false }
 cortex-m = "0.1.4"
 r0 = "0.1.0"
-rlibc = "1.0.0"
 spin = "0.4.5"
 volatile = "0.2.1"
 net = {git = "https://github.com/embed-rs/net.git"}
