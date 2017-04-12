@@ -17,6 +17,7 @@ extern crate collections;
 
 // hardware register structs with accessor methods
 use stm32f7::{system_clock, sdram, lcd, i2c, audio, touch, board, ethernet, embedded};
+use stm32f7::lcd::{Color, Rectangle};
 
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
@@ -82,6 +83,7 @@ fn main(hw: board::Hardware) -> ! {
         syscfg,
         ethernet_mac,
         ethernet_dma,
+        dma2d,
         ..
     } = hw;
 
@@ -134,14 +136,52 @@ fn main(hw: board::Hardware) -> ! {
     sdram::init(rcc, fmc, &mut gpio);
 
     // lcd controller
-    let mut lcd = lcd::init(ltdc, rcc, &mut gpio);
-    let mut layer_1 = lcd.layer_1().unwrap();
-    let mut layer_2 = lcd.layer_2().unwrap();
+    let mut lcd = lcd::init(ltdc, dma2d, rcc, &mut gpio);
 
-    layer_1.clear();
-    layer_2.clear();
+    lcd.fill_with_color(Color::from_argb8888(0x33006600));
 
-    stm32f7::init_stdout(layer_2);
+    if let Some(mut layer_2) = lcd.layer_2() {
+        layer_2.clear();
+        stm32f7::init_stdout(layer_2);
+    }
+
+    let rect = Rectangle {
+        x_0: 50, x_1: 150, y_0: 150, y_1: 250,
+    };
+    lcd.fill_rect_with_color(rect, Color::from_argb8888(0));
+
+    let mut rect = Rectangle {
+        x_0: 250, x_1: 450, y_0: 50, y_1: 250,
+    };
+    let mut c = 0xff0000ff;
+    while rect.x_0 < rect.x_1 && rect.y_0 < rect.y_1 {
+        lcd.fill_rect_with_color(rect, Color::from_argb8888(c));
+        rect.x_0 += 1;
+        rect.x_1 -= 1;
+        rect.y_0 += 1;
+        rect.y_1 -= 1;
+        c -= 0x01000001;
+    }
+
+    let mut v = collections::Vec::with_capacity(50 * 100);
+    for _ in 0usize..50 {
+        for j in 0usize..100 {
+            v.push(j as u8 * 2);
+        }
+    }
+    let rect = Rectangle {
+        x_0: 75, x_1: 175, y_0: 25, y_1: 75,
+    };
+    lcd.copy_alpha_slice_to(&v, rect);
+
+    for i in 0usize..50 {
+        for j in 0usize..100 {
+            let mut c = Color::from_hex(0xffffff);
+            c.alpha = v[i*100 + j];
+            lcd.print_point_color_at(75 + j, 75 + i, c);
+        }
+    }
+
 
     // i2c
     i2c::init_pins_and_clocks(rcc, &mut gpio);
@@ -172,7 +212,7 @@ fn main(hw: board::Hardware) -> ! {
 
     touch::check_family_id(&mut i2c_3).unwrap();
 
-    let mut audio_writer = layer_1.audio_writer();
+    let mut audio_writer = lcd::AudioWriter::new();
     let mut last_led_toggle = system_clock::ticks();
     let mut last_color_change = system_clock::ticks();
     let mut button_pressed_old = false;
@@ -193,6 +233,9 @@ fn main(hw: board::Hardware) -> ! {
             let new_color = ((system_clock::ticks() as u32).wrapping_mul(19801)) % 0x1000000;
             lcd.set_background_color(lcd::Color::from_hex(new_color));
             last_color_change = ticks;
+            if button_pressed {
+                lcd.test();
+            }
         }
 
         // poll for new audio data
@@ -201,11 +244,11 @@ fn main(hw: board::Hardware) -> ! {
         while !sai_2.bsr.read().freq() {} // fifo_request_flag
         let data1 = sai_2.bdr.read().data();
 
-        audio_writer.set_next_col(data0, data1);
+        audio_writer.set_next_col(&mut lcd, data0, data1);
 
         // poll for new touch data
         for touch in &touch::touches(&mut i2c_3).unwrap() {
-            audio_writer.layer().print_point_at(touch.x as usize, touch.y as usize);
+            lcd.print_point_at(touch.x as usize, touch.y as usize);
         }
 
         // handle new ethernet packets
