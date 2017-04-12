@@ -226,15 +226,6 @@ impl<T: Framebuffer> Layer<T> {
         self.framebuffer.set_pixel(x, y, color);
     }
 
-    pub fn audio_writer(&mut self) -> AudioWriter<T> {
-        AudioWriter {
-            layer: self,
-            next_pixel: 0,
-            next_col: 0,
-            prev_value: (0, 0),
-        }
-    }
-
     pub fn text_writer(&mut self) -> Result<TextWriterImpl<T>, font_render::Error> {
         Ok(TextWriterImpl {
             layer: self,
@@ -286,24 +277,31 @@ impl<'a, T: Framebuffer> TextWriter for TextWriterImpl<'a, T> {
     }
 }
 
-pub struct AudioWriter<'a, T: Framebuffer + 'a> {
-    layer: &'a mut Layer<T>,
+pub struct AudioWriter {
     next_pixel: usize,
     next_col: usize,
     prev_value: (u32, u32),
 }
 
-impl<'a, T: Framebuffer + 'a> AudioWriter<'a, T> {
-    pub fn set_next_pixel(&mut self, color: Color) {
-        self.layer.print_point_color_at(self.next_pixel % 480, self.next_pixel / 480, color);
+impl AudioWriter {
+    pub fn new() -> Self {
+        AudioWriter {
+            next_pixel: 0,
+            next_col: 0,
+            prev_value: (0, 0),
+        }
+    }
+
+    pub fn set_next_pixel<T>(&mut self, layer: &mut Layer<T>, color: Color)
+        where T: Framebuffer
+    {
+        layer.print_point_color_at(self.next_pixel % 480, self.next_pixel / 480, color);
         self.next_pixel = (self.next_pixel + 1) % (272 * 480);
     }
 
-    pub fn layer(&mut self) -> &mut Layer<T> {
-        &mut self.layer
-    }
-
-    pub fn set_next_col(&mut self, value0: u32, value1: u32) {
+    pub fn set_next_col<T>(&mut self, layer: &mut Layer<T>, value0: u32, value1: u32)
+        where T: Framebuffer
+    {
         let value0 = value0 + 2u32.pow(15);
         let value0 = value0 as u16 as u32;
         let value0 = value0 / 241;
@@ -313,30 +311,28 @@ impl<'a, T: Framebuffer + 'a> AudioWriter<'a, T> {
         let value1 = value1 / 241;
 
         for i in 0..272 {
-            let mut color = Color::from_argb8888(0);
+            let mut color = Color::from_hex(0);
 
             if value0 >= self.prev_value.0 {
                 if i >= self.prev_value.0 && i <= value0 {
                     color.red = 0xff;
-                    color.alpha = 0xff;
                 }
             } else if i <= self.prev_value.0 && i >= value0 {
                 color.red = 0xff;
-                color.alpha = 0xff;
             }
 
             if value1 >= self.prev_value.1 {
                 if i >= self.prev_value.0 && i <= value1 {
                     color.green = 0xff;
-                    color.alpha = 0xff;
                 }
             } else if i <= self.prev_value.0 && i >= value1 {
                 color.green = 0xff;
-                color.alpha = 0xff;
             }
 
             let i = i as usize;
-            self.layer.print_point_color_at(self.next_col, i, color);
+            if color.red != 0 || color.green != 0 || color.blue != 0 {
+                layer.print_point_color_at(self.next_col, i, color);
+            }
         }
 
 
