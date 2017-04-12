@@ -7,8 +7,6 @@
 
 #![no_std]
 
-// memcpy, memmove, etc.
-extern crate rlibc;
 // hardware register structs with accessor methods
 pub extern crate embedded_stm32f7 as board;
 pub use board::embedded as embedded;
