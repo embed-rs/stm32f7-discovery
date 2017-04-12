@@ -197,21 +197,22 @@ impl<'a> Dma2d<'a> {
     }
 
     pub fn test(&mut self) {
-        let shift_pixels = 10;
-        let pixel_per_line = 480 - shift_pixels;
+        use super::{LAYER_1_START, LAYER_2_START};
+
+        let pixel_per_line = 100;
         let number_of_lines = 100;
 
         self.set_mode(Mode::MemoryToMemoryWithBlending);
 
-        self.set_fg_addr(0xC000_0000 + 60 * 480 * 4 + shift_pixels as usize *4);
+        self.set_fg_addr(LAYER_2_START);
         self.set_fg_line_offset(480 - pixel_per_line);
-        self.set_fg_pfc(Pfc::Argb8888);
+        self.set_fg_pfc(Pfc::Argb4444);
 
-        self.set_bg_addr(0xC000_0000);
+        self.set_bg_addr(LAYER_1_START + 100 * 480 * 4 + 300 *4);
         self.set_bg_line_offset(480 - pixel_per_line);
         self.set_bg_pfc(Pfc::Argb8888);
 
-        self.set_out_addr(0xC000_0000 + 60 * 480 * 4);
+        self.set_out_addr(LAYER_1_START + 170 * 480 * 4 + 2 * 4);
         self.set_out_line_offset(480 - pixel_per_line);
         self.set_out_pfc(Pfc::Argb8888);
 

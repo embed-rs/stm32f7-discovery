@@ -138,7 +138,7 @@ fn main(hw: board::Hardware) -> ! {
     // lcd controller
     let mut lcd = lcd::init(ltdc, dma2d, rcc, &mut gpio);
 
-    lcd.fill_with_color(Color::from_argb8888(0x33006600));
+    lcd.fill_with_color(Color::from_argb8888(0xcc006600));
 
     if let Some(mut layer_2) = lcd.layer_2() {
         layer_2.clear();
@@ -146,7 +146,7 @@ fn main(hw: board::Hardware) -> ! {
     }
 
     let rect = Rectangle {
-        x_0: 50, x_1: 150, y_0: 150, y_1: 250,
+        x_0: 130, x_1: 230, y_0: 150, y_1: 250,
     };
     lcd.fill_rect_with_color(rect, Color::from_argb8888(0));
 
@@ -208,11 +208,11 @@ fn main(hw: board::Hardware) -> ! {
 
     println!("Hello World!\n      bla\n");
     println!("{:#?}", &[1213,20123,32345,426,53456,586754,61223]);
-    println!("\n\nLorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. ");
+    //println!("\n\nLorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. ");
 
     touch::check_family_id(&mut i2c_3).unwrap();
 
-    let mut audio_writer = lcd::AudioWriter::new();
+    // let audio_writer = lcd::AudioWriter::new();
     let mut last_led_toggle = system_clock::ticks();
     let mut last_color_change = system_clock::ticks();
     let mut button_pressed_old = false;
@@ -238,6 +238,7 @@ fn main(hw: board::Hardware) -> ! {
             }
         }
 
+        /*
         // poll for new audio data
         while !sai_2.bsr.read().freq() {} // fifo_request_flag
         let data0 = sai_2.bdr.read().data();
@@ -245,6 +246,7 @@ fn main(hw: board::Hardware) -> ! {
         let data1 = sai_2.bdr.read().data();
 
         audio_writer.set_next_col(&mut lcd, data0, data1);
+        */
 
         // poll for new touch data
         for touch in &touch::touches(&mut i2c_3).unwrap() {
