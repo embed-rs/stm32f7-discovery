@@ -6,7 +6,7 @@ pub use self::init::init;
 use board::ltdc::Ltdc;
 use embedded::interfaces::gpio::OutputPin;
 use font_render;
-use core::{fmt, ptr};
+use core::{fmt, ptr, ops};
 
 mod init;
 mod color;
@@ -18,10 +18,11 @@ const LAYER_2_START: usize = SDRAM_START + 272*480*4;
 
 pub struct Lcd {
     controller: &'static mut Ltdc,
+    dma2d: dma2d::Dma2d<'static>,
     display_enable: OutputPin,
     backlight_enable: OutputPin,
-    layer_1_in_use: bool,
-    layer_2_in_use: bool,
+    layer_1: Layer<FramebufferArgb8888>,
+    layer_2: Option<Layer<FramebufferArgb4444>>,
 }
 
 impl Lcd {
@@ -31,21 +32,70 @@ impl Lcd {
             .update(|r| r.set_bc(color.to_rgb()));
     }
 
-    pub fn layer_1(&mut self) -> Option<Layer<FramebufferArgb4444>> {
-        if self.layer_1_in_use {
-            None
-        } else {
-            Some(Layer{framebuffer: FramebufferArgb4444::new(LAYER_1_START)})
-        }
+    pub fn fill_with_color(&mut self, color: Color) {
+        self.dma2d.fill_color(self.layer_1.framebuffer.base_addr, 480, 272, 0, color);
+    }
+
+    pub fn fill_rect_with_color(&mut self, rect: Rectangle, color: Color) {
+        let addr_offset = (rect.y_0 as usize * 480 + rect.x_0 as usize) * 4;
+        let addr = self.layer_1.framebuffer.base_addr + addr_offset;
+        let pixel_per_line = rect.x_1 - rect.x_0;
+        let number_of_lines = rect.y_1 - rect.y_0;
+        let line_offset = 480 - pixel_per_line;
+        self.dma2d.fill_color(addr, pixel_per_line, number_of_lines, line_offset, color);
+    }
+
+    pub fn copy_alpha_slice_to(&mut self, data: &[u8], rect: Rectangle) {
+        let out_addr_offset = (rect.y_0 as usize * 480 + rect.x_0 as usize) * 4;
+        let out_addr = self.layer_1.framebuffer.base_addr + out_addr_offset;
+        let pixel_per_line = rect.x_1 - rect.x_0;
+        let number_of_lines = rect.y_1 - rect.y_0;
+        let out_line_offset = 480 - pixel_per_line;
+
+        let fg_addr = data.as_ptr() as usize;
+        let fg_line_offset = 0;
+        let fg_pfc = dma2d::Pfc::A8;
+        let fg_color = Color::from_hex(0xffffff);
+
+        let bg_addr = out_addr;
+        let bg_line_offset = out_line_offset;
+        let bg_pfc = dma2d::Pfc::Argb8888;
+
+        self.dma2d.memory_to_memory_blending(fg_addr, fg_line_offset, fg_pfc, fg_color,
+            bg_addr, bg_line_offset, bg_pfc,
+            out_addr, out_line_offset,
+            pixel_per_line, number_of_lines);
+    }
+
+    pub fn test(&mut self) {
+        self.dma2d.test();
     }
 
     pub fn layer_2(&mut self) -> Option<Layer<FramebufferArgb4444>> {
-        if self.layer_2_in_use {
-            None
-        } else {
-            Some(Layer{framebuffer: FramebufferArgb4444::new(LAYER_2_START)})
-        }
+        self.layer_2.take()
     }
+}
+
+impl ops::Deref for Lcd {
+    type Target = Layer<FramebufferArgb8888>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.layer_1
+    }
+}
+
+impl ops::DerefMut for Lcd {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.layer_1
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Rectangle {
+    pub x_0: u16,
+    pub x_1: u16,
+    pub y_0: u16,
+    pub y_1: u16,
 }
 
 pub trait Framebuffer {
@@ -70,6 +120,30 @@ impl Framebuffer for FramebufferArgb8888 {
     }
 }
 
+pub struct FramebufferRgb888 {
+    base_addr: usize,
+}
+
+impl FramebufferRgb888 {
+    fn new(base_addr: usize) -> Self {
+        Self { base_addr, }
+    }
+}
+
+impl Framebuffer for FramebufferRgb888 {
+    fn set_pixel(&mut self, x: usize, y: usize, color: Color) {
+        let pixel = y * 480 + x;
+        let red_ptr = (self.base_addr + pixel * 3) as *mut u8;
+        let green_ptr = (self.base_addr + pixel * 3 + 1) as *mut u8;
+        let blue_ptr = (self.base_addr + pixel * 3 + 2) as *mut u8;
+        unsafe {
+            ptr::write_volatile(red_ptr, color.red);
+            ptr::write_volatile(green_ptr, color.green);
+            ptr::write_volatile(blue_ptr, color.blue);
+        };
+    }
+}
+
 pub struct FramebufferArgb4444 {
     base_addr: usize,
 }
@@ -87,7 +161,6 @@ impl Framebuffer for FramebufferArgb4444 {
         unsafe { ptr::write_volatile(pixel_ptr, color.to_argb4444()) };
     }
 }
-
 
 pub struct FramebufferAl88 {
     base_addr: usize,

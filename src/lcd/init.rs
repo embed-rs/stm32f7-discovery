@@ -1,9 +1,10 @@
 use board::rcc::Rcc;
 use board::ltdc::Ltdc;
+use board::dma2d::Dma2d as BoardDma2d;
 use embedded::interfaces::gpio::{Gpio, OutputPin};
-use super::{Lcd, LAYER_1_START, LAYER_2_START};
+use super::*;
 
-pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
+pub fn init(ltdc: &'static mut Ltdc, dma2d: &'static mut BoardDma2d, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
     // init gpio pins
     let (mut display_enable, mut backlight_enable) = init_pins(gpio);
 
@@ -112,7 +113,7 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
                 });
 
     // specify pixed format
-    ltdc.l1pfcr.update(|r| r.set_pf(0b100)); // set_pixel_format to ARGB4444
+    ltdc.l1pfcr.update(|r| r.set_pf(0b000)); // set_pixel_format to ARGB8888
     ltdc.l2pfcr.update(|r| r.set_pf(0b100)); // set_pixel_format to ARGB4444
 
     // configure default color values
@@ -180,34 +181,13 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
     display_enable.set(true);
     backlight_enable.set(true);
 
-    // TODO
-    //
-    // Init LTDC layers */
-    // TM_LCD_INT_InitLayers();
-    // Init DMA2D GRAPHICS */
-    // TM_DMA2DGRAPHIC_Init();
-    // Set settings */
-    // TM_INT_DMA2DGRAPHIC_SetConf(&DMA2DConf);
-    // Enable LCD */
-    // TM_LCD_DisplayOn();
-    // Set layer 1 as active layer */
-    // TM_LCD_SetLayer1();
-    // TM_LCD_Fill(LCD_COLOR_WHITE);
-    // TM_LCD_SetLayer2();
-    // TM_LCD_Fill(LCD_COLOR_WHITE);
-    // TM_LCD_SetLayer1();
-    // Set layer 1 as active layer */
-    // TM_LCD_SetLayer1Opacity(255);
-    // TM_LCD_SetLayer2Opacity(0);
-    //
-    //
-
     Lcd {
         controller: ltdc,
+        dma2d: dma2d::Dma2d::new(dma2d),
         display_enable: display_enable,
         backlight_enable: backlight_enable,
-        layer_1_in_use: false,
-        layer_2_in_use: false,
+        layer_1: Layer{framebuffer: FramebufferArgb8888::new(LAYER_1_START)},
+        layer_2: Some(Layer{framebuffer: FramebufferArgb4444::new(LAYER_2_START)}),
     }
 }
 
