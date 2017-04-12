@@ -124,26 +124,18 @@ impl Lcd {
     }
 
     pub fn print_point_at(&mut self, x: u16, y: u16) {
-        assert!(x < 480);
-        assert!(y < 272);
-
-        // layer 2
-        let addr: u32 = 0xC000_0000 + (480 * 272 * 2);
-        let pixel = u32::from(y) * 480 + u32::from(x);
-        let pixel_color = (addr + pixel * 2) as *mut u16;
-
-        unsafe { ptr::write_volatile(pixel_color, 0xffff) };
+        self.print_point_color_at(x,y, Color::from_hex(0xffffff));
     }
 
-    pub fn print_point_color_at(&mut self, x: u16, y: u16, color: u16) {
+    pub fn print_point_color_at(&mut self, x: u16, y: u16, color: Color) {
         assert!(x < 480);
         assert!(y < 272);
 
         // layer 2
         let addr: u32 = 0xC000_0000 + (480 * 272 * 2);
         let pixel = u32::from(y) * 480 + u32::from(x);
-        let pixel_color = (addr + pixel * 2) as *mut u16;
+        let pixel_color = (addr + pixel * 4) as *mut u32;
 
-        unsafe { ptr::write_volatile(pixel_color, color) };
+        unsafe { ptr::write_volatile(pixel_color, color.to_argb8888()) };
     }
 }
