@@ -1,2 +1,7 @@
-[dependencies]
-collections = {}
+[dependencies.collections]
+
+[dependencies.core]
+
+[dependencies.compiler_builtins]
+git = "https://github.com/rust-lang-nursery/compiler-builtins"
+stage = 1

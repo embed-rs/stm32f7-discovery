@@ -23,10 +23,6 @@ net = {git = "https://github.com/embed-rs/net.git"}
 default-features = false
 version = "0.3.20"
 
-[dependencies.embedded]
-default-features = false
-git = "https://github.com/embed-rs/embedded-rs.git"
-
 [dependencies.embedded_stm32f7]
 git = "https://github.com/embed-rs/embedded_stm32f7.git"
 

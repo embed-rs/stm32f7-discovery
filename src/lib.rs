@@ -11,7 +11,8 @@
 extern crate rlibc;
 // hardware register structs with accessor methods
 pub extern crate embedded_stm32f7 as board;
-pub extern crate embedded;
+pub use board::embedded as embedded;
+
 // low level access to the cortex-m cpu
 pub extern crate cortex_m;
 // volatile wrapper types

@@ -2,6 +2,7 @@
 #![feature(const_fn)]
 #![feature(alloc, collections)]
 #![feature(asm)]
+#![feature(compiler_builtins_lib)]
 
 #![no_std]
 #![no_main]
@@ -14,6 +15,7 @@ extern crate r0;
 extern crate alloc;
 #[macro_use]
 extern crate collections;
+extern crate compiler_builtins;
 
 // hardware register structs with accessor methods
 use stm32f7::{system_clock, sdram, lcd, i2c, audio, touch, board, ethernet, embedded};
