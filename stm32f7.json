@@ -10,7 +10,9 @@
 
   "linker-flavor": "gcc",
   "linker": "arm-none-eabi-gcc",
-  "pre-link-args": ["-Tstm32f7.ld", "-nostartfiles"],
+  "pre-link-args": {
+    "gcc": ["-Tstm32f7.ld", "-nostartfiles"]
+  },
   "executables": true,
 
   "relocation-model": "static",

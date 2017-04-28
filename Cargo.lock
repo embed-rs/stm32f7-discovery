@@ -2,8 +2,8 @@
 name = "stm32f7_discovery"
 version = "0.1.0"
 dependencies = [
- "alloc-cortex-m 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "arrayvec 0.3.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "alloc-cortex-m 0.2.1 (git+https://github.com/oli-obk/alloc-cortex-m.git?branch=patch-1)",
+ "arrayvec 0.3.23 (registry+https://github.com/rust-lang/crates.io-index)",
  "bit_field 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -17,7 +17,7 @@ dependencies = [
 [[package]]
 name = "alloc-cortex-m"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/oli-obk/alloc-cortex-m.git?branch=patch-1#d953f725f300519f5c5dec8e8e0013cc72f5bccc"
 dependencies = [
  "cortex-m 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "linked_list_allocator 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -25,7 +25,7 @@ dependencies = [
 
 [[package]]
 name = "arrayvec"
-version = "0.3.22"
+version = "0.3.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "nodrop 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -70,7 +70,7 @@ name = "embedded"
 version = "0.3.0"
 source = "git+https://github.com/embed-rs/embedded-rs.git#71909fc533f777afd440338c5f9dfa057f882712"
 dependencies = [
- "arrayvec 0.3.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "arrayvec 0.3.23 (registry+https://github.com/rust-lang/crates.io-index)",
  "bit_field 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "volatile 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -139,8 +139,8 @@ version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [metadata]
-"checksum alloc-cortex-m 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "fb73e5e379a7600089a76c52bbd50b2b14934a406c1728be19cdb5b23635448f"
-"checksum arrayvec 0.3.22 (registry+https://github.com/rust-lang/crates.io-index)" = "35c1e907260135089def5aac0c66ca42624f2ed60652451812fedbc5a574baed"
+"checksum alloc-cortex-m 0.2.1 (git+https://github.com/oli-obk/alloc-cortex-m.git?branch=patch-1)" = "<none>"
+"checksum arrayvec 0.3.23 (registry+https://github.com/rust-lang/crates.io-index)" = "699e63a93b79d717e8c3b5eb1b28b7780d0d6d9e59a72eb769291c83b0c8dc67"
 "checksum bit_field 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8c7f2626c064227bf8d383b35223f8ac9b7d33a7999f7bd9a5b5e491583061f6"
 "checksum bit_field 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2f2608c2dbf1057804d86937a32731a17458a60b10e83ad91c1c35c36e522f5d"
 "checksum bit_field 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ff91a64014e1bc53bf643920f2c9ab5f0980d92a0948295f3ee550e9266849ad"
