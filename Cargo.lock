@@ -95,7 +95,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "net"
 version = "0.1.0"
-source = "git+https://github.com/embed-rs/net.git#399e76a760364f5394fe43dbe28204b4e1eab1cf"
+source = "git+https://github.com/embed-rs/net.git#8cde43f5da8cd5fa2e735dd537bd436a238bc8bd"
 dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
