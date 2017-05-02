@@ -20,3 +20,4 @@ before_script:
 
 script:
 - xargo build
+- cd blinking_led && xargo update && xargo build
