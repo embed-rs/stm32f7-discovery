@@ -8,8 +8,8 @@
   "os": "none",
   "features": "+fp-only-sp",
 
-  "linker-flavor": "gcc",
-  "linker": "arm-none-eabi-gcc",
+  "linker-flavor": "ld",
+  "linker": "ld.lld-5.0",
   "pre-link-args": {
     "gcc": ["-Tstm32f7.ld", "-nostartfiles"]
   },
