@@ -8,7 +8,7 @@ use embedded::interfaces::gpio;
 use volatile::Volatile;
 use net::ipv4::Ipv4Address;
 use net::ethernet::{EthernetAddress, EthernetPacket};
-use net::{self, TxPacket};
+use net::{self, HeapTxPacket};
 
 mod init;
 mod phy;
@@ -125,7 +125,7 @@ impl EthernetDevice {
     }
 
     pub fn send_dhcp_discover(&mut self) -> Result<(), Error> {
-        use net::{dhcp, TxPacket, WriteOut};
+        use net::{dhcp, WriteOut};
         use system_clock;
 
         if system_clock::ticks() - self.last_discover_at < 5000 {
@@ -133,7 +133,7 @@ impl EthernetDevice {
         }
 
         let packet = dhcp::new_discover_msg(ETH_ADDR);
-        let mut tx_packet = TxPacket::new(packet.len());
+        let mut tx_packet = HeapTxPacket::new(packet.len());
         packet.write_out(&mut tx_packet)?;
 
         self.tx.insert(tx_packet.into_boxed_slice());
@@ -163,7 +163,7 @@ impl EthernetDevice {
         Ok(())
     }
 
-    fn process_next_packet(&mut self) -> Result<Option<TxPacket>, Error> {
+    fn process_next_packet(&mut self) -> Result<Option<HeapTxPacket>, Error> {
         let &mut EthernetDevice {
                      ref mut rx,
                      ref mut ipv4_addr,
@@ -202,7 +202,7 @@ impl EthernetDevice {
                                 if requested_ipv4_addr.is_none() {
                                     *requested_ipv4_addr = Some(ip);
                                     let reply = dhcp::new_request_msg(ETH_ADDR, ip, dhcp_server_ip);
-                                    return Ok(Some(TxPacket::write_out(reply)?));
+                                    return Ok(Some(HeapTxPacket::write_out(reply)?));
                                 }
                             }
                             DhcpType::Ack { ip } => {
@@ -226,7 +226,7 @@ impl EthernetDevice {
                                          arp.src_ip,
                                          arp.src_mac);
                                 let reply = arp.response_packet(ETH_ADDR);
-                                return Ok(Some(TxPacket::write_out(reply)?));
+                                return Ok(Some(HeapTxPacket::write_out(reply)?));
                             }
                             ArpOperation::Response => {
                                 println!("arp response from {:?} for ip {:?}",
@@ -249,11 +249,11 @@ impl EthernetDevice {
                                 if let Some(&dst_mac) = arp_cache.get(&dst_ip) {
                                     let reply =
                                         icmp.echo_reply_packet(ETH_ADDR, dst_mac, src_ip, dst_ip);
-                                    return Ok(Some(TxPacket::write_out(reply)?));
+                                    return Ok(Some(HeapTxPacket::write_out(reply)?));
                                 } else {
                                     let arp_request =
                                         arp::new_request_packet(ETH_ADDR, src_ip, dst_ip);
-                                    return Ok(Some(TxPacket::write_out(arp_request).unwrap()));
+                                    return Ok(Some(HeapTxPacket::write_out(arp_request).unwrap()));
                                 }
                             }
                             IcmpType::EchoReply {
