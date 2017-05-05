@@ -2,7 +2,8 @@
 //! Use at your own risk. AND NOT FOR CRYPTOGRAPHIC PURPOSES !!!einself
 //!
 //! Example
-//! ````
+//!
+//! ```
 //! let mut random_gen = rng::init(rng, rcc);
 //! match random_gen.poll_and_get() {
 //!
@@ -14,12 +15,13 @@
 //!             println!("Something went wrong");
 //!         }
 //!     }
-//!````
+//! ```
 //! Since for disabling the rng, some rcc clock on the AHB2 Bus must be disabled as well.
 //! Therefore use .disable(rcc) after you are done.
-//! ````
+//!
+//! ```
 //! random_gen.disable(rcc);
-//! ````
+//! ```
 //!
 //! Iter is currently not implemented. Pull Requests welcome!
 
