@@ -54,8 +54,8 @@ pub unsafe extern "C" fn reset() -> ! {
     main(board::hw());
 }
 
-                    // WORKAROUND: rust compiler will inline & reorder fp instructions into
-#[inline(never)]    //             reset() before the FPU is initialized
+// WORKAROUND: rust compiler will inline & reorder fp instructions into
+#[inline(never)] //             reset() before the FPU is initialized
 fn main(hw: board::Hardware) -> ! {
     use embedded::interfaces::gpio::{self, Gpio};
 

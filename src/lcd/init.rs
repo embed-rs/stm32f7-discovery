@@ -136,14 +136,16 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
     ltdc.l2cacr.update(|r| r.set_consta(255)); // constant_alpha
 
     // specify blending factors
-    ltdc.l1bfcr.update(|r| {
-        r.set_bf1(0b110); // set_blending_factor_1 to PixelAlphaTimesConstantAlpha
-        r.set_bf2(0b111); // set_blending_factor_2 to OneMinusPixelAlphaTimesConstantAlpha
-    });
-    ltdc.l2bfcr.update(|r| {
-        r.set_bf1(0b110); // set_blending_factor_1 to PixelAlphaTimesConstantAlpha
-        r.set_bf2(0b111); // set_blending_factor_2 to OneMinusPixelAlphaTimesConstantAlpha
-    });
+    ltdc.l1bfcr
+        .update(|r| {
+            r.set_bf1(0b110); // set_blending_factor_1 to PixelAlphaTimesConstantAlpha
+            r.set_bf2(0b111); // set_blending_factor_2 to OneMinusPixelAlphaTimesConstantAlpha
+        });
+    ltdc.l2bfcr
+        .update(|r| {
+            r.set_bf1(0b110); // set_blending_factor_1 to PixelAlphaTimesConstantAlpha
+            r.set_bf2(0b111); // set_blending_factor_2 to OneMinusPixelAlphaTimesConstantAlpha
+        });
 
     // configure color frame buffer start address
     const SDRAM_START: u32 = 0xC000_0000;

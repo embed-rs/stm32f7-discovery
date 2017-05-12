@@ -9,7 +9,7 @@
 
 // hardware register structs with accessor methods
 pub extern crate embedded_stm32f7 as board;
-pub use board::embedded as embedded;
+pub use board::embedded;
 
 // low level access to the cortex-m cpu
 pub extern crate cortex_m;

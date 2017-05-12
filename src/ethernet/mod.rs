@@ -219,7 +219,10 @@ impl EthernetDevice {
                 use net::dhcp::{self, DhcpPacket, DhcpType};
                 use net::icmp::IcmpType;
 
-                let EthernetPacket { header: _, payload } = net::parse(data)?;
+                let EthernetPacket {
+                    header: _,
+                    payload,
+                } = net::parse(data)?;
 
                 match payload {
                     // DHCP offer or ack for us
@@ -496,7 +499,9 @@ impl TxDevice {
     pub fn cleanup(&mut self) {
         let mut c = 0;
         for descriptor in self.descriptors.iter_mut() {
-            descriptor.update(|d| if !d.own() && d.buffer().is_some() { c += 1; });
+            descriptor.update(|d| if !d.own() && d.buffer().is_some() {
+                                  c += 1;
+                              });
         }
         if c > 0 {
             // println!("cleaned up {} packets", c);

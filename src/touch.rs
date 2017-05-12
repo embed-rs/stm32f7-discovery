@@ -24,16 +24,15 @@ pub struct Touch {
 
 pub fn touches(i2c_3: &mut I2C) -> Result<ArrayVec<[Touch; 5]>, i2c::Error> {
     let mut touches = ArrayVec::new();
-    i2c_3.connect::<u8, _>(FT5336_ADDRESS, |mut conn| {
+    i2c_3
+        .connect::<u8, _>(FT5336_ADDRESS, |mut conn| {
             let status = conn.read(FT5336_STATUS_REGISTER)?;
             let mut number_of_touches = status & 0x0F;
             if number_of_touches > 5 {
                 number_of_touches = 0;
             }
 
-            for &data_reg in FT5336_DATA_REGISTERS
-                    .iter()
-                    .take(number_of_touches.into()) {
+            for &data_reg in FT5336_DATA_REGISTERS.iter().take(number_of_touches.into()) {
                 let mut touch_data: [u8; 4] = [0; 4];
                 conn.read_bytes(data_reg, &mut touch_data)?;
                 let y = (u16::from(touch_data[0] & 0x0F) << 8) | u16::from(touch_data[1]);

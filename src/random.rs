@@ -28,14 +28,14 @@
 
 use core::result::Result;
 use core::ops::Drop;
-use ::board;
+use board;
 
 
 /// Contains state as well as the Rng Struct from embedded::board.
 pub struct Rng {
     last_number: u32,
     counter: u32,
-    board_rng: &'static mut board::rng::Rng
+    board_rng: &'static mut board::rng::Rng,
 }
 
 
@@ -48,28 +48,35 @@ pub enum ErrorType {
     CEIS,
     SEIS,
     AlreadyEnabled,
-    NotReady
+    NotReady,
 }
 
 
 impl Rng {
-
     ///! This will take semi-ownership (with &'static) for the rng struct
     /// from board::rng.
-    pub fn init(rng: &'static mut board::rng::Rng, rcc: &mut board::rcc::Rcc) -> Result<Rng, ErrorType> {
+    pub fn init(rng: &'static mut board::rng::Rng,
+                rcc: &mut board::rcc::Rcc)
+                -> Result<Rng, ErrorType> {
 
         let control_register = rng.cr.read().rngen();
         if control_register {
             return Err(ErrorType::AlreadyEnabled);
         }
 
-        let mut rng = Rng { last_number: 0x0, counter: 0x0, board_rng: rng };
+        let mut rng = Rng {
+            last_number: 0x0,
+            counter: 0x0,
+            board_rng: rng,
+        };
         rcc.ahb2enr.update(|r| r.set_rngen(true));
 
-        rng.board_rng.cr.update(|r| {
-            r.set_ie(false);
-            r.set_rngen(true);
-        });
+        rng.board_rng
+            .cr
+            .update(|r| {
+                        r.set_ie(false);
+                        r.set_rngen(true);
+                    });
 
         Ok(rng)
     }
@@ -145,7 +152,6 @@ impl Rng {
 
 
 impl Drop for Rng {
-
     /// PANICS EVERYTIME! Use .disable(rcc) explicitly!
     fn drop(&mut self) {
         panic!("Use .disable() method on your random struct!");
