@@ -9,10 +9,10 @@ pub struct FontRenderer<'a> {
 }
 
 impl<'a> FontRenderer<'a> {
-    pub fn new(font_data: &[u8]) -> FontRenderer {
+    pub fn new(font_data: &[u8], font_height: f32) -> FontRenderer {
         let collection = FontCollection::from_bytes(font_data);
         let font = collection.into_font().unwrap(); // only succeeds if collection consists of one font
-        FontRenderer { font, height: 30.0 }
+        FontRenderer { font, height: font_height }
     }
 
     pub fn layout(&self, s: &str) -> Vec<PositionedGlyph> {

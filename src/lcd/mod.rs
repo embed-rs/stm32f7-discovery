@@ -149,7 +149,7 @@ impl<T: Framebuffer> Layer<T> {
     pub fn text_writer(&mut self) -> TextWriter<T> {
         TextWriter {
             layer: self,
-            font_renderer: FontRenderer::new(TTF),
+            font_renderer: FontRenderer::new(TTF, 14.0),
             x_pos: 0,
             y_pos: 0,
         }
@@ -219,8 +219,8 @@ impl<'a, T: Framebuffer + 'a> AudioWriter<'a, T> {
 pub struct TextWriter<'a, T: Framebuffer + 'a> {
     layer: &'a mut Layer<T>,
     font_renderer: FontRenderer<'a>,
-    x_pos: u32,
-    y_pos: u32,
+    x_pos: usize,
+    y_pos: usize,
 }
 
 impl<'a, T: Framebuffer> fmt::Write for TextWriter<'a, T> {
@@ -230,6 +230,8 @@ impl<'a, T: Framebuffer> fmt::Write for TextWriter<'a, T> {
         let &mut TextWriter {
                      ref mut layer,
                      ref mut font_renderer,
+                     x_pos,
+                     y_pos,
                      ..
                  } = self;
 
@@ -241,7 +243,7 @@ impl<'a, T: Framebuffer> fmt::Write for TextWriter<'a, T> {
                 blue: 255,
                 alpha,
             };
-            layer.print_point_color_at(150+x, 50+y, color);
+            layer.print_point_color_at(x_pos + x, y_pos + y, color);
         });
         Ok(())
     }
