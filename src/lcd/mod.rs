@@ -223,19 +223,24 @@ pub struct TextWriter<'a, T: Framebuffer + 'a> {
     y_pos: usize,
 }
 
-impl<'a, T: Framebuffer> fmt::Write for TextWriter<'a, T> {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
+impl <'a, T: Framebuffer> TextWriter<'a, T> {
+    fn write_str_no_newlines(&mut self, s: &str) -> fmt::Result {
         use rusttype::stb_truetype::float_impls::FloatImpls;
 
+        let font_height = self.font_renderer.font_height() as usize;
         let &mut TextWriter {
                      ref mut layer,
                      ref mut font_renderer,
-                     x_pos,
-                     y_pos,
+                     ref mut x_pos,
+                     ref mut y_pos,
                      ..
                  } = self;
 
-        font_renderer.render(s, |x, y, v| {
+        let width = font_renderer.render(s, |x, y, v| {
+            if *x_pos + x >= 480 {
+                *x_pos = 0;
+                *y_pos += font_height;
+            }
             let alpha = (v * 255.0 + 0.5) as u8;
             let color = Color {
                 red: 255,
@@ -243,8 +248,23 @@ impl<'a, T: Framebuffer> fmt::Write for TextWriter<'a, T> {
                 blue: 255,
                 alpha,
             };
-            layer.print_point_color_at(x_pos + x, y_pos + y, color);
+            layer.print_point_color_at(*x_pos + x, *y_pos + y, color);
         });
+        *x_pos += width;
+        Ok(())
+    }
+}
+
+impl<'a, T: Framebuffer> fmt::Write for TextWriter<'a, T> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        let mut lines = s.split('\n').peekable();
+        while let Some(line) = lines.next() {
+            self.write_str_no_newlines(line)?;
+            if lines.peek().is_some() {
+                self.x_pos = 0;
+                self.y_pos += self.font_renderer.font_height() as usize;
+            }
+        }
         Ok(())
     }
 }

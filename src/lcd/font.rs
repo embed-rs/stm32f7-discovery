@@ -15,8 +15,11 @@ impl<'a> FontRenderer<'a> {
         FontRenderer { font, height: font_height }
     }
 
+    pub fn font_height(&self) -> f32 {
+        self.height
+    }
+
     pub fn layout(&self, s: &str) -> Vec<PositionedGlyph> {
-        // 2x scale in x direction to counter the aspect ratio of monospace characters.
         let scale = Scale {
             x: self.height,
             y: self.height,
@@ -32,7 +35,7 @@ impl<'a> FontRenderer<'a> {
         self.font.layout(s, scale, offset).collect()
     }
 
-    pub fn render<F>(&self, s: &str, mut draw_pixel: F)
+    pub fn render<F>(&self, s: &str, mut draw_pixel: F) -> usize
         where F: FnMut(usize, usize, f32)
     {
         let glyphs = self.layout(s);
@@ -66,11 +69,12 @@ impl<'a> FontRenderer<'a> {
                     let x = x as i32 + bb.min.x;
                     let y = y as i32 + bb.min.y;
                     // There's still a possibility that the glyph clips the boundaries of the bitmap
-                        draw_pixel(x as usize, y as usize, v);
                     if x >= 0 && x < width as i32 && y >= 0 && y < pixel_height as i32 {
+                        draw_pixel(x as usize, y as usize, v);
                     }
                 });
             }
         }
+        return width;
     }
 }
