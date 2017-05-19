@@ -10,6 +10,10 @@ use core::ptr;
 mod init;
 mod color;
 
+const SDRAM_START: usize = 0xC000_0000;
+const LAYER_1_START: usize = SDRAM_START;
+const LAYER_2_START: usize = SDRAM_START + 272 * 480 * 4;
+
 pub struct Lcd {
     controller: &'static mut Ltdc,
     display_enable: OutputPin,
