@@ -208,7 +208,9 @@ fn main(hw: board::Hardware) -> ! {
 
         // poll for new touch data
         for touch in &touch::touches(&mut i2c_3).unwrap() {
-            audio_writer.layer().print_point_at(touch.x as usize, touch.y as usize);
+            audio_writer
+                .layer()
+                .print_point_at(touch.x as usize, touch.y as usize);
         }
 
         // handle new ethernet packets
