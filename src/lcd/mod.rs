@@ -9,6 +9,7 @@ use core::ptr;
 
 mod init;
 mod color;
+mod font;
 
 const SDRAM_START: usize = 0xC000_0000;
 const LAYER_1_START: usize = SDRAM_START;
