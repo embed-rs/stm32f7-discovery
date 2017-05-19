@@ -98,7 +98,7 @@ impl<T: Framebuffer> Layer<T> {
         for i in 0..272 {
             for j in 0..480 {
                 self.framebuffer
-                    .set_pixel(j, i, Color::from_rgb888(colors[i / 10]));
+                    .set_pixel(j, i, Color::from_rgb888(colors[(i / 10) % colors.len()]));
             }
         }
     }
@@ -110,7 +110,7 @@ impl<T: Framebuffer> Layer<T> {
         for i in 0..272 {
             for j in 0..480 {
                 self.framebuffer
-                    .set_pixel(j, i, Color::from_rgb888(colors[j / 10]));
+                    .set_pixel(j, i, Color::from_rgb888(colors[(j / 10) % colors.len()]));
             }
         }
     }
