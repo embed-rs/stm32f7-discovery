@@ -57,6 +57,7 @@ pub unsafe extern "C" fn reset() -> ! {
 // WORKAROUND: rust compiler will inline & reorder fp instructions into
 #[inline(never)] //             reset() before the FPU is initialized
 fn main(hw: board::Hardware) -> ! {
+    use core::fmt::Write;
     use embedded::interfaces::gpio::{self, Gpio};
 
     println!("Entering main");
@@ -145,6 +146,9 @@ fn main(hw: board::Hardware) -> ! {
 
     layer_1.clear();
     layer_2.clear();
+
+    let mut text_writer = layer_2.text_writer();
+    write!(text_writer, "Hello World!");
 
     // i2c
     i2c::init_pins_and_clocks(rcc, &mut gpio);

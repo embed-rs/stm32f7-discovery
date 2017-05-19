@@ -5,7 +5,8 @@ pub use self::init::init;
 
 use board::ltdc::Ltdc;
 use embedded::interfaces::gpio::OutputPin;
-use core::ptr;
+use core::{fmt, ptr};
+use self::font::FontRenderer;
 
 mod init;
 mod color;
@@ -14,6 +15,8 @@ mod font;
 const SDRAM_START: usize = 0xC000_0000;
 const LAYER_1_START: usize = SDRAM_START;
 const LAYER_2_START: usize = SDRAM_START + 272 * 480 * 4;
+
+static TTF: &[u8] = include_bytes!("../../RobotoMono-Bold.ttf");
 
 pub struct Lcd {
     controller: &'static mut Ltdc,
@@ -142,6 +145,15 @@ impl<T: Framebuffer> Layer<T> {
             prev_value: (0, 0),
         }
     }
+
+    pub fn text_writer(&mut self) -> TextWriter<T> {
+        TextWriter {
+            layer: self,
+            font_renderer: FontRenderer::new(TTF),
+            x_pos: 0,
+            y_pos: 0,
+        }
+    }
 }
 
 pub struct AudioWriter<'a, T: Framebuffer + 'a> {
@@ -201,5 +213,36 @@ impl<'a, T: Framebuffer + 'a> AudioWriter<'a, T> {
 
         self.next_col = (self.next_col + 1) % 480;
         self.prev_value = (value0, value1);
+    }
+}
+
+pub struct TextWriter<'a, T: Framebuffer + 'a> {
+    layer: &'a mut Layer<T>,
+    font_renderer: FontRenderer<'a>,
+    x_pos: u32,
+    y_pos: u32,
+}
+
+impl<'a, T: Framebuffer> fmt::Write for TextWriter<'a, T> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        use rusttype::stb_truetype::float_impls::FloatImpls;
+
+        let &mut TextWriter {
+                     ref mut layer,
+                     ref mut font_renderer,
+                     ..
+                 } = self;
+
+        font_renderer.render(s, |x, y, v| {
+            let alpha = (v * 255.0 + 0.5) as u8;
+            let color = Color {
+                red: 255,
+                green: 255,
+                blue: 255,
+                alpha,
+            };
+            layer.print_point_color_at(150+x, 50+y, color);
+        });
+        Ok(())
     }
 }

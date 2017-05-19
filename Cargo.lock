@@ -127,7 +127,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "rusttype"
 version = "0.2.1"
-source = "git+https://github.com/phil-opp/rusttype.git?branch=no_std#328da4cc99828b0ec1f3a1ffeffea5b4a130f5a0"
+source = "git+https://github.com/phil-opp/rusttype.git?branch=no_std#c9ff700f89c1472cf3ff0cce4705cfb6fa47d49e"
 dependencies = [
  "arrayvec 0.3.23 (registry+https://github.com/rust-lang/crates.io-index)",
  "stb_truetype 0.2.1 (git+https://github.com/phil-opp/stb_truetype-rs.git)",
@@ -141,7 +141,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "stb_truetype"
 version = "0.2.1"
-source = "git+https://github.com/phil-opp/stb_truetype-rs.git#6a0c35b8c5b0943a22383c6a7ab896dc759c196f"
+source = "git+https://github.com/phil-opp/stb_truetype-rs.git#66ae00fbecab9890fedfd2692a124ccc373e7e98"
 dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
