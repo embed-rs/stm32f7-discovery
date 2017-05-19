@@ -25,6 +25,7 @@ extern crate bit_field;
 extern crate spin;
 extern crate byteorder;
 extern crate net;
+extern crate rusttype;
 
 #[macro_use]
 pub mod semi_hosting;
