@@ -4,6 +4,7 @@
 #![feature(asm)]
 #![feature(alloc, collections)]
 #![feature(try_from)]
+#![feature(core_intrinsics)]
 
 #![no_std]
 
