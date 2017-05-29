@@ -201,7 +201,7 @@ fn main(hw: board::Hardware) -> ! {
 
         // poll for new touch data
         for touch in &touch::touches(&mut i2c_3).unwrap() {
-            lcd.print_point_at(touch.x, touch.y);
+            lcd.set_pixel(touch.x, touch.y, lcd::Color::rgb(0xff, 0xff, 0xff), lcd::Buffer::Primary);
         }
 
         // handle new ethernet packets

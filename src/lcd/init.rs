@@ -3,6 +3,9 @@ use board::ltdc::Ltdc;
 use embedded::interfaces::gpio::{Gpio, OutputPin};
 use super::Lcd;
 
+const HEIGHT:u16 = super::HEIGHT as u16;
+const WIDTH:u16 = super::WIDTH as u16;
+
 pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
     // init gpio pins
     let (mut display_enable, mut backlight_enable) = init_pins(gpio);
@@ -60,15 +63,15 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
     // set accumulated active width
     ltdc.awcr
         .update(|r| {
-                    r.set_aaw(480 + 41 + 13 - 1); // accumulated_active_width
-                    r.set_aah(272 + 10 + 2 - 1); // accumulated_active_height
+                    r.set_aaw(WIDTH + 41 + 13 - 1); // accumulated_active_width
+                    r.set_aah(HEIGHT + 10 + 2 - 1); // accumulated_active_height
                 });
 
     // set total width
     ltdc.twcr
         .update(|r| {
-                    r.set_totalw(480 + 41 + 13 + 32 - 1); // total_width
-                    r.set_totalh(272 + 10 + 2 + 2 - 1); // total_height
+                    r.set_totalw(WIDTH + 41 + 13 + 32 - 1); // total_width
+                    r.set_totalh(HEIGHT + 10 + 2 + 2 - 1); // total_height
                 });
 
     // set background color
@@ -91,24 +94,24 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
     ltdc.l1whpcr
         .update(|r| {
                     r.set_whstpos(0 + 41 + 13); // window_horizontal_start_position
-                    r.set_whsppos(480 + 41 + 13 - 1); // window_horizontal_stop_position
+                    r.set_whsppos(WIDTH + 41 + 13 - 1); // window_horizontal_stop_position
                 });
     ltdc.l2whpcr
         .update(|r| {
                     r.set_whstpos(0 + 41 + 13); // window_horizontal_start_position
-                    r.set_whsppos(480 + 41 + 13 - 1); // window_horizontal_stop_position
+                    r.set_whsppos(WIDTH + 41 + 13 - 1); // window_horizontal_stop_position
                 });
 
     // configure vertical start and stop position
     ltdc.l1wvpcr
         .update(|r| {
                     r.set_wvstpos(0 + 10 + 2); // window_vertical_start_position
-                    r.set_wvsppos(272 + 10 + 2 - 1); // window_vertical_stop_position
+                    r.set_wvsppos(HEIGHT + 10 + 2 - 1); // window_vertical_stop_position
                 });
     ltdc.l2wvpcr
         .update(|r| {
                     r.set_wvstpos(0 + 10 + 2); // window_vertical_start_position
-                    r.set_wvsppos(272 + 10 + 2 - 1); // window_vertical_stop_position
+                    r.set_wvsppos(HEIGHT + 10 + 2 - 1); // window_vertical_stop_position
                 });
 
     // specify pixed format
@@ -148,26 +151,25 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
         });
 
     // configure color frame buffer start address
-    const SDRAM_START: u32 = 0xC000_0000;
-    ltdc.l1cfbar.update(|r| r.set_cfbadd(SDRAM_START));
+    ltdc.l1cfbar.update(|r| r.set_cfbadd(super::FRAMEBUFFER_BASE_ADDRESS));
     ltdc.l2cfbar
-        .update(|r| r.set_cfbadd(SDRAM_START + 480 * 272 * 2));
+        .update(|r| r.set_cfbadd(super::FRAMEBUFFER_BASE_ADDRESS + super::FRAMEBUFFER_LEN));
 
     // configure color frame buffer line length and pitch
     ltdc.l1cfblr
         .update(|r| {
-                    r.set_cfbp(480 * 2); // pitch
-                    r.set_cfbll(480 * 2 + 3); // line_length
+                    r.set_cfbp(WIDTH * 2); // pitch
+                    r.set_cfbll(WIDTH * 2 + 3); // line_length
                 });
     ltdc.l2cfblr
         .update(|r| {
-                    r.set_cfbp(480 * 2); // pitch
-                    r.set_cfbll(480 * 2 + 3); // line_length
+                    r.set_cfbp(WIDTH * 2); // pitch
+                    r.set_cfbll(WIDTH * 2 + 3); // line_length
                 });
 
     // configure frame buffer line number
-    ltdc.l1cfblnr.update(|r| r.set_cfblnbr(272)); // line_number
-    ltdc.l2cfblnr.update(|r| r.set_cfblnbr(272)); // line_number
+    ltdc.l1cfblnr.update(|r| r.set_cfblnbr(HEIGHT)); // line_number
+    ltdc.l2cfblnr.update(|r| r.set_cfblnbr(HEIGHT)); // line_number
 
     // enable layers
     ltdc.l1cr.update(|r| r.set_len(true));
