@@ -3,8 +3,8 @@ use board::ltdc::Ltdc;
 use embedded::interfaces::gpio::{Gpio, OutputPin};
 use super::Lcd;
 
-const HEIGHT:u16 = super::HEIGHT as u16;
-const WIDTH:u16 = super::WIDTH as u16;
+const HEIGHT: u16 = super::HEIGHT as u16;
+const WIDTH: u16 = super::WIDTH as u16;
 
 pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
     // init gpio pins
@@ -151,7 +151,8 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
         });
 
     // configure color frame buffer start address
-    ltdc.l1cfbar.update(|r| r.set_cfbadd(super::FRAMEBUFFER_BASE_ADDRESS));
+    ltdc.l1cfbar
+        .update(|r| r.set_cfbadd(super::FRAMEBUFFER_BASE_ADDRESS));
     ltdc.l2cfbar
         .update(|r| r.set_cfbadd(super::FRAMEBUFFER_BASE_ADDRESS + super::FRAMEBUFFER_LEN));
 
