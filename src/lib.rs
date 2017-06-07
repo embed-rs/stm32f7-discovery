@@ -6,6 +6,7 @@
 #![feature(try_from)]
 #![feature(drop_types_in_const)]
 #![feature(global_allocator)]
+#![feature(used)]
 
 #![no_std]
 
