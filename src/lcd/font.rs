@@ -44,12 +44,7 @@ impl<'a> FontRenderer<'a> {
         let width = glyphs
             .iter()
             .rev()
-            .filter_map(|g| {
-                            g.pixel_bounding_box()
-                                .map(|b| {
-                                         b.min.x as f32 + g.unpositioned().h_metrics().advance_width
-                                     })
-                        })
+            .map(|g| g.position().x as f32 + g.unpositioned().h_metrics().advance_width)
             .next()
             .unwrap_or(0.0)
             .ceil() as usize;
