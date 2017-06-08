@@ -2,36 +2,39 @@
 
 pub use self::color::Color;
 pub use self::init::init;
+pub use self::stdout::init as init_stdout;
 
 use board::ltdc::Ltdc;
 use embedded::interfaces::gpio::OutputPin;
-use core::ptr;
+use core::{fmt, ptr};
+use self::font::FontRenderer;
 
+#[macro_use]
+pub mod stdout;
 mod init;
 mod color;
+mod font;
 
-// Use the SDRAM as a framebuffer
-pub const FRAMEBUFFER_BASE_ADDRESS: u32 = 0xC000_0000;
-// It's a 480x272 16-bit LCD
-pub const WIDTH: u16 = 480;
-pub const HEIGHT: u16 = 272;
-pub const NUM_PIXELS: u32 = WIDTH as u32 * HEIGHT as u32;
-pub const OCTETS_PER_PIXEL: u32 = 2;
-pub const FRAMEBUFFER_LEN: u32 = NUM_PIXELS * OCTETS_PER_PIXEL;
+const HEIGHT: usize = 480;
+const WIDTH: usize = 272;
+
+const LAYER_1_OCTETS_PER_PIXEL: usize = 4;
+const LAYER_1_LENGTH: usize = HEIGHT * WIDTH * LAYER_1_OCTETS_PER_PIXEL;
+const LAYER_2_OCTETS_PER_PIXEL: usize = 2;
+const LAYER_2_LENGTH: usize = HEIGHT * WIDTH * LAYER_2_OCTETS_PER_PIXEL;
+
+const SDRAM_START: usize = 0xC000_0000;
+const LAYER_1_START: usize = SDRAM_START;
+const LAYER_2_START: usize = SDRAM_START + LAYER_1_LENGTH;
+
+static TTF: &[u8] = include_bytes!("../../RobotoMono-Bold.ttf");
 
 pub struct Lcd {
     controller: &'static mut Ltdc,
     display_enable: OutputPin,
     backlight_enable: OutputPin,
-    next_pixel: u32,
-    next_col: u16,
-    prev_value: (u32, u32),
-}
-
-#[derive(Copy, Clone)]
-pub enum Buffer {
-    Primary,
-    Secondary,
+    layer_1_in_use: bool,
+    layer_2_in_use: bool,
 }
 
 impl Lcd {
@@ -39,94 +42,242 @@ impl Lcd {
         self.controller.bccr.update(|r| r.set_bc(color.to_rgb()));
     }
 
-    fn set_pixel_raw(&mut self, x: u16, y: u16, color: u16, buffer: Buffer) {
-        let addr = match buffer {
-            Buffer::Primary => FRAMEBUFFER_BASE_ADDRESS,
-            Buffer::Secondary => FRAMEBUFFER_BASE_ADDRESS + FRAMEBUFFER_LEN,
-        };
-        let pixel = x as u32 + (y as u32 * WIDTH as u32);
-        let pixel_color = (addr + pixel * OCTETS_PER_PIXEL) as *mut u16;
-        unsafe { ptr::write_volatile(pixel_color, color) };
+    pub fn layer_1(&mut self) -> Option<Layer<FramebufferArgb8888>> {
+        if self.layer_1_in_use {
+            None
+        } else {
+            Some(Layer { framebuffer: FramebufferArgb8888::new(LAYER_1_START) })
+        }
     }
 
-    pub fn set_pixel(&mut self, x: u16, y: u16, color: Color, buffer: Buffer) {
-        self.set_pixel_raw(x, y, color.to_argb1555(), buffer)
+    pub fn layer_2(&mut self) -> Option<Layer<FramebufferAl88>> {
+        if self.layer_2_in_use {
+            None
+        } else {
+            Some(Layer { framebuffer: FramebufferAl88::new(LAYER_2_START) })
+        }
     }
+}
 
-    /// Fills in a region
-    /// Region includes the top_left point, but does not include the bottom_right point.
-    /// That is (0, 0) and (WIDTH, HEIGHT) means the whole screen.
-    pub fn fill_region(&mut self,
-                       top_left: (u16, u16),
-                       bottom_right: (u16, u16),
-                       color: Color,
-                       buffer: Buffer) {
-        let color = color.to_argb1555();
-        for y in top_left.1..bottom_right.1 {
-            for x in top_left.0..bottom_right.0 {
-                self.set_pixel_raw(x, y, color, buffer);
+pub trait Framebuffer {
+    fn set_pixel(&mut self, x: usize, y: usize, color: Color);
+}
+
+pub struct FramebufferArgb8888 {
+    base_addr: usize,
+}
+
+impl FramebufferArgb8888 {
+    fn new(base_addr: usize) -> Self {
+        Self { base_addr }
+    }
+}
+
+impl Framebuffer for FramebufferArgb8888 {
+    fn set_pixel(&mut self, x: usize, y: usize, color: Color) {
+        let pixel = y * WIDTH + x;
+        let pixel_ptr = (self.base_addr + pixel * LAYER_1_OCTETS_PER_PIXEL) as *mut u32;
+        unsafe { ptr::write_volatile(pixel_ptr, color.to_argb8888()) };
+    }
+}
+
+pub struct FramebufferAl88 {
+    base_addr: usize,
+}
+
+
+impl FramebufferAl88 {
+    fn new(base_addr: usize) -> Self {
+        Self { base_addr }
+    }
+}
+
+impl Framebuffer for FramebufferAl88 {
+    fn set_pixel(&mut self, x: usize, y: usize, color: Color) {
+        let pixel = y * WIDTH + x;
+        let pixel_ptr = (self.base_addr + pixel * LAYER_2_OCTETS_PER_PIXEL) as *mut u16;
+        unsafe { ptr::write_volatile(pixel_ptr, (color.alpha as u16) << 8 | 0xff) };
+    }
+}
+
+pub struct Layer<T> {
+    framebuffer: T,
+}
+
+impl<T: Framebuffer> Layer<T> {
+    pub fn horizontal_stripes(&mut self) {
+        let colors = [0xffffff, 0xcccccc, 0x999999, 0x666666, 0x333333, 0x0, 0xff0000, 0x0000ff];
+
+        // horizontal stripes
+        for i in 0..HEIGHT {
+            for j in 0..WIDTH {
+                self.framebuffer
+                    .set_pixel(j, i, Color::from_rgb888(colors[(i / 10) % colors.len()]));
             }
         }
     }
 
-    pub fn test_pixels(&mut self) {
-        self.fill_region((0, 0), (WIDTH / 2, HEIGHT / 2), Color::rgb(255, 255, 255), Buffer::Primary);
-        self.fill_region((WIDTH / 2, 0), (WIDTH, HEIGHT / 2), Color::rgb(255, 0, 0), Buffer::Primary);
-        self.fill_region((0, HEIGHT / 2), (WIDTH / 2, HEIGHT), Color::rgb(0, 255, 0), Buffer::Primary);
-        self.fill_region((WIDTH / 2, HEIGHT / 2), (WIDTH, HEIGHT), Color::rgb(0, 0, 255), Buffer::Primary);
-    }
+    pub fn vertical_stripes(&mut self) {
+        let colors = [0xcccccc, 0x999999, 0x666666, 0x333333, 0x0, 0xff0000, 0x0000ff, 0xffffff];
 
-    pub fn clear_screen(&mut self) {
-        use core;
-        unsafe {
-            core::intrinsics::volatile_set_memory(FRAMEBUFFER_BASE_ADDRESS as *mut u8,
-                                                  0,
-                                                  FRAMEBUFFER_LEN as usize * 2);
+        // vertical stripes
+        for i in 0..HEIGHT {
+            for j in 0..WIDTH {
+                self.framebuffer
+                    .set_pixel(j, i, Color::from_rgb888(colors[(j / 10) % colors.len()]));
+            }
         }
     }
 
-    pub fn set_next_pixel(&mut self, color: u16) {
-        // layer 1
-        let pixel_color = (FRAMEBUFFER_BASE_ADDRESS + self.next_pixel * OCTETS_PER_PIXEL) as
-                          *mut u16;
-        unsafe { ptr::write_volatile(pixel_color, color) };
-        self.next_pixel = (self.next_pixel + 1) % NUM_PIXELS;
+    pub fn clear(&mut self) {
+        for i in 0..HEIGHT {
+            for j in 0..WIDTH {
+                self.framebuffer.set_pixel(j, i, Color::from_argb8888(0));
+            }
+        }
     }
 
-    pub fn set_next_col(&mut self, value0: u32, value1: u32) {
-        let value0 = value0 + 2u32.pow(15);
-        let value0 = value0 as u16 as u32;
+    pub fn print_point_at(&mut self, x: usize, y: usize) {
+        self.print_point_color_at(x, y, Color::from_hex(0xffffff));
+    }
+
+    pub fn print_point_color_at(&mut self, x: usize, y: usize, color: Color) {
+        assert!(x < WIDTH);
+        assert!(y < HEIGHT);
+
+        self.framebuffer.set_pixel(x, y, color);
+    }
+
+    pub fn audio_writer(&mut self) -> AudioWriter<T> {
+        AudioWriter {
+            layer: self,
+            next_pixel: 0,
+            next_col: 0,
+            prev_value: (0, 0),
+        }
+    }
+
+    pub fn text_writer(&mut self) -> TextWriter<T> {
+        TextWriter {
+            layer: self,
+            font_renderer: FontRenderer::new(TTF, 14.0),
+            x_pos: 0,
+            y_pos: 0,
+        }
+    }
+}
+
+pub struct AudioWriter<'a, T: Framebuffer + 'a> {
+    layer: &'a mut Layer<T>,
+    next_pixel: usize,
+    next_col: usize,
+    prev_value: (usize, usize),
+}
+
+impl<'a, T: Framebuffer + 'a> AudioWriter<'a, T> {
+    pub fn set_next_pixel(&mut self, color: Color) {
+        self.layer
+            .print_point_color_at(self.next_pixel % WIDTH, self.next_pixel / WIDTH, color);
+        self.next_pixel = (self.next_pixel + 1) % (HEIGHT * WIDTH);
+    }
+
+    pub fn layer(&mut self) -> &mut Layer<T> {
+        &mut self.layer
+    }
+
+    pub fn set_next_col(&mut self, value0: usize, value1: usize) {
+        let value0 = value0 + 2usize.pow(15);
+        let value0 = value0 as u16 as usize;
         let value0 = value0 / 241;
 
-        let value1 = value1 + 2u32.pow(15);
-        let value1 = value1 as u16 as u32;
+        let value1 = value1 + 2usize.pow(15);
+        let value1 = value1 as u16 as usize;
         let value1 = value1 / 241;
 
-        // layer 1
-        for y in 0..HEIGHT as u32 {
-            let mut color = 0;
+        for i in 0..HEIGHT {
+            let mut color = Color::from_argb8888(0);
 
             if value0 >= self.prev_value.0 {
-                if y >= self.prev_value.0 && y <= value0 {
-                    color |= 0xff00;
+                if i >= self.prev_value.0 && i <= value0 {
+                    color.red = 0xff;
+                    color.alpha = 0xff;
                 }
-            } else if y <= self.prev_value.0 && y >= value0 {
-                color |= 0xff00;
+            } else if i <= self.prev_value.0 && i >= value0 {
+                color.red = 0xff;
+                color.alpha = 0xff;
             }
 
             if value1 >= self.prev_value.1 {
-                if y >= self.prev_value.0 && y <= value1 {
-                    color |= 0x00ff;
+                if i >= self.prev_value.0 && i <= value1 {
+                    color.green = 0xff;
+                    color.alpha = 0xff;
                 }
-            } else if y <= self.prev_value.0 && y >= value1 {
-                color |= 0x00ff;
+            } else if i <= self.prev_value.0 && i >= value1 {
+                color.green = 0xff;
+                color.alpha = 0xff;
             }
 
-            let x = self.next_col;
-            self.set_pixel_raw(x, y as u16, color, Buffer::Primary);
+            let i = i as usize;
+            self.layer.print_point_color_at(self.next_col, i, color);
         }
+
 
         self.next_col = (self.next_col + 1) % WIDTH;
         self.prev_value = (value0, value1);
+    }
+}
+
+pub struct TextWriter<'a, T: Framebuffer + 'a> {
+    layer: &'a mut Layer<T>,
+    font_renderer: FontRenderer<'a>,
+    x_pos: usize,
+    y_pos: usize,
+}
+
+impl <'a, T: Framebuffer> TextWriter<'a, T> {
+    fn write_str_no_newlines(&mut self, s: &str) -> fmt::Result {
+        let font_height = self.font_renderer.font_height() as usize;
+        let &mut TextWriter {
+                     ref mut layer,
+                     ref mut font_renderer,
+                     ref mut x_pos,
+                     ref mut y_pos,
+                     ..
+                 } = self;
+
+        let width = font_renderer.render(s, |x, y, v| {
+            if *x_pos + x >= WIDTH {
+                *x_pos = 0;
+                *y_pos += font_height;
+            }
+            if *y_pos + font_height >= HEIGHT {
+                *y_pos = 0;
+                layer.clear();
+            }
+            let alpha = (v * 255.0 + 0.5) as u8;
+            let color = Color {
+                red: 255,
+                green: 255,
+                blue: 255,
+                alpha,
+            };
+            layer.print_point_color_at(*x_pos + x, *y_pos + y, color);
+        });
+        *x_pos += width;
+        Ok(())
+    }
+}
+
+impl<'a, T: Framebuffer> fmt::Write for TextWriter<'a, T> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        let mut lines = s.split('\n').peekable();
+        while let Some(line) = lines.next() {
+            self.write_str_no_newlines(line)?;
+            if lines.peek().is_some() {
+                self.x_pos = 0;
+                self.y_pos += self.font_renderer.font_height() as usize;
+            }
+        }
+        Ok(())
     }
 }

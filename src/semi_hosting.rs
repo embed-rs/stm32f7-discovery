@@ -39,7 +39,6 @@ const SYS_WRITE: usize = 0x05;
 /// otherwise.
 #[allow(unreachable_code, unused_variables)]
 fn svc_sys_write(fd: usize, data: &[u8]) -> usize {
-    return 0; // disable semi-hosting for now due to errors in the gdb script
     let args = SvcWriteCall {
         fd: fd,
         addr: data.as_ptr(),
@@ -50,13 +49,13 @@ fn svc_sys_write(fd: usize, data: &[u8]) -> usize {
 }
 
 #[macro_export]
-macro_rules! println {
-    ($fmt:expr) => (print!(concat!($fmt, "\n")));
-    ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
+macro_rules! hprintln {
+    ($fmt:expr) => (hprint!(concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => (hprint!(concat!($fmt, "\n"), $($arg)*));
 }
 
 #[macro_export]
-macro_rules! print {
+macro_rules! hprint {
     ($($arg:tt)*) => ({
         $crate::semi_hosting::print(format_args!($($arg)*));
     });
@@ -88,13 +87,13 @@ impl fmt::Write for Stdout {
 }
 
 #[macro_export]
-macro_rules! println_err {
+macro_rules! hprintln_err {
     ($fmt:expr) => (print_err!(concat!($fmt, "\n")));
-    ($fmt:expr, $($arg:tt)*) => (print_err!(concat!($fmt, "\n"), $($arg)*));
+    ($fmt:expr, $($arg:tt)*) => (hprint_err!(concat!($fmt, "\n"), $($arg)*));
 }
 
 #[macro_export]
-macro_rules! print_err {
+macro_rules! hprint_err {
     ($($arg:tt)*) => ({
         $crate::semi_hosting::print_err(format_args!($($arg)*));
     });

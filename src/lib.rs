@@ -4,7 +4,8 @@
 #![feature(asm)]
 #![feature(alloc, collections)]
 #![feature(try_from)]
-#![feature(core_intrinsics)]
+#![feature(drop_types_in_const)]
+#![feature(option_entry)]
 
 #![no_std]
 
@@ -26,14 +27,16 @@ extern crate bit_field;
 extern crate spin;
 extern crate byteorder;
 extern crate net;
+extern crate rusttype;
 
 #[macro_use]
 pub mod semi_hosting;
+#[macro_use]
+pub mod lcd;
 pub mod exceptions;
 pub mod interrupts;
 pub mod system_clock;
 pub mod sdram;
-pub mod lcd;
 pub mod i2c;
 pub mod audio;
 pub mod touch;
@@ -45,7 +48,18 @@ pub mod random;
 #[lang = "panic_fmt"]
 #[no_mangle]
 pub extern "C" fn panic_fmt(fmt: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
-    println_err!("\nPANIC in {} at line {}:", file, line);
-    println_err!("    {}", fmt);
+    use core::fmt::Write;
+
+    hprintln_err!("\nPANIC in {} at line {}:", file, line);
+    hprintln_err!("    {}", fmt);
+
+    unsafe { lcd::stdout::force_unlock() }
+    lcd::stdout::with_stdout(|stdout| {
+        if let Some(ref mut stdout) = *stdout {
+            let _ = writeln!(stdout, "\nPANIC in {} at line {}:", file, line);
+            let _ = writeln!(stdout, "    {}", fmt);
+        }
+    });
+
     loop {}
 }

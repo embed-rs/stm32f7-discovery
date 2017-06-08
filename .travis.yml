@@ -6,9 +6,9 @@ dist: trusty
 addons:
   apt:
     sources:
-    - llvm-toolchain-trusty
+      - debian-sid
     packages:
-    - lld-5.0
+      - gcc-arm-none-eabi
 
 before_script:
 - rustup component add rust-src
