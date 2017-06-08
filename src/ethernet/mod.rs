@@ -10,6 +10,7 @@ use volatile::Volatile;
 use net::{self, HeapTxPacket};
 use net::ipv4::{Ipv4Address, Ipv4Header};
 use net::udp::UdpHeader;
+use net::tcp::TcpHeader;
 use net::ethernet::{EthernetAddress, EthernetPacket};
 
 mod init;
@@ -51,19 +52,17 @@ const ETH_ADDR: EthernetAddress = EthernetAddress::new([0x00, 0x08, 0xdc, 0xab, 
 
 pub enum Packet<'a> {
     Udp(Udp<'a>),
+    Tcp(Tcp<'a>),
 }
 
 impl<'a> Packet<'a> {
     pub fn udp_port(&self, port: u16) -> Option<&Udp> {
-        match self {
-            &Packet::Udp(ref udp) => {
+        if let &Packet::Udp(ref udp) = self {
                 if udp.udp_header.dst_port == port {
-                    Some(udp)
-                } else {
-                    None
+                    return Some(udp);
                 }
             }
-        }
+        None
     }
 
     pub fn bind_udp<F>(&self, port: u16, f: F)
@@ -78,6 +77,12 @@ impl<'a> Packet<'a> {
 pub struct Udp<'a> {
     pub ip_header: Ipv4Header,
     pub udp_header: UdpHeader,
+    pub payload: &'a [u8],
+}
+
+pub struct Tcp<'a> {
+    pub ip_header: Ipv4Header,
+    pub tcp_header: TcpHeader,
     pub payload: &'a [u8],
 }
 
@@ -216,6 +221,7 @@ impl EthernetDevice {
                 use net::arp;
                 use net::ipv4::{Ipv4Packet, Ipv4Kind};
                 use net::udp::{UdpPacket, UdpKind};
+                use net::tcp::{TcpPacket, TcpKind};
                 use net::dhcp::{self, DhcpPacket, DhcpType};
                 use net::icmp::IcmpType;
 
@@ -331,6 +337,43 @@ impl EthernetDevice {
                                                                       dst_ip,
                                                                       udp_header.dst_port,
                                                                       udp_header.src_port,
+                                                                      reply_payload);
+                                return Ok(Some(HeapTxPacket::write_out(packet)?
+                                                   .into_boxed_slice()));
+                            } else {
+                                let arp_request = arp::new_request_packet(ETH_ADDR, src_ip, dst_ip);
+                                return Ok(Some(HeapTxPacket::write_out(arp_request)?
+                                                   .into_boxed_slice()));
+                            }
+                        };
+                    }
+
+                    // Tcp packet
+                    EthernetKind::Ipv4(Ipv4Packet {
+                                           header: ip_header,
+                                           payload: Ipv4Kind::Tcp(TcpPacket {
+                                                             header: tcp_header,
+                                                             payload: TcpKind::Unknown(payload),
+                                                         }),
+                                       }) if Some(ip_header.dst_addr) == *ipv4_addr => {
+
+                        println!("TCP: ");
+
+                        if let Some(reply_payload) =
+                            f(Packet::Tcp(Tcp {
+                                              ip_header,
+                                              tcp_header,
+                                              payload,
+                                          })) {
+                            let src_ip = ip_header.dst_addr;
+                            let dst_ip = ip_header.src_addr;
+                            if let Some(&dst_mac) = arp_cache.get(&dst_ip) {
+                                let packet = net::tcp::new_tcp_packet(ETH_ADDR,
+                                                                      dst_mac,
+                                                                      src_ip,
+                                                                      dst_ip,
+                                                                      tcp_header.dst_port,
+                                                                      tcp_header.src_port,
                                                                       reply_payload);
                                 return Ok(Some(HeapTxPacket::write_out(packet)?
                                                    .into_boxed_slice()));

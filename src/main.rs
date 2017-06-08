@@ -18,7 +18,7 @@ extern crate compiler_builtins;
 
 // hardware register structs with accessor methods
 use stm32f7::{system_clock, sdram, lcd, i2c, audio, touch, board, ethernet, embedded};
-use stm32f7::ethernet::{Packet, Udp};
+use stm32f7::ethernet::{Packet, Udp, Tcp};
 use alloc::borrow::Cow;
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
@@ -216,6 +216,7 @@ fn main(hw: board::Hardware) -> ! {
                         let result =
                             eth_device.with_next_packet(|packet| match packet {
                                                             Packet::Udp(udp) => handle_udp_packet(udp),
+                                                    Packet::Tcp(tcp) => handle_tcp_packet(tcp),
                                                         });
                         if let Err(err) = result {
                             match err {
@@ -240,6 +241,23 @@ fn handle_udp_packet(udp: Udp) -> Option<Cow<[u8]>> {
             let mut reply = b"Reversed: ".to_vec();
             let start = reply.len();
             reply.extend_from_slice(udp.payload);
+            let end = reply.len() - 1;
+            reply[start..end].reverse();
+            Some(reply.into())
+        }
+        _ => None,
+    }
+}
+
+fn handle_tcp_packet(tcp: Tcp) -> Option<Cow<[u8]>> {
+    match tcp.tcp_header.dst_port {
+        15 => {
+            for byte in tcp.payload.iter().filter(|&&b| b != 0) {
+                print!("{}", char::from(*byte));
+            }
+            let mut reply = b"Reversed: ".to_vec();
+            let start = reply.len();
+            reply.extend_from_slice(tcp.payload);
             let end = reply.len() - 1;
             reply[start..end].reverse();
             Some(reply.into())
