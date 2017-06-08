@@ -174,7 +174,6 @@ fn main(hw: board::Hardware) -> ! {
 
     let mut audio_writer = layer_1.audio_writer();
     let mut last_led_toggle = system_clock::ticks();
-    let mut last_color_change = system_clock::ticks();
     let mut button_pressed_old = false;
     loop {
         let ticks = system_clock::ticks();
@@ -188,11 +187,10 @@ fn main(hw: board::Hardware) -> ! {
         }
 
         let button_pressed = button.get();
-        if (button_pressed && !button_pressed_old) || ticks - last_color_change >= 1000 {
+        if button_pressed && !button_pressed_old {
             // choose a new background color
             let new_color = ((system_clock::ticks() as u32).wrapping_mul(19801)) % 0x1000000;
             lcd.set_background_color(lcd::Color::from_hex(new_color));
-            last_color_change = ticks;
         }
 
         // poll for new audio data
