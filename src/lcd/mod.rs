@@ -242,6 +242,10 @@ impl <'a, T: Framebuffer> TextWriter<'a, T> {
                 *x_pos = 0;
                 *y_pos += font_height;
             }
+            if *y_pos + font_height >= 272 {
+                *y_pos = 0;
+                layer.clear();
+            }
             let alpha = (v * 255.0 + 0.5) as u8;
             let color = Color {
                 red: 255,
