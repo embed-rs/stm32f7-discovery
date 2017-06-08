@@ -21,7 +21,6 @@ extern crate compiler_builtins;
 use stm32f7::{system_clock, sdram, lcd, i2c, audio, touch, board, ethernet, embedded};
 use stm32f7::ethernet::{Packet, Udp};
 use collections::borrow::Cow;
-
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
     extern "C" {
@@ -60,7 +59,7 @@ pub unsafe extern "C" fn reset() -> ! {
 fn main(hw: board::Hardware) -> ! {
     use embedded::interfaces::gpio::{self, Gpio};
 
-    println!("Entering main");
+    hprintln!("Entering main");
 
     let x = vec![1, 2, 3, 4, 5];
     assert_eq!(x.len(), 5);
@@ -141,6 +140,12 @@ fn main(hw: board::Hardware) -> ! {
 
     // lcd controller
     let mut lcd = lcd::init(ltdc, rcc, &mut gpio);
+    let mut layer_1 = lcd.layer_1().unwrap();
+    let mut layer_2 = lcd.layer_2().unwrap();
+
+    layer_1.clear();
+    layer_2.clear();
+    lcd::init_stdout(layer_2);
 
     // i2c
     i2c::init_pins_and_clocks(rcc, &mut gpio);
@@ -165,10 +170,9 @@ fn main(hw: board::Hardware) -> ! {
         println!("ethernet init failed: {:?}", e);
     }
 
-    lcd.clear_screen();
-
     touch::check_family_id(&mut i2c_3).unwrap();
 
+    let mut audio_writer = layer_1.audio_writer();
     let mut last_led_toggle = system_clock::ticks();
     let mut last_color_change = system_clock::ticks();
     let mut button_pressed_old = false;
@@ -197,11 +201,13 @@ fn main(hw: board::Hardware) -> ! {
         while !sai_2.bsr.read().freq() {} // fifo_request_flag
         let data1 = sai_2.bdr.read().data();
 
-        lcd.set_next_col(data0, data1);
+        audio_writer.set_next_col(data0, data1);
 
         // poll for new touch data
         for touch in &touch::touches(&mut i2c_3).unwrap() {
-            lcd.print_point_at(touch.x, touch.y);
+            audio_writer
+                .layer()
+                .print_point_at(touch.x as usize, touch.y as usize);
         }
 
         // handle new ethernet packets

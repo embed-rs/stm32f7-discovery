@@ -1,7 +1,7 @@
 use board::rcc::Rcc;
 use board::ltdc::Ltdc;
 use embedded::interfaces::gpio::{Gpio, OutputPin};
-use super::Lcd;
+use super::{Lcd, LAYER_1_START, LAYER_2_START};
 
 pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
     // init gpio pins
@@ -112,8 +112,8 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
                 });
 
     // specify pixed format
-    ltdc.l1pfcr.update(|r| r.set_pf(0b011)); // set_pixel_format to ARGB1555
-    ltdc.l2pfcr.update(|r| r.set_pf(0b011)); // set_pixel_format to ARGB1555
+    ltdc.l1pfcr.update(|r| r.set_pf(0b000)); // set_pixel_format to ARGB8888
+    ltdc.l2pfcr.update(|r| r.set_pf(0b111)); // set_pixel_format to AL88
 
     // configure default color values
     ltdc.l1dccr
@@ -148,16 +148,14 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
         });
 
     // configure color frame buffer start address
-    const SDRAM_START: u32 = 0xC000_0000;
-    ltdc.l1cfbar.update(|r| r.set_cfbadd(SDRAM_START));
-    ltdc.l2cfbar
-        .update(|r| r.set_cfbadd(SDRAM_START + 480 * 272 * 2));
+    ltdc.l1cfbar.update(|r| r.set_cfbadd(LAYER_1_START as u32));
+    ltdc.l2cfbar.update(|r| r.set_cfbadd(LAYER_2_START as u32));
 
     // configure color frame buffer line length and pitch
     ltdc.l1cfblr
         .update(|r| {
-                    r.set_cfbp(480 * 2); // pitch
-                    r.set_cfbll(480 * 2 + 3); // line_length
+                    r.set_cfbp(480 * 4); // pitch
+                    r.set_cfbll(480 * 4 + 3); // line_length
                 });
     ltdc.l2cfblr
         .update(|r| {
@@ -210,9 +208,8 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
         controller: ltdc,
         display_enable: display_enable,
         backlight_enable: backlight_enable,
-        next_pixel: 0,
-        next_col: 0,
-        prev_value: (0, 0),
+        layer_1_in_use: false,
+        layer_2_in_use: false,
     }
 }
 

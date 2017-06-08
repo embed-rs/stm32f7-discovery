@@ -219,10 +219,7 @@ impl EthernetDevice {
                 use net::dhcp::{self, DhcpPacket, DhcpType};
                 use net::icmp::IcmpType;
 
-                let EthernetPacket {
-                    header: _,
-                    payload,
-                } = net::parse(data)?;
+                let EthernetPacket { header: _, payload } = net::parse(data)?;
 
                 match payload {
                     // DHCP offer or ack for us
