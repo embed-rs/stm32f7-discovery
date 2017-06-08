@@ -42,5 +42,5 @@ pub struct VectorTable {
 type Handler = extern "C" fn();
 
 extern "C" fn fault() {
-    loop {}
+    panic!("EXCEPTION: hard fault");
 }
