@@ -50,6 +50,7 @@ pub mod random;
 pub extern "C" fn panic_fmt(fmt: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
     use core::fmt::Write;
 
+    unsafe { lcd::stdout::force_unlock() }
     lcd::stdout::with_stdout(|stdout| {
         if let Some(ref mut stdout) = *stdout {
             let _ = writeln!(stdout, "\nPANIC in {} at line {}:", file, line);

@@ -37,3 +37,7 @@ pub fn print(args: fmt::Arguments) {
 pub fn with_stdout<F>(f: F) where F: FnOnce(&mut Option<TextWriter<FramebufferAl88>>) {
     f(&mut *STDOUT.lock())
 }
+
+pub unsafe fn force_unlock() {
+    STDOUT.force_unlock()
+}
