@@ -226,7 +226,7 @@ impl InterruptHandler {
 
     pub fn register_isr<F>(&mut self,
                            irq: InterruptRequest,
-                           priority: u8,
+                           priority: Priority,
                            isr: F)
                            -> Result<InterruptHandle, Error>
         where F: FnMut() + 'static + Send
@@ -329,14 +329,13 @@ impl InterruptHandler {
 
     // The STM32F7 only supports 16 priority levels
     // Assert that priority < 16 
-    pub fn set_priority(&mut self, interrupt_handle: &InterruptHandle, priority: u8) {
-        assert!(priority < 16);
+    pub fn set_priority(&mut self, interrupt_handle: &InterruptHandle, priority: Priority) {
         let irq = interrupt_handle.irq;
         let ipr_num = irq as u8 / 4u8;
         let ipr_offset = irq as u8 % 4u8;
 
         // STM32F7 only uses 4 bits for Priority. priority << 4, because the upper 4 bits are used for priority.
-        let priority = priority << 4;
+        let priority = (priority as u8) << 4;
 
         match ipr_num {
             0 => set_priority_with_offset!(self.nvic.ipr0, ipr_offset, priority),
@@ -367,7 +366,7 @@ impl InterruptHandler {
 
 
 
-    pub fn get_priority(&self, interrupt_handle: &InterruptHandle) -> u8 {
+    pub fn get_priority(&self, interrupt_handle: &InterruptHandle) -> Priority {
         let irq = interrupt_handle.irq;
         let ipr_num = irq as u8 / 4u8;
         let ipr_offset = irq as u8 % 4u8;        
@@ -399,7 +398,11 @@ impl InterruptHandler {
         };
 
         // STM32F7 only uses 4 bits for Priority. priority << 4, because the upper 4 bits are used for priority.
-        res >> 4
+        match Priority::from_u8(res >> 4) {
+            Ok(priority) => priority,
+            Err(PriorityDoesNotExitError(prio_number)) => unreachable!("Priority {} does not exist", prio_number),
+        }
+
     }
 
     pub fn clear_pending_state(&mut self, interrupt_handle: &InterruptHandle) {
@@ -676,3 +679,52 @@ create_interrupt_handler!(interrupt_handler_0,
                           96,
                           interrupt_handler_97,
                           97);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+ pub enum Priority {
+    P0 = 0,
+    P1,
+    P2,
+    P3,
+    P4,
+    P5,
+    P6,
+    P7,
+    P8,
+    P9,
+    P10,
+    P11,
+    P12,
+    P13,
+    P14,
+    P15,
+ }
+struct PriorityDoesNotExitError(u8);
+
+ impl Priority {
+
+     // use FromPrimitive?
+     fn from_u8(priority: u8) -> Result<Priority, PriorityDoesNotExitError> {
+        use self::Priority::*;
+        match priority {
+            0 => Ok(P0),
+            1 => Ok(P1),
+            2 => Ok(P2),
+            3 => Ok(P3),
+            4 => Ok(P4),
+            5 => Ok(P5),
+            6 => Ok(P6),
+            7 => Ok(P7),
+            8 => Ok(P8),
+            9 => Ok(P9),
+            10 => Ok(P10),
+            11 => Ok(P11),
+            12 => Ok(P12),
+            13 => Ok(P13),
+            14 => Ok(P14),
+            15 => Ok(P15),
+            _ => Err(PriorityDoesNotExitError(priority))
+        }
+     }
+ }
