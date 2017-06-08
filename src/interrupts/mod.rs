@@ -287,7 +287,7 @@ impl InterruptHandler {
                                 r.set_setena(old | 1 << iser_bit);
                             })
             }*/
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 
@@ -297,18 +297,30 @@ impl InterruptHandler {
         let icer_bit = irq as u8 % 32u8;
 
         match icer_num {
-            0 => self.nvic.icer0.update(|r| {
-                let old = r.clrena();
-                r.set_clrena(old | 1 << icer_bit);
-            }),
-            1 => self.nvic.icer1.update(|r| {
-                let old = r.clrena();
-                r.set_clrena(old | 1 << icer_bit);
-            }),
-            2 => self.nvic.icer2.update(|r| {
-                let old = r.clrena();
-                r.set_clrena(old | 1 << icer_bit);
-            }),
+            0 => {
+                self.nvic
+                    .icer0
+                    .update(|r| {
+                                let old = r.clrena();
+                                r.set_clrena(old | 1 << icer_bit);
+                            })
+            }
+            1 => {
+                self.nvic
+                    .icer1
+                    .update(|r| {
+                                let old = r.clrena();
+                                r.set_clrena(old | 1 << icer_bit);
+                            })
+            }
+            2 => {
+                self.nvic
+                    .icer2
+                    .update(|r| {
+                                let old = r.clrena();
+                                r.set_clrena(old | 1 << icer_bit);
+                            })
+            }
             // icer3 missing? ... 97 div 32 = 3
             /*3 => self.nvic.icer3.update(|r| {
                 let old = r.clrena();
@@ -328,7 +340,7 @@ impl InterruptHandler {
 
 
     // The STM32F7 only supports 16 priority levels
-    // Assert that priority < 16 
+    // Assert that priority < 16
     pub fn set_priority(&mut self, interrupt_handle: &InterruptHandle, priority: Priority) {
         let irq = interrupt_handle.irq;
         let ipr_num = irq as u8 / 4u8;
@@ -369,7 +381,7 @@ impl InterruptHandler {
     pub fn get_priority(&self, interrupt_handle: &InterruptHandle) -> Priority {
         let irq = interrupt_handle.irq;
         let ipr_num = irq as u8 / 4u8;
-        let ipr_offset = irq as u8 % 4u8;        
+        let ipr_offset = irq as u8 % 4u8;
 
         let res = match ipr_num {
             0 => get_priority_with_offset!(self.nvic.ipr0, ipr_offset),
@@ -400,7 +412,9 @@ impl InterruptHandler {
         // STM32F7 only uses 4 bits for Priority. priority << 4, because the upper 4 bits are used for priority.
         match Priority::from_u8(res >> 4) {
             Ok(priority) => priority,
-            Err(PriorityDoesNotExitError(prio_number)) => unreachable!("Priority {} does not exist", prio_number),
+            Err(PriorityDoesNotExitError(prio_number)) => {
+                unreachable!("Priority {} does not exist", prio_number)
+            }
         }
 
     }
@@ -411,18 +425,30 @@ impl InterruptHandler {
         let icpr_bit = irq as u8 % 32u8;
 
         match icpr_num {
-            0 => self.nvic.icpr0.update(|r| {
-                let old = r.clrpend();
-                r.set_clrpend(old | 1 << icpr_bit);
-            }),
-            1 => self.nvic.icpr1.update(|r| {
-                let old = r.clrpend();
-                r.set_clrpend(old | 1 << icpr_bit);
-            }),
-            2 => self.nvic.icpr2.update(|r| {
-                let old = r.clrpend();
-                r.set_clrpend(old | 1 << icpr_bit);
-            }),
+            0 => {
+                self.nvic
+                    .icpr0
+                    .update(|r| {
+                                let old = r.clrpend();
+                                r.set_clrpend(old | 1 << icpr_bit);
+                            })
+            }
+            1 => {
+                self.nvic
+                    .icpr1
+                    .update(|r| {
+                                let old = r.clrpend();
+                                r.set_clrpend(old | 1 << icpr_bit);
+                            })
+            }
+            2 => {
+                self.nvic
+                    .icpr2
+                    .update(|r| {
+                                let old = r.clrpend();
+                                r.set_clrpend(old | 1 << icpr_bit);
+                            })
+            }
             // icpr3 missing?
             /*3 => self.nvic.icpr3.update(|r| {
                 let old = r.clrpend();
@@ -438,18 +464,30 @@ impl InterruptHandler {
         let ispr_bit = irq as u8 % 32u8;
 
         match ispr_num {
-            0 => self.nvic.ispr0.update(|r| {
-                let old = r.setpend();
-                r.set_setpend(old | 1 << ispr_bit);
-            }),
-            1 => self.nvic.ispr1.update(|r| {
-                let old = r.setpend();
-                r.set_setpend(old | 1 << ispr_bit);
-            }),
-            2 => self.nvic.ispr2.update(|r| {
-                let old = r.setpend();
-                r.set_setpend(old | 1 << ispr_bit);
-            }),
+            0 => {
+                self.nvic
+                    .ispr0
+                    .update(|r| {
+                                let old = r.setpend();
+                                r.set_setpend(old | 1 << ispr_bit);
+                            })
+            }
+            1 => {
+                self.nvic
+                    .ispr1
+                    .update(|r| {
+                                let old = r.setpend();
+                                r.set_setpend(old | 1 << ispr_bit);
+                            })
+            }
+            2 => {
+                self.nvic
+                    .ispr2
+                    .update(|r| {
+                                let old = r.setpend();
+                                r.set_setpend(old | 1 << ispr_bit);
+                            })
+            }
             // ispr3 missing?
             /*3 => self.nvic.ispr3.update(|r| {
                 let old = r.setpend();
@@ -682,7 +720,7 @@ create_interrupt_handler!(interrupt_handler_0,
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
- pub enum Priority {
+pub enum Priority {
     P0 = 0,
     P1,
     P2,
@@ -699,13 +737,12 @@ create_interrupt_handler!(interrupt_handler_0,
     P13,
     P14,
     P15,
- }
+}
 struct PriorityDoesNotExitError(u8);
 
- impl Priority {
-
-     // use FromPrimitive?
-     fn from_u8(priority: u8) -> Result<Priority, PriorityDoesNotExitError> {
+impl Priority {
+    // use FromPrimitive?
+    fn from_u8(priority: u8) -> Result<Priority, PriorityDoesNotExitError> {
         use self::Priority::*;
         match priority {
             0 => Ok(P0),
@@ -724,7 +761,7 @@ struct PriorityDoesNotExitError(u8);
             13 => Ok(P13),
             14 => Ok(P14),
             15 => Ok(P15),
-            _ => Err(PriorityDoesNotExitError(priority))
+            _ => Err(PriorityDoesNotExitError(priority)),
         }
-     }
- }
+    }
+}

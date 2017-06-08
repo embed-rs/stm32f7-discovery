@@ -15,13 +15,11 @@ pub struct PrimaskMutexGuard<'a, T: 'a> {
 
 impl<'a, T> PrimaskMutex<T> {
     pub fn new(data: T) -> PrimaskMutex<T> {
-        PrimaskMutex {
-            data: UnsafeCell::new(data),
-        }
+        PrimaskMutex { data: UnsafeCell::new(data) }
     }
 
     pub fn lock(&'a self) -> PrimaskMutexGuard<'a, T> {
-        let primask =  if unsafe { ::cortex_m::register::primask::read() } & 1 == 1 {
+        let primask = if unsafe { ::cortex_m::register::primask::read() } & 1 == 1 {
             true
         } else {
             false
@@ -29,7 +27,7 @@ impl<'a, T> PrimaskMutex<T> {
         unsafe { ::cortex_m::interrupt::disable() };
 
         PrimaskMutexGuard {
-            _data: unsafe {&mut *self.data.get()},
+            _data: unsafe { &mut *self.data.get() },
             prev: primask,
         }
     }
@@ -51,7 +49,6 @@ impl<'a, T: 'a> Deref for PrimaskMutexGuard<'a, T> {
 }
 
 impl<'a, T: 'a> DerefMut for PrimaskMutexGuard<'a, T> {
-    
     fn deref_mut(&mut self) -> &mut T {
         self._data
     }
