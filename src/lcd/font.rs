@@ -1,7 +1,6 @@
 use rusttype::{Font, FontCollection, Scale, point, PositionedGlyph};
 use collections::Vec;
 use rusttype::stb_truetype::float_impls::FloatImpls;
-use core::fmt;
 
 pub struct FontRenderer<'a> {
     font: Font<'a>,

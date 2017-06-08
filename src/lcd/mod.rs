@@ -2,12 +2,15 @@
 
 pub use self::color::Color;
 pub use self::init::init;
+pub use self::stdout::init as init_stdout;
 
 use board::ltdc::Ltdc;
 use embedded::interfaces::gpio::OutputPin;
 use core::{fmt, ptr};
 use self::font::FontRenderer;
 
+#[macro_use]
+pub mod stdout;
 mod init;
 mod color;
 mod font;
@@ -225,8 +228,6 @@ pub struct TextWriter<'a, T: Framebuffer + 'a> {
 
 impl <'a, T: Framebuffer> TextWriter<'a, T> {
     fn write_str_no_newlines(&mut self, s: &str) -> fmt::Result {
-        use rusttype::stb_truetype::float_impls::FloatImpls;
-
         let font_height = self.font_renderer.font_height() as usize;
         let &mut TextWriter {
                      ref mut layer,
