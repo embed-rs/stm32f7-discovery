@@ -193,14 +193,6 @@ fn main(hw: board::Hardware) -> ! {
             lcd.set_background_color(lcd::Color::from_hex(new_color));
         }
 
-        // poll for new audio data
-        while !sai_2.bsr.read().freq() {} // fifo_request_flag
-        let data0 = sai_2.bdr.read().data();
-        while !sai_2.bsr.read().freq() {} // fifo_request_flag
-        let data1 = sai_2.bdr.read().data();
-
-        audio_writer.set_next_col(data0, data1);
-
         // poll for new touch data
         for touch in &touch::touches(&mut i2c_3).unwrap() {
             audio_writer
