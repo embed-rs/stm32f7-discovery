@@ -15,9 +15,17 @@ mod init;
 mod color;
 mod font;
 
+const HEIGHT: usize = 480;
+const WIDTH: usize = 272;
+
+const LAYER_1_OCTETS_PER_PIXEL: usize = 4;
+const LAYER_1_LENGTH: usize = HEIGHT * WIDTH * LAYER_1_OCTETS_PER_PIXEL;
+const LAYER_2_OCTETS_PER_PIXEL: usize = 2;
+const LAYER_2_LENGTH: usize = HEIGHT * WIDTH * LAYER_2_OCTETS_PER_PIXEL;
+
 const SDRAM_START: usize = 0xC000_0000;
 const LAYER_1_START: usize = SDRAM_START;
-const LAYER_2_START: usize = SDRAM_START + 272 * 480 * 4;
+const LAYER_2_START: usize = SDRAM_START + LAYER_1_LENGTH;
 
 static TTF: &[u8] = include_bytes!("../../RobotoMono-Bold.ttf");
 
@@ -67,8 +75,8 @@ impl FramebufferArgb8888 {
 
 impl Framebuffer for FramebufferArgb8888 {
     fn set_pixel(&mut self, x: usize, y: usize, color: Color) {
-        let pixel = y * 480 + x;
-        let pixel_ptr = (self.base_addr + pixel * 4) as *mut u32;
+        let pixel = y * WIDTH + x;
+        let pixel_ptr = (self.base_addr + pixel * LAYER_1_OCTETS_PER_PIXEL) as *mut u32;
         unsafe { ptr::write_volatile(pixel_ptr, color.to_argb8888()) };
     }
 }
@@ -86,8 +94,8 @@ impl FramebufferAl88 {
 
 impl Framebuffer for FramebufferAl88 {
     fn set_pixel(&mut self, x: usize, y: usize, color: Color) {
-        let pixel = y * 480 + x;
-        let pixel_ptr = (self.base_addr + pixel * 2) as *mut u16;
+        let pixel = y * WIDTH + x;
+        let pixel_ptr = (self.base_addr + pixel * LAYER_2_OCTETS_PER_PIXEL) as *mut u16;
         unsafe { ptr::write_volatile(pixel_ptr, (color.alpha as u16) << 8 | 0xff) };
     }
 }
@@ -101,8 +109,8 @@ impl<T: Framebuffer> Layer<T> {
         let colors = [0xffffff, 0xcccccc, 0x999999, 0x666666, 0x333333, 0x0, 0xff0000, 0x0000ff];
 
         // horizontal stripes
-        for i in 0..272 {
-            for j in 0..480 {
+        for i in 0..HEIGHT {
+            for j in 0..WIDTH {
                 self.framebuffer
                     .set_pixel(j, i, Color::from_rgb888(colors[(i / 10) % colors.len()]));
             }
@@ -113,8 +121,8 @@ impl<T: Framebuffer> Layer<T> {
         let colors = [0xcccccc, 0x999999, 0x666666, 0x333333, 0x0, 0xff0000, 0x0000ff, 0xffffff];
 
         // vertical stripes
-        for i in 0..272 {
-            for j in 0..480 {
+        for i in 0..HEIGHT {
+            for j in 0..WIDTH {
                 self.framebuffer
                     .set_pixel(j, i, Color::from_rgb888(colors[(j / 10) % colors.len()]));
             }
@@ -122,8 +130,8 @@ impl<T: Framebuffer> Layer<T> {
     }
 
     pub fn clear(&mut self) {
-        for i in 0..272 {
-            for j in 0..480 {
+        for i in 0..HEIGHT {
+            for j in 0..WIDTH {
                 self.framebuffer.set_pixel(j, i, Color::from_argb8888(0));
             }
         }
@@ -134,8 +142,8 @@ impl<T: Framebuffer> Layer<T> {
     }
 
     pub fn print_point_color_at(&mut self, x: usize, y: usize, color: Color) {
-        assert!(x < 480);
-        assert!(y < 272);
+        assert!(x < WIDTH);
+        assert!(y < HEIGHT);
 
         self.framebuffer.set_pixel(x, y, color);
     }
@@ -163,30 +171,30 @@ pub struct AudioWriter<'a, T: Framebuffer + 'a> {
     layer: &'a mut Layer<T>,
     next_pixel: usize,
     next_col: usize,
-    prev_value: (u32, u32),
+    prev_value: (usize, usize),
 }
 
 impl<'a, T: Framebuffer + 'a> AudioWriter<'a, T> {
     pub fn set_next_pixel(&mut self, color: Color) {
         self.layer
-            .print_point_color_at(self.next_pixel % 480, self.next_pixel / 480, color);
-        self.next_pixel = (self.next_pixel + 1) % (272 * 480);
+            .print_point_color_at(self.next_pixel % WIDTH, self.next_pixel / WIDTH, color);
+        self.next_pixel = (self.next_pixel + 1) % (HEIGHT * WIDTH);
     }
 
     pub fn layer(&mut self) -> &mut Layer<T> {
         &mut self.layer
     }
 
-    pub fn set_next_col(&mut self, value0: u32, value1: u32) {
-        let value0 = value0 + 2u32.pow(15);
-        let value0 = value0 as u16 as u32;
+    pub fn set_next_col(&mut self, value0: usize, value1: usize) {
+        let value0 = value0 + 2usize.pow(15);
+        let value0 = value0 as u16 as usize;
         let value0 = value0 / 241;
 
-        let value1 = value1 + 2u32.pow(15);
-        let value1 = value1 as u16 as u32;
+        let value1 = value1 + 2usize.pow(15);
+        let value1 = value1 as u16 as usize;
         let value1 = value1 / 241;
 
-        for i in 0..272 {
+        for i in 0..HEIGHT {
             let mut color = Color::from_argb8888(0);
 
             if value0 >= self.prev_value.0 {
@@ -214,7 +222,7 @@ impl<'a, T: Framebuffer + 'a> AudioWriter<'a, T> {
         }
 
 
-        self.next_col = (self.next_col + 1) % 480;
+        self.next_col = (self.next_col + 1) % WIDTH;
         self.prev_value = (value0, value1);
     }
 }
@@ -238,11 +246,11 @@ impl <'a, T: Framebuffer> TextWriter<'a, T> {
                  } = self;
 
         let width = font_renderer.render(s, |x, y, v| {
-            if *x_pos + x >= 480 {
+            if *x_pos + x >= WIDTH {
                 *x_pos = 0;
                 *y_pos += font_height;
             }
-            if *y_pos + font_height >= 272 {
+            if *y_pos + font_height >= HEIGHT {
                 *y_pos = 0;
                 layer.clear();
             }
