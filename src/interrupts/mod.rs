@@ -765,3 +765,7 @@ impl Priority {
         }
     }
 }
+
+pub unsafe fn wfi() {
+    ::cortex_m::asm::wfi();
+}
