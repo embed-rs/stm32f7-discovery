@@ -182,6 +182,7 @@ static mut ISRS: [Option<Box<FnMut()>>; 98] =
 /// Default interrupt handler
 static mut DEFAULT_HANDLER: Option<Box<FnMut(u8)>> = None;
 
+// Unreachable at the moment (only when interrupt was enabled before takes ownership...)
 fn default_handler(irq: u8) {
     unsafe {
         match DEFAULT_HANDLER {
@@ -231,28 +232,57 @@ impl InterruptHandler {
                            -> Result<InterruptHandle, Error>
         where F: FnMut() + 'static + Send
     {
+        let interrupt_handle = self.insert_boxed_isr(irq, Box::new(isr))?;
+
+        self.set_priority(&interrupt_handle, priority);
+
+        self.enable_interrupt(&interrupt_handle);
+
+        Ok(interrupt_handle)
+
+    }
+
+    pub unsafe fn with_interrupt<F, C>(&mut self,
+                                irq: InterruptRequest,
+                                priority: Priority,
+                                isr: F,
+                                code: C) -> Result<(), Error>
+        where F: FnMut() + Send,
+              C: FnOnce(&mut InterruptHandler)
+    {
+
+        let isr = ::core::intrinsics::transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>>(Box::new(isr));
+        let interrupt_handle = self.insert_boxed_isr(irq, isr)?;
+        self.set_priority(&interrupt_handle, priority);
+        self.enable_interrupt(&interrupt_handle);
+
+        // TODO: What happen when code panics? Better when interrupt_handle implements drop?
+        code(self);
+
+        self.unregister_isr(interrupt_handle);
+
+        Ok(())
+    }
+
+    fn insert_boxed_isr(&mut self, irq: InterruptRequest, isr_boxed: Box<FnMut() + 'static + Send>) -> Result<InterruptHandle, Error>
+    {
         // Check if interrupt already in use
         if self.used_interrupts[irq as usize] {
             return Err(Error::InterruptAlreadyInUse(irq));
         }
         self.used_interrupts[irq as usize] = true;
         unsafe {
-            ISRS[irq as usize] = Some(Box::new(isr));
+            ISRS[irq as usize] = Some(isr_boxed);
         }
 
-        let iser_mun = irq as u8 / 32u8;
-        let iser_bit = irq as u8 % 32u8;
-
-        let interrupt_handle = InterruptHandle::new(irq);
-        self.set_priority(&interrupt_handle, priority);
-
-        self.enable_interrupt(iser_mun, iser_bit);
-
-        Ok(interrupt_handle)
-
+        Ok(InterruptHandle::new(irq))
     }
 
-    fn enable_interrupt(&mut self, iser_num: u8, iser_bit: u8) {
+    fn enable_interrupt(&mut self, interrupt_handle: &InterruptHandle) {
+        let irq = interrupt_handle.irq;
+        let iser_num = irq as u8 / 32u8;
+        let iser_bit = irq as u8 % 32u8;
+
         match iser_num {
             0 => {
                 self.nvic
