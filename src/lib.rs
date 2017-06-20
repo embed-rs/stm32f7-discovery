@@ -48,6 +48,12 @@ pub mod random;
 #[no_mangle]
 pub extern "C" fn panic_fmt(fmt: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
     use core::fmt::Write;
+    use interrupts::primask_mutex::PrimaskMutex;
+    use core::marker::PhantomData;
+
+    // Disable all interrupts after panic
+    let mutex: PrimaskMutex<PhantomData<()>> = PrimaskMutex::new(PhantomData);
+    mutex.lock();
 
     hprintln_err!("\nPANIC in {} at line {}:", file, line);
     hprintln_err!("    {}", fmt);
