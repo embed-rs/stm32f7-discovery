@@ -1,6 +1,6 @@
 use alloc::boxed::Box;
-use collections::{Vec, BTreeMap};
-use collections::borrow::Cow;
+use alloc::{Vec, BTreeMap};
+use alloc::borrow::Cow;
 
 use board::{rcc, syscfg};
 use board::ethernet_dma::{self, EthernetDma};

@@ -80,7 +80,7 @@ dependencies = [
 [[package]]
 name = "embedded_stm32f7"
 version = "0.1.0"
-source = "git+https://github.com/embed-rs/embedded_stm32f7.git#6fbb8103ae53172c6cf7252d2a5269aea9585a96"
+source = "git+https://github.com/embed-rs/embedded_stm32f7.git#7579c2ad2bdd244e194b4bd15e52a27d04c1e31b"
 dependencies = [
  "bit_field 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "embedded 0.3.0 (git+https://github.com/embed-rs/embedded-rs.git)",
@@ -96,7 +96,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "net"
 version = "0.1.0"
-source = "git+https://github.com/embed-rs/net.git#e0ed4f02f13b84f9744aef3c8290049948c44195"
+source = "git+https://github.com/embed-rs/net.git#bfa81ea36d9433730ae0339ee92903f541c1b6dd"
 dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -127,7 +127,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "rusttype"
 version = "0.2.1"
-source = "git+https://github.com/phil-opp/rusttype.git?branch=no_std#c9ff700f89c1472cf3ff0cce4705cfb6fa47d49e"
+source = "git+https://github.com/phil-opp/rusttype.git?branch=no_std#0fedf1e3b07538d6f13075819afa40e4ad73ff11"
 dependencies = [
  "arrayvec 0.3.23 (registry+https://github.com/rust-lang/crates.io-index)",
  "stb_truetype 0.2.1 (git+https://github.com/phil-opp/stb_truetype-rs.git)",
@@ -141,7 +141,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "stb_truetype"
 version = "0.2.1"
-source = "git+https://github.com/phil-opp/stb_truetype-rs.git#66ae00fbecab9890fedfd2692a124ccc373e7e98"
+source = "git+https://github.com/phil-opp/stb_truetype-rs.git#6d546c1b9c6c880d8e0eeca6a8592c50f66b91e0"
 dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

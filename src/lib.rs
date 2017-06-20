@@ -2,7 +2,7 @@
 #![feature(const_fn)]
 #![feature(trusted_len)]
 #![feature(asm)]
-#![feature(alloc, collections)]
+#![feature(alloc)]
 #![feature(try_from)]
 #![feature(drop_types_in_const)]
 #![feature(option_entry)]
@@ -19,9 +19,8 @@ pub extern crate cortex_m;
 extern crate volatile;
 // allocator
 extern crate alloc_cortex_m;
-extern crate alloc;
 #[macro_use]
-extern crate collections;
+extern crate alloc;
 extern crate arrayvec;
 extern crate bit_field;
 extern crate spin;
