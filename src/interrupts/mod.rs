@@ -10,38 +10,6 @@ use self::interrupt_request::InterruptRequest;
 pub mod interrupt_request;
 pub mod primask_mutex;
 
-macro_rules! set_priority_with_offset {
-    ($($name:ident).* , $offset:expr , $priority:expr) => {
-        match $offset {
-            0 => $($name.)*update(|r| {
-                r.set_ipr_n0($priority);
-            }),
-            1 => $($name.)*update(|r| {
-                r.set_ipr_n1($priority);
-            }),
-            2 => $($name.)*update(|r| {
-                r.set_ipr_n2($priority);
-            }),
-            3 => $($name.)*update(|r| {
-                r.set_ipr_n3($priority);
-            }),
-            _ => unreachable!(),
-        }
-    }
-}
-
-macro_rules! get_priority_with_offset {
-    ($($name:ident).* , $offset:expr) => {
-        match $offset {
-            0 => $($name.)*read().ipr_n0(),
-            1 => $($name.)*read().ipr_n1(),
-            2 => $($name.)*read().ipr_n2(),
-            3 => $($name.)*read().ipr_n3(),
-            _ => unreachable!(),
-        }
-    }
-}
-
 macro_rules! assign_interrupt_handler {
     ($( $name:ident ),*) => {
         [
@@ -352,42 +320,10 @@ impl InterruptHandler {
         let iser_num = irq as u8 / 32u8;
         let iser_bit = irq as u8 % 32u8;
 
-        match iser_num {
-            0 => {
-                self.nvic
-                    .iser0
-                    .update(|r| {
-                                let old = r.setena();
-                                r.set_setena(old | 1 << iser_bit);
-                            })
-            }
-            1 => {
-                self.nvic
-                    .iser1
-                    .update(|r| {
-                                let old = r.setena();
-                                r.set_setena(old | 1 << iser_bit);
-                            })
-            }
-            2 => {
-                self.nvic
-                    .iser2
-                    .update(|r| {
-                                let old = r.setena();
-                                r.set_setena(old | 1 << iser_bit);
-                            })
-            }
-            // iser3 missing? 98 div 32 = 3
-            /*3 => {
-                self.nvic
-                    .iser3
-                    .update(|r| {
-                                let old = r.setena();
-                                r.set_setena(old | 1 << iser_bit);
-                            })
-            }*/
-            _ => unreachable!(),
-        }
+        self.nvic.iser[iser_num as usize].update(|r| {
+            let old = r.setena();
+            r.set_setena(old | 1 << iser_bit);
+        });
     }
     pub fn unregister<T>(&mut self, interrupt_handle: InterruptHandle<T>) -> Option<T> {
         
@@ -395,38 +331,10 @@ impl InterruptHandler {
         let icer_num = irq as u8 / 32u8;
         let icer_bit = irq as u8 % 32u8;
 
-        match icer_num {
-            0 => {
-                self.nvic
-                    .icer0
-                    .update(|r| {
-                                let old = r.clrena();
-                                r.set_clrena(old | 1 << icer_bit);
-                            })
-            }
-            1 => {
-                self.nvic
-                    .icer1
-                    .update(|r| {
-                                let old = r.clrena();
-                                r.set_clrena(old | 1 << icer_bit);
-                            })
-            }
-            2 => {
-                self.nvic
-                    .icer2
-                    .update(|r| {
-                                let old = r.clrena();
-                                r.set_clrena(old | 1 << icer_bit);
-                            })
-            }
-            // icer3 missing? ... 97 div 32 = 3
-            /*3 => self.nvic.icer3.update(|r| {
-                let old = r.clrena();
-                r.set_clrena(old | 1 << icer_num);
-            }),*/
-            _ => unreachable!(),
-        }
+        self.nvic.icer[icer_num as usize].update(|r| {
+            let old = r.clrena();
+            r.set_clrena(old | 1 << icer_bit);
+        });
 
         unsafe {
             ISRS[irq as usize] = None;
@@ -457,65 +365,15 @@ impl InterruptHandler {
         // STM32F7 only uses 4 bits for Priority. priority << 4, because the upper 4 bits are used for priority.
         let priority = (priority as u8) << 4;
 
-        match ipr_num {
-            0 => set_priority_with_offset!(self.nvic.ipr0, ipr_offset, priority),
-            2 => set_priority_with_offset!(self.nvic.ipr1, ipr_offset, priority),
-            1 => set_priority_with_offset!(self.nvic.ipr2, ipr_offset, priority), 
-            3 => set_priority_with_offset!(self.nvic.ipr3, ipr_offset, priority), 
-            4 => set_priority_with_offset!(self.nvic.ipr4, ipr_offset, priority), 
-            5 => set_priority_with_offset!(self.nvic.ipr5, ipr_offset, priority), 
-            6 => set_priority_with_offset!(self.nvic.ipr6, ipr_offset, priority), 
-            7 => set_priority_with_offset!(self.nvic.ipr7, ipr_offset, priority), 
-            8 => set_priority_with_offset!(self.nvic.ipr8, ipr_offset, priority), 
-            9 => set_priority_with_offset!(self.nvic.ipr9, ipr_offset, priority), 
-            10 => set_priority_with_offset!(self.nvic.ipr10, ipr_offset, priority),
-            11 => set_priority_with_offset!(self.nvic.ipr11, ipr_offset, priority),
-            12 => set_priority_with_offset!(self.nvic.ipr12, ipr_offset, priority),
-            13 => set_priority_with_offset!(self.nvic.ipr13, ipr_offset, priority),
-            14 => set_priority_with_offset!(self.nvic.ipr14, ipr_offset, priority),
-            15 => set_priority_with_offset!(self.nvic.ipr15, ipr_offset, priority),
-            16 => set_priority_with_offset!(self.nvic.ipr16, ipr_offset, priority),
-            17 => set_priority_with_offset!(self.nvic.ipr17, ipr_offset, priority),
-            18 => set_priority_with_offset!(self.nvic.ipr18, ipr_offset, priority),
-            19 => set_priority_with_offset!(self.nvic.ipr19, ipr_offset, priority),
-            20 => set_priority_with_offset!(self.nvic.ipr20, ipr_offset, priority),
-            // 21,22,23,24 missing? 97 div 4 = 24
-            _ => unreachable!(),
-        }
+        self.nvic.ipr[irq as usize].update(|r| r.set(priority));
     }
 
 
 
     pub fn get_priority<T>(&self, interrupt_handle: &InterruptHandle<T>) -> Priority {
         let irq = interrupt_handle.irq;
-        let ipr_num = irq as u8 / 4u8;
-        let ipr_offset = irq as u8 % 4u8;
 
-        let res = match ipr_num {
-            0 => get_priority_with_offset!(self.nvic.ipr0, ipr_offset),
-            2 => get_priority_with_offset!(self.nvic.ipr1, ipr_offset),
-            1 => get_priority_with_offset!(self.nvic.ipr2, ipr_offset), 
-            3 => get_priority_with_offset!(self.nvic.ipr3, ipr_offset), 
-            4 => get_priority_with_offset!(self.nvic.ipr4, ipr_offset), 
-            5 => get_priority_with_offset!(self.nvic.ipr5, ipr_offset), 
-            6 => get_priority_with_offset!(self.nvic.ipr6, ipr_offset), 
-            7 => get_priority_with_offset!(self.nvic.ipr7, ipr_offset), 
-            8 => get_priority_with_offset!(self.nvic.ipr8, ipr_offset), 
-            9 => get_priority_with_offset!(self.nvic.ipr9, ipr_offset), 
-            10 => get_priority_with_offset!(self.nvic.ipr10, ipr_offset),
-            11 => get_priority_with_offset!(self.nvic.ipr11, ipr_offset),
-            12 => get_priority_with_offset!(self.nvic.ipr12, ipr_offset),
-            13 => get_priority_with_offset!(self.nvic.ipr13, ipr_offset),
-            14 => get_priority_with_offset!(self.nvic.ipr14, ipr_offset),
-            15 => get_priority_with_offset!(self.nvic.ipr15, ipr_offset),
-            16 => get_priority_with_offset!(self.nvic.ipr16, ipr_offset),
-            17 => get_priority_with_offset!(self.nvic.ipr17, ipr_offset),
-            18 => get_priority_with_offset!(self.nvic.ipr18, ipr_offset),
-            19 => get_priority_with_offset!(self.nvic.ipr19, ipr_offset),
-            20 => get_priority_with_offset!(self.nvic.ipr20, ipr_offset),
-            // 21,22,23,24 missing? 97 div 4 = 24
-            _ => unreachable!(),
-        };
+        let res = self.nvic.ipr[irq as usize].read().get();
 
         // STM32F7 only uses 4 bits for Priority. priority << 4, because the upper 4 bits are used for priority.
         match Priority::from_u8(res >> 4) {
@@ -532,38 +390,10 @@ impl InterruptHandler {
         let icpr_num = irq as u8 / 32u8;
         let icpr_bit = irq as u8 % 32u8;
 
-        match icpr_num {
-            0 => {
-                self.nvic
-                    .icpr0
-                    .update(|r| {
-                                let old = r.clrpend();
-                                r.set_clrpend(old | 1 << icpr_bit);
-                            })
-            }
-            1 => {
-                self.nvic
-                    .icpr1
-                    .update(|r| {
-                                let old = r.clrpend();
-                                r.set_clrpend(old | 1 << icpr_bit);
-                            })
-            }
-            2 => {
-                self.nvic
-                    .icpr2
-                    .update(|r| {
-                                let old = r.clrpend();
-                                r.set_clrpend(old | 1 << icpr_bit);
-                            })
-            }
-            // icpr3 missing?
-            /*3 => self.nvic.icpr3.update(|r| {
-                let old = r.clrpend();
-                r.set_clrpend(old | 1 << icer_num);
-            }),*/
-            _ => unreachable!(),
-        }
+        self.nvic.icpr[icpr_num as usize].update(|r| {
+            let old = r.clrpend();
+            r.set_clrpend(old | 1 << icpr_bit);
+        });
     }
 
     pub fn set_pending_state<T>(&mut self, interrupt_handle: &InterruptHandle<T>) {
@@ -571,38 +401,10 @@ impl InterruptHandler {
         let ispr_num = irq as u8 / 32u8;
         let ispr_bit = irq as u8 % 32u8;
 
-        match ispr_num {
-            0 => {
-                self.nvic
-                    .ispr0
-                    .update(|r| {
-                                let old = r.setpend();
-                                r.set_setpend(old | 1 << ispr_bit);
-                            })
-            }
-            1 => {
-                self.nvic
-                    .ispr1
-                    .update(|r| {
-                                let old = r.setpend();
-                                r.set_setpend(old | 1 << ispr_bit);
-                            })
-            }
-            2 => {
-                self.nvic
-                    .ispr2
-                    .update(|r| {
-                                let old = r.setpend();
-                                r.set_setpend(old | 1 << ispr_bit);
-                            })
-            }
-            // ispr3 missing?
-            /*3 => self.nvic.ispr3.update(|r| {
-                let old = r.setpend();
-                r.set_setpend(old | 1 << icer_num);
-            }),*/
-            _ => unreachable!(),
-        }
+        self.nvic.ispr[ispr_num as usize].update(|r| {
+            let old = r.setpend();
+            r.set_setpend(old | 1 << ispr_bit);
+        });
     }
 
     pub fn get_pending_state<T>(&self, interrupt_handle: &InterruptHandle<T>) -> bool {
@@ -610,15 +412,7 @@ impl InterruptHandler {
         let ispr_num = irq as u8 / 32u8;
         let ispr_bit = irq as u8 % 32u8;
 
-        let reg = match ispr_num {
-            0 => self.nvic.ispr0.read().setpend(),
-            1 => self.nvic.ispr1.read().setpend(),
-            2 => self.nvic.ispr2.read().setpend(),
-            // ispr3 missing?
-            //3 => self.nvic.ispr3.read.setpend(),
-            _ => unreachable!(),
-        };
-
+        let reg = self.nvic.ispr[ispr_num as usize].read().setpend();
         reg & (1 << ispr_bit) != 0
     }
 
