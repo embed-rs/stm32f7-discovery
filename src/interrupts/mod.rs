@@ -268,7 +268,7 @@ impl InterruptHandler {
 
     }
 
-    pub unsafe fn with_interrupt<F, C>(&mut self,
+    pub fn with_interrupt<F, C>(&mut self,
                                        irq: InterruptRequest,
                                        priority: Priority,
                                        isr: F,
@@ -278,13 +278,16 @@ impl InterruptHandler {
               C: FnOnce(&mut InterruptHandler)
     {
 
-        let isr = transmute::<Box<FnMut() + Send>,Box<FnMut() + 'static + Send>>(Box::new(isr));
+        // Safe: Isr is removed from the static array after the closure code is executed.
+        // When the *code(self)* panics, the programm ends in a endless loop with disabled interrupts
+        // and never returns. So the state of the ISRS does't matter.
+        let isr = unsafe {
+            transmute::<Box<FnMut() + Send>,Box<FnMut() + 'static + Send>>(Box::new(isr))
+        };
         let interrupt_handle = self.insert_boxed_isr(irq, isr)?;
         self.set_priority(&interrupt_handle, priority);
         self.enable_interrupt(&interrupt_handle);
 
-        // Safe: When the code panics, the programm ends in a endless loop with disabled interrupts
-        // and never returns. So the state of the ISRS does't matter.
         code(self);
 
         self.unregister::<()>(interrupt_handle);
