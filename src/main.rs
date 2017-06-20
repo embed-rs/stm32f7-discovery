@@ -1,6 +1,6 @@
 #![feature(lang_items)]
 #![feature(const_fn)]
-#![feature(alloc, collections)]
+#![feature(alloc)]
 #![feature(asm)]
 #![feature(compiler_builtins_lib)]
 
@@ -12,15 +12,14 @@ extern crate stm32f7_discovery as stm32f7;
 
 // initialization routines for .data and .bss
 extern crate r0;
-extern crate alloc;
 #[macro_use]
-extern crate collections;
+extern crate alloc;
 extern crate compiler_builtins;
 
 // hardware register structs with accessor methods
 use stm32f7::{system_clock, sdram, lcd, i2c, audio, touch, board, ethernet, embedded};
 use stm32f7::ethernet::{Packet, Udp};
-use collections::borrow::Cow;
+use alloc::borrow::Cow;
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
     extern "C" {

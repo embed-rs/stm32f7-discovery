@@ -1,7 +1,7 @@
 use bit_field::BitField;
 use core::convert::TryInto;
 use core::{mem, slice};
-use collections::boxed::Box;
+use alloc::boxed::Box;
 
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
