@@ -3,6 +3,8 @@
 use alloc::boxed::Box;
 use board::nvic::Nvic;
 use board::nvic::Stir;
+use core::marker::PhantomData;
+use core::intrinsics::transmute;
 use self::interrupt_request::InterruptRequest;
 
 pub mod interrupt_request;
@@ -197,19 +199,35 @@ pub enum Error {
     InterruptAlreadyInUse(InterruptRequest),
 }
 
-pub struct InterruptHandle {
+pub struct InterruptHandle<T> {
+    _data_type: PhantomData<T>,
     irq: InterruptRequest,
 }
 
-impl InterruptHandle {
+impl<T> InterruptHandle<T> {
     fn new(irq: InterruptRequest) -> Self {
-        InterruptHandle { irq: irq }
+        InterruptHandle { 
+            irq: irq,
+            _data_type: PhantomData,
+        }
     }
 }
 
 pub struct InterruptHandler {
     nvic: &'static mut Nvic,
     used_interrupts: [bool; 98],
+    data: [Option<* mut ()>; 98],
+}
+
+impl Drop for InterruptHandler {
+    fn drop(&mut self) {
+        unsafe {
+            for isr in ISRS.iter_mut() {
+                *isr = None;
+            }
+        }
+        
+    }
 }
 
 impl InterruptHandler {
@@ -222,14 +240,22 @@ impl InterruptHandler {
         InterruptHandler {
             nvic: nvic,
             used_interrupts: [false; 98],
+            data: [None, None, None, None, None, None, None, None, None, None, None, None, None,
+                   None, None, None, None, None, None, None, None, None, None, None, None, None,
+                   None, None, None, None, None, None, None, None, None, None, None, None, None,
+                   None, None, None, None, None, None, None, None, None, None, None, None, None,
+                   None, None, None, None, None, None, None, None, None, None, None, None, None,
+                   None, None, None, None, None, None, None, None, None, None, None, None, None,
+                   None, None, None, None, None, None, None, None, None, None, None, None, None,
+                   None, None, None, None, None, None, None],
         }
     }
 
-    pub fn register_isr<F>(&mut self,
-                           irq: InterruptRequest,
-                           priority: Priority,
-                           isr: F)
-                           -> Result<InterruptHandle, Error>
+    pub fn register_static<F>(&mut self,
+                              irq: InterruptRequest,
+                              priority: Priority,
+                              isr: F)
+                              -> Result<InterruptHandle<()>, Error>
         where F: FnMut() + 'static + Send
     {
         let interrupt_handle = self.insert_boxed_isr(irq, Box::new(isr))?;
@@ -243,29 +269,64 @@ impl InterruptHandler {
     }
 
     pub unsafe fn with_interrupt<F, C>(&mut self,
-                                irq: InterruptRequest,
-                                priority: Priority,
-                                isr: F,
-                                code: C) -> Result<(), Error>
+                                       irq: InterruptRequest,
+                                       priority: Priority,
+                                       isr: F,
+                                       code: C)
+                                       -> Result<(), Error>
         where F: FnMut() + Send,
               C: FnOnce(&mut InterruptHandler)
     {
 
-        let isr = ::core::intrinsics::transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>>(Box::new(isr));
+        let isr = transmute::<Box<FnMut() + Send>,Box<FnMut() + 'static + Send>>(Box::new(isr));
         let interrupt_handle = self.insert_boxed_isr(irq, isr)?;
         self.set_priority(&interrupt_handle, priority);
         self.enable_interrupt(&interrupt_handle);
 
-        // TODO: What happen when code panics? Better when interrupt_handle implements drop?
+        // Safe: When the code panics, the programm ends in a endless loop with disabled interrupts
+        // and never returns. So the state of the ISRS does't matter.
         code(self);
 
-        self.unregister_isr(interrupt_handle);
+        self.unregister::<()>(interrupt_handle);
 
         Ok(())
     }
 
-    fn insert_boxed_isr(&mut self, irq: InterruptRequest, isr_boxed: Box<FnMut() + 'static + Send>) -> Result<InterruptHandle, Error>
+    pub unsafe fn register<F, T>(&mut self,
+                                 irq: InterruptRequest,
+                                 priority: Priority,
+                                 owned_data: T,
+                                 mut isr: F)
+                                 -> Result<InterruptHandle<T>, Error>
+        where   T: Send,
+                F: FnMut(&mut T) + 'static + Send
     {
+        if self.used_interrupts[irq as usize] {
+            return Err(Error::InterruptAlreadyInUse(irq));
+        }
+        // Insert data only, when interrupt isn't used, therefor nobody reads the data => no dataraces
+        self.data[irq as usize] = transmute::<Option<*mut T>, Option<*mut ()>>(Some(Box::into_raw(Box::new(owned_data))));
+        
+        // transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>> is safe, because of the drop implementation of InterruptHandler
+        let isr = transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>>(Box::new(
+            || {
+                match self.data[irq as usize] {
+                    // Safe, since the correct type is known
+                    Some(ptr) => isr(Box::from_raw(transmute::<*mut (), *mut T>(ptr)).as_mut()),
+                    None => unreachable!("No data set"),
+                }
+            }));
+        let interrupt_handle = self.insert_boxed_isr(irq, isr)?;
+        self.set_priority(&interrupt_handle, priority);
+        self.enable_interrupt(&interrupt_handle);
+
+        Ok(interrupt_handle)
+    }
+
+    fn insert_boxed_isr<T>(&mut self,
+                        irq: InterruptRequest,
+                        isr_boxed: Box<FnMut() + 'static + Send>)
+                        -> Result<InterruptHandle<T>, Error> {
         // Check if interrupt already in use
         if self.used_interrupts[irq as usize] {
             return Err(Error::InterruptAlreadyInUse(irq));
@@ -278,7 +339,7 @@ impl InterruptHandler {
         Ok(InterruptHandle::new(irq))
     }
 
-    fn enable_interrupt(&mut self, interrupt_handle: &InterruptHandle) {
+    fn enable_interrupt<T>(&mut self, interrupt_handle: &InterruptHandle<T>) {
         let irq = interrupt_handle.irq;
         let iser_num = irq as u8 / 32u8;
         let iser_bit = irq as u8 % 32u8;
@@ -320,8 +381,8 @@ impl InterruptHandler {
             _ => unreachable!(),
         }
     }
-
-    pub fn unregister_isr(&mut self, interrupt_handle: InterruptHandle) {
+    pub fn unregister<T>(&mut self, interrupt_handle: InterruptHandle<T>) -> Option<T> {
+        
         let irq = interrupt_handle.irq;
         let icer_num = irq as u8 / 32u8;
         let icer_bit = irq as u8 % 32u8;
@@ -365,13 +426,22 @@ impl InterruptHandler {
 
         self.used_interrupts[irq as usize] = false;
 
+        match self.data[irq as usize].take() {
+            Some(x) => {
+                    // Safe: Type T is stored in interrupt_handle
+                    let result = Some(*unsafe {Box::from_raw(transmute::<*mut (), *mut T>(x))});
+                    result
+                },
+            None => None,
+        }
+
     }
 
 
 
     // The STM32F7 only supports 16 priority levels
     // Assert that priority < 16
-    pub fn set_priority(&mut self, interrupt_handle: &InterruptHandle, priority: Priority) {
+    pub fn set_priority<T>(&mut self, interrupt_handle: &InterruptHandle<T>, priority: Priority) {
         let irq = interrupt_handle.irq;
         let ipr_num = irq as u8 / 4u8;
         let ipr_offset = irq as u8 % 4u8;
@@ -408,7 +478,7 @@ impl InterruptHandler {
 
 
 
-    pub fn get_priority(&self, interrupt_handle: &InterruptHandle) -> Priority {
+    pub fn get_priority<T>(&self, interrupt_handle: &InterruptHandle<T>) -> Priority {
         let irq = interrupt_handle.irq;
         let ipr_num = irq as u8 / 4u8;
         let ipr_offset = irq as u8 % 4u8;
@@ -449,7 +519,7 @@ impl InterruptHandler {
 
     }
 
-    pub fn clear_pending_state(&mut self, interrupt_handle: &InterruptHandle) {
+    pub fn clear_pending_state<T>(&mut self, interrupt_handle: &InterruptHandle<T>) {
         let irq = interrupt_handle.irq;
         let icpr_num = irq as u8 / 32u8;
         let icpr_bit = irq as u8 % 32u8;
@@ -488,7 +558,7 @@ impl InterruptHandler {
         }
     }
 
-    pub fn set_pending_state(&mut self, interrupt_handle: &InterruptHandle) {
+    pub fn set_pending_state<T>(&mut self, interrupt_handle: &InterruptHandle<T>) {
         let irq = interrupt_handle.irq;
         let ispr_num = irq as u8 / 32u8;
         let ispr_bit = irq as u8 % 32u8;
@@ -527,7 +597,7 @@ impl InterruptHandler {
         }
     }
 
-    pub fn get_pending_state(&self, interrupt_handle: &InterruptHandle) -> bool {
+    pub fn get_pending_state<T>(&self, interrupt_handle: &InterruptHandle<T>) -> bool {
         let irq = interrupt_handle.irq;
         let ispr_num = irq as u8 / 32u8;
         let ispr_bit = irq as u8 % 32u8;
