@@ -295,7 +295,7 @@ impl InterruptHandler {
         Ok(())
     }
 
-    pub unsafe fn register<F, T>(&mut self,
+    pub fn register<F, T>(&mut self,
                                  irq: InterruptRequest,
                                  priority: Priority,
                                  owned_data: T,
@@ -307,18 +307,23 @@ impl InterruptHandler {
         if self.used_interrupts[irq as usize] {
             return Err(Error::InterruptAlreadyInUse(irq));
         }
-        // Insert data only, when interrupt isn't used, therefor nobody reads the data => no dataraces
-        self.data[irq as usize] = transmute::<Option<*mut T>, Option<*mut ()>>(Some(Box::into_raw(Box::new(owned_data))));
+        // Insert data only, when interrupt isn't used, therefore nobody reads the data => no dataraces
+        self.data[irq as usize] = unsafe {
+            transmute::<Option<*mut T>, Option<*mut ()>>(Some(Box::into_raw(Box::new(owned_data))))
+        };
         
-        // transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>> is safe, because of the drop implementation of InterruptHandler
-        let isr = transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>>(Box::new(
+        // transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>> is safe, because of the drop implementation of InterruptHandler ('static is not needed for closure)
+        // and alway only one isr can access the data (Send is not needed for closure)
+        let isr = unsafe {
+            transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>>(Box::new(
             || {
                 match self.data[irq as usize] {
                     // Safe, since the correct type is known
                     Some(ptr) => isr(Box::from_raw(transmute::<*mut (), *mut T>(ptr)).as_mut()),
                     None => unreachable!("No data set"),
                 }
-            }));
+            }))
+        };
         let interrupt_handle = self.insert_boxed_isr(irq, isr)?;
         self.set_priority(&interrupt_handle, priority);
         self.enable_interrupt(&interrupt_handle);
