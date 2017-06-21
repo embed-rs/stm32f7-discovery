@@ -100,12 +100,12 @@ pub fn init(rcc: &mut Rcc, pwr: &mut Pwr, flash: &mut Flash) {
 
     // PCLK1 Configuration
     // PPRE1: APB Low-speed prescaler (APB1)
-    // => APB low-speed clock frequency = 216 Mhz / 4 = 54 MHz
+    // => APB low-speed clock frequency = AHB clock / 4 = 216 Mhz / 4 = 54 MHz
     // FIXME: Frequency should not exceed 45 MHz
     rcc.cfgr.update(|r| r.set_ppre1(DIVIDE_4));
     // PCLK2 Configuration
     // PPRE2: APB high-speed prescaler (APB2)
-    // => APB high-speed clock frequency = 216 Mhz / 2 = 108 MHz
+    // => APB high-speed clock frequency = AHB clock / 2 = 216 Mhz / 2 = 108 MHz
     // FIXME: Frequency should not exceed 90 MHz
     rcc.cfgr.update(|r| r.set_ppre2(DIVIDE_2));
 
@@ -127,4 +127,16 @@ pub fn init(rcc: &mut Rcc, pwr: &mut Pwr, flash: &mut Flash) {
 
 pub fn get_frequency() -> u32 {
     216_000_000 // 216 MHz
+}
+
+pub fn get_ahb_frequency() -> u32 {
+    get_frequency() / 1 //216 MHz
+}
+
+pub fn get_apb1_frequency() -> u32 {
+    get_ahb_frequency / 4 // 54 MHz
+}
+
+pub fn get_apb2_frequency() -> u32 {
+    get_ahb_frequency / 2 // 108 MHz
 }
