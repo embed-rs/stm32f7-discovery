@@ -54,7 +54,7 @@ pub fn init(rcc: &mut Rcc, pwr: &mut Pwr, flash: &mut Flash) {
         r.set_pllsrc(true); // HSE
         r.set_pllm(25);
         r.set_plln(432); // 400 for 200 MHz, 432 for 216 MHz(don't forget to update `get_frequency`)
-        r.set_pllp(2);
+        r.set_pllp(0); // 0 == division factor 2
         r.set_pllq(9); // 8 for 200 MHz, 9 for 216 MHz
     });
     // enable main PLL
