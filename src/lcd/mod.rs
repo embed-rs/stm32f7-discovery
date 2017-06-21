@@ -15,8 +15,8 @@ mod init;
 mod color;
 mod font;
 
-const HEIGHT: usize = 480;
-const WIDTH: usize = 272;
+const HEIGHT: usize = 272;
+const WIDTH: usize = 480;
 
 const LAYER_1_OCTETS_PER_PIXEL: usize = 4;
 const LAYER_1_LENGTH: usize = HEIGHT * WIDTH * LAYER_1_OCTETS_PER_PIXEL;
