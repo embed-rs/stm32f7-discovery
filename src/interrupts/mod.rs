@@ -359,8 +359,6 @@ impl InterruptHandler {
     // Assert that priority < 16
     pub fn set_priority<T>(&mut self, interrupt_handle: &InterruptHandle<T>, priority: Priority) {
         let irq = interrupt_handle.irq;
-        let ipr_num = irq as u8 / 4u8;
-        let ipr_offset = irq as u8 % 4u8;
 
         // STM32F7 only uses 4 bits for Priority. priority << 4, because the upper 4 bits are used for priority.
         let priority = (priority as u8) << 4;
