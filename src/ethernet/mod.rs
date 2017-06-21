@@ -1,3 +1,4 @@
+use core::fmt;
 use alloc::boxed::Box;
 use alloc::{Vec, BTreeMap};
 use alloc::borrow::Cow;
@@ -94,6 +95,8 @@ pub struct EthernetDevice {
     requested_ipv4_addr: Option<Ipv4Address>,
     last_discover_at: usize,
     arp_cache: BTreeMap<Ipv4Address, EthernetAddress>,
+    udp_functions: BTreeMap<u16, Box<FnMut(Udp) -> Option<Cow<[u8]>>>>,
+    tcp_functions: BTreeMap<u16, Box<FnMut(Tcp) -> Option<Cow<[u8]>>>>,
 }
 
 impl EthernetDevice {
@@ -137,6 +140,8 @@ impl EthernetDevice {
             requested_ipv4_addr: None,
             last_discover_at: 0,
             arp_cache: BTreeMap::new(),
+            udp_functions: BTreeMap::new(),
+            tcp_functions: BTreeMap::new(),
         };
 
         device.send_dhcp_discover()?;
@@ -183,9 +188,33 @@ impl EthernetDevice {
         Ok(())
     }
 
-    pub fn with_next_packet<F>(&mut self, f: F) -> Result<(), Error>
-        where F: FnOnce(Packet) -> Option<Cow<[u8]>>
+    pub fn register_udp_port<F>(&mut self, port: u16, f: Box<F>) -> Result<(), PortInUse<Box<F>>>
+        where F: FnMut(Udp) -> Option<Cow<[u8]>> + 'static
     {
+        use alloc::btree_map::Entry;
+        match self.udp_functions.entry(port) {
+            Entry::Vacant(entry) => {
+                entry.insert(f);
+                Ok(())
+            },
+            Entry::Occupied(_) => Err(PortInUse::new(false, port, f)),
+        }
+    }
+
+    pub fn register_tcp_port<F>(&mut self, port: u16, f: Box<F>) -> Result<(), PortInUse<Box<F>>>
+        where F: FnMut(Tcp) -> Option<Cow<[u8]>> + 'static
+    {
+        use alloc::btree_map::Entry;
+        match self.tcp_functions.entry(port) {
+            Entry::Vacant(entry) => {
+                entry.insert(f);
+                Ok(())
+            },
+            Entry::Occupied(_) => Err(PortInUse::new(true, port, f)),
+        }
+    }
+
+    pub fn handle_next_packet(&mut self) -> Result<(), Error> {
         let missed_packets = self.ethernet_dma.dmamfbocr.read().mfc();
         if missed_packets > 20 {
             println!("missed packets: {}", missed_packets);
@@ -195,7 +224,7 @@ impl EthernetDevice {
             self.send_dhcp_discover()?;
         }
 
-        let reply = self.process_next_packet(f)?;
+        let reply = self.process_next_packet()?;
         if let Some(tx_packet) = reply {
             self.tx.insert(tx_packet);
             self.start_send();
@@ -204,14 +233,14 @@ impl EthernetDevice {
         Ok(())
     }
 
-    fn process_next_packet<F>(&mut self, f: F) -> Result<Option<Box<[u8]>>, Error>
-        where F: FnOnce(Packet) -> Option<Cow<[u8]>>
-    {
+    fn process_next_packet(&mut self) -> Result<Option<Box<[u8]>>, Error> {
         let &mut EthernetDevice {
                      ref mut rx,
                      ref mut ipv4_addr,
                      ref mut requested_ipv4_addr,
                      ref mut arp_cache,
+                     ref mut udp_functions,
+                     ref mut tcp_functions,
                      ..
                  } = self;
 
@@ -322,12 +351,14 @@ impl EthernetDevice {
                                                              payload: UdpKind::Unknown(payload),
                                                          }),
                                        }) if Some(ip_header.dst_addr) == *ipv4_addr => {
-                        if let Some(reply_payload) =
-                            f(Packet::Udp(Udp {
+
+                        let udp_packet = Udp {
                                               ip_header,
                                               udp_header,
                                               payload,
-                                          })) {
+                                          };
+                        let reply = udp_functions.get_mut(&udp_header.dst_port).and_then(|f| f(udp_packet));
+                        if let Some(reply_payload) = reply {
                             let src_ip = ip_header.dst_addr;
                             let dst_ip = ip_header.src_addr;
                             if let Some(&dst_mac) = arp_cache.get(&dst_ip) {
@@ -359,12 +390,14 @@ impl EthernetDevice {
 
                         println!("TCP: ");
 
-                        if let Some(reply_payload) =
-                            f(Packet::Tcp(Tcp {
+                        let tcp_packet = Tcp {
                                               ip_header,
                                               tcp_header,
                                               payload,
-                                          })) {
+                                          };
+                        let reply = tcp_functions.get_mut(&tcp_header.dst_port).and_then(|f| f(tcp_packet));
+
+                        if let Some(reply_payload) = reply {
                             let src_ip = ip_header.dst_addr;
                             let dst_ip = ip_header.src_addr;
                             if let Some(&dst_mac) = arp_cache.get(&dst_ip) {
@@ -396,6 +429,28 @@ impl EthernetDevice {
 impl Drop for EthernetDevice {
     fn drop(&mut self) {
         // TODO stop ethernet device and wait for idle
+    }
+}
+
+pub struct PortInUse<F> {
+    pub tcp: bool,
+    pub port: u16,
+    pub f: F,
+}
+
+impl<F> PortInUse<F> {
+    pub fn new(tcp: bool, port: u16, f: F) -> PortInUse<F> {
+        PortInUse {
+            tcp,
+            port,
+            f,
+        }
+    }
+}
+
+impl<F> fmt::Debug for PortInUse<F> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "{} port {} already in use", if self.tcp { "TCP" } else { "UDP" }, self.port)
     }
 }
 

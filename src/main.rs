@@ -18,7 +18,7 @@ extern crate compiler_builtins;
 
 // hardware register structs with accessor methods
 use stm32f7::{system_clock, sdram, lcd, i2c, audio, touch, board, ethernet, embedded};
-use stm32f7::ethernet::{Packet, Udp, Tcp};
+use stm32f7::ethernet::{Udp, Tcp};
 use alloc::borrow::Cow;
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
@@ -50,6 +50,7 @@ pub unsafe extern "C" fn reset() -> ! {
 #[inline(never)] //             reset() before the FPU is initialized
 fn main(hw: board::Hardware) -> ! {
     use embedded::interfaces::gpio::{self, Gpio};
+    use alloc::boxed::Box;
 
     hprintln!("Entering main");
 
@@ -160,8 +161,12 @@ fn main(hw: board::Hardware) -> ! {
                                                        &mut gpio,
                                                        ethernet_mac,
                                                        ethernet_dma);
-    if let Err(e) = eth_device {
-        println!("ethernet init failed: {:?}", e);
+    match eth_device {
+        Ok(ref mut eth_device) => {
+            eth_device.register_udp_port(15, Box::new(udp_reverse)).unwrap();
+            eth_device.register_tcp_port(15, Box::new(tcp_reverse)).unwrap();
+        },
+        Err(e) => println!("ethernet init failed: {:?}", e),
     }
 
     touch::check_family_id(&mut i2c_3).unwrap();
@@ -210,14 +215,11 @@ fn main(hw: board::Hardware) -> ! {
                         .print_point_at(touch.x as usize, touch.y as usize);
                 }
 
+
                 // handle new ethernet packets
                 if let Ok(ref mut eth_device) = eth_device {
                     loop {
-                        let result =
-                            eth_device.with_next_packet(|packet| match packet {
-                                                            Packet::Udp(udp) => handle_udp_packet(udp),
-                                                    Packet::Tcp(tcp) => handle_tcp_packet(tcp),
-                                                        });
+                        let result = eth_device.handle_next_packet();
                         if let Err(err) = result {
                             match err {
                                 stm32f7::ethernet::Error::Exhausted => {}
@@ -232,36 +234,26 @@ fn main(hw: board::Hardware) -> ! {
     )
 }
 
-fn handle_udp_packet(udp: Udp) -> Option<Cow<[u8]>> {
-    match udp.udp_header.dst_port {
-        15 => {
-            for byte in udp.payload.iter().filter(|&&b| b != 0) {
-                print!("{}", char::from(*byte));
-            }
-            let mut reply = b"Reversed: ".to_vec();
-            let start = reply.len();
-            reply.extend_from_slice(udp.payload);
-            let end = reply.len() - 1;
-            reply[start..end].reverse();
-            Some(reply.into())
-        }
-        _ => None,
+fn udp_reverse(udp: Udp) -> Option<Cow<[u8]>> {
+    for byte in udp.payload.iter().filter(|&&b| b != 0) {
+        print!("{}", char::from(*byte));
     }
+    let mut reply = b"Reversed: ".to_vec();
+    let start = reply.len();
+    reply.extend_from_slice(udp.payload);
+    let end = reply.len() - 1;
+    reply[start..end].reverse();
+    Some(reply.into())
 }
 
-fn handle_tcp_packet(tcp: Tcp) -> Option<Cow<[u8]>> {
-    match tcp.tcp_header.dst_port {
-        15 => {
-            for byte in tcp.payload.iter().filter(|&&b| b != 0) {
-                print!("{}", char::from(*byte));
-            }
-            let mut reply = b"Reversed: ".to_vec();
-            let start = reply.len();
-            reply.extend_from_slice(tcp.payload);
-            let end = reply.len() - 1;
-            reply[start..end].reverse();
-            Some(reply.into())
-        }
-        _ => None,
+fn tcp_reverse(tcp: Tcp) -> Option<Cow<[u8]>> {
+    for byte in tcp.payload.iter().filter(|&&b| b != 0) {
+        print!("{}", char::from(*byte));
     }
+    let mut reply = b"Reversed: ".to_vec();
+    let start = reply.len();
+    reply.extend_from_slice(tcp.payload);
+    let end = reply.len() - 1;
+    reply[start..end].reverse();
+    Some(reply.into())
 }
