@@ -134,9 +134,9 @@ pub fn get_ahb_frequency() -> u32 {
 }
 
 pub fn get_apb1_frequency() -> u32 {
-    get_ahb_frequency / 4 // 54 MHz
+    get_ahb_frequency() / 4 // 54 MHz
 }
 
 pub fn get_apb2_frequency() -> u32 {
-    get_ahb_frequency / 2 // 108 MHz
+    get_ahb_frequency() / 2 // 108 MHz
 }
