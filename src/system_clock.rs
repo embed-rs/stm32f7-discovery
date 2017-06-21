@@ -50,11 +50,21 @@ pub fn init(rcc: &mut Rcc, pwr: &mut Pwr, flash: &mut Flash) {
     rcc.cr.update(|r| r.set_pllon(false));
     while rcc.cr.read().pllrdy() {}
     // Configure the main PLL clock source, multiplication and division factors.
+    // HSE is used as clock source. HSE runs at 25 MHz.
+    // PLLM = 25: Division factor for the main PLLs (PLL, PLLI2S and PLLSAI) input clock
+    // VCO input frequency = PLL input clock frequency / PLLM with 2 ≤ PLLM ≤ 63
+    // => VCO input frequency = 25_000 kHz / 25 = 1_000 kHz = 1 MHz
+    // PPLM = 432: Main PLL (PLL) multiplication factor for VCO
+    // VCO output frequency = VCO input frequency × PLLN with 50 ≤ PLLN ≤ 432
+    // => VCO output frequency 1 Mhz * 432 = 432 MHz
+    // PPLQ = 0 =^= division factor 2: Main PLL (PLL) division factor for main system clock
+    // PLL output clock frequency = VCO frequency / PLLP with PLLP = 2, 4, 6, or 8
+    // => PLL output clock frequency = 432 MHz / 2 = 216 MHz
     rcc.pllcfgr.update(|r| {
         r.set_pllsrc(true); // HSE
         r.set_pllm(25);
         r.set_plln(432); // 400 for 200 MHz, 432 for 216 MHz(don't forget to update `get_frequency`)
-        r.set_pllp(0); // 0 == division factor 2
+        r.set_pllp(0); // 0 =^= division factor 2
         r.set_pllq(9); // 8 for 200 MHz, 9 for 216 MHz
     });
     // enable main PLL
@@ -78,6 +88,8 @@ pub fn init(rcc: &mut Rcc, pwr: &mut Pwr, flash: &mut Flash) {
     const SYSTEM_CLOCK_PLL: u8 = 0b10;
 
     // HCLK Configuration
+    // HPRE = system clock not divided: AHB prescaler
+    // => AHB clock frequency = system clock / 1 = 216 MHz / 1 = 216 MHz
     rcc.cfgr.update(|r| r.set_hpre(NO_DIVIDE));
     // SYSCLK Configuration
     rcc.cfgr.update(|r| r.set_sw(SYSTEM_CLOCK_PLL));
@@ -87,8 +99,14 @@ pub fn init(rcc: &mut Rcc, pwr: &mut Pwr, flash: &mut Flash) {
     const DIVIDE_4: u8 = 0b101;
 
     // PCLK1 Configuration
+    // PPRE1: APB Low-speed prescaler (APB1)
+    // => APB low-speed clock frequency = 216 Mhz / 4 = 54 MHz
+    // FIXME: Frequency should not exceed 45 MHz
     rcc.cfgr.update(|r| r.set_ppre1(DIVIDE_4));
     // PCLK2 Configuration
+    // PPRE2: APB high-speed prescaler (APB2)
+    // => APB high-speed clock frequency = 216 Mhz / 2 = 108 MHz
+    // FIXME: Frequency should not exceed 90 MHz
     rcc.cfgr.update(|r| r.set_ppre2(DIVIDE_2));
 
 
@@ -98,7 +116,9 @@ pub fn init(rcc: &mut Rcc, pwr: &mut Pwr, flash: &mut Flash) {
     let pllm = u32::from(pll_cfgr.pllm());
     let plln = u32::from(pll_cfgr.plln());
     let pllp = u32::from(pll_cfgr.pllp() + 1) * 2;
-    systick.rvr.write(25 * 1000 / pllm * plln / pllp - 1); // hse runs at 25 MHz
+    // SysTick Reload Value Register = ((25000/25) * 432) / 2 - 1 = 215_999
+    // => SysTick interrupt tiggers every 1 ms
+    systick.rvr.write((((25 * 1000) / pllm) * plln) / pllp - 1); // hse runs at 25 MHz
     systick.cvr.write(0); // clear
     systick.csr.write(0b111); // CLKSOURCE | TICKINT | ENABLE
 
