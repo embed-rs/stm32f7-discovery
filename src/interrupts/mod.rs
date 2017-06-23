@@ -152,7 +152,7 @@ static mut ISRS: [Option<Box<FnMut()>>; 98] =
 /// Default interrupt handler
 static mut DEFAULT_HANDLER: Option<Box<FnMut(u8)>> = None;
 
-// Unreachable at the moment (only when interrupt was enabled before takes ownership...)
+// Unreachable at the moment (only when interrupt was enabled before InterruptTable got ownership...)
 fn default_handler(irq: u8) {
     unsafe {
         match DEFAULT_HANDLER {
@@ -181,13 +181,13 @@ impl<T> InterruptHandle<T> {
     }
 }
 
-pub struct InterruptHandler {
+pub struct InterruptTable {
     nvic: &'static mut Nvic,
     used_interrupts: [bool; 98],
     data: [Option<* mut ()>; 98],
 }
 
-impl Drop for InterruptHandler {
+impl Drop for InterruptTable {
     fn drop(&mut self) {
         unsafe {
             for isr in ISRS.iter_mut() {
@@ -198,14 +198,14 @@ impl Drop for InterruptHandler {
     }
 }
 
-impl InterruptHandler {
-    pub fn new<F>(nvic: &'static mut Nvic, default_handler: F) -> Self
+impl InterruptTable {
+    pub fn new<F>(nvic: &'static mut Nvic, default_handler: F) -> InterruptTable
         where F: FnMut(u8) + 'static
     {
         unsafe {
             DEFAULT_HANDLER = Some(Box::new(default_handler));
         }
-        InterruptHandler {
+        InterruptTable {
             nvic: nvic,
             used_interrupts: [false; 98],
             data: [None, None, None, None, None, None, None, None, None, None, None, None, None,
@@ -243,22 +243,22 @@ impl InterruptHandler {
                                        code: C)
                                        -> Result<(), Error>
         where F: FnMut() + Send,
-              C: FnOnce(&mut InterruptHandler)
+              C: FnOnce(&mut InterruptTable)
     {
 
-        // Safe: Isr is removed from the static array after the closure code is executed.
-        // When the *code(self)* panics, the programm ends in a endless loop with disabled interrupts
+        // Safe: Isr is removed from the static array after the closure *code* is executed.
+        // When the *code(self)* panics, the programm ends in an endless loop with disabled interrupts
         // and never returns. So the state of the ISRS does't matter.
         let isr = unsafe {
             transmute::<Box<FnMut() + Send>,Box<FnMut() + 'static + Send>>(Box::new(isr))
         };
-        let interrupt_handle = self.insert_boxed_isr(irq, isr)?;
+        let interrupt_handle = self.insert_boxed_isr::<()>(irq, isr)?;
         self.set_priority(&interrupt_handle, priority);
         self.enable_interrupt(&interrupt_handle);
 
         code(self);
 
-        self.unregister::<()>(interrupt_handle);
+        self.unregister(interrupt_handle);
 
         Ok(())
     }
@@ -280,7 +280,7 @@ impl InterruptHandler {
             transmute::<Option<*mut T>, Option<*mut ()>>(Some(Box::into_raw(Box::new(owned_data))))
         };
         
-        // transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>> is safe, because of the drop implementation of InterruptHandler ('static is not needed for closure)
+        // transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>> is safe, because of the drop implementation of InterruptTable ('static is not needed for closure)
         // and alway only one isr can access the data (Send is not needed for closure)
         let isr = unsafe {
             transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>>(Box::new(
