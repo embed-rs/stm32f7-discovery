@@ -14,6 +14,8 @@ use net::udp::UdpHeader;
 use net::tcp::TcpHeader;
 use net::ethernet::{EthernetAddress, EthernetPacket};
 
+pub use net::tcp::TcpConnection;
+
 mod init;
 mod phy;
 mod rx;
@@ -96,7 +98,8 @@ pub struct EthernetDevice {
     last_discover_at: usize,
     arp_cache: BTreeMap<Ipv4Address, EthernetAddress>,
     udp_functions: BTreeMap<u16, Box<FnMut(Udp) -> Option<Cow<[u8]>>>>,
-    tcp_functions: BTreeMap<u16, Box<FnMut(Tcp) -> Option<Cow<[u8]>>>>,
+    tcp_connections: BTreeMap<(Ipv4Address, Ipv4Address, u16, u16), TcpConnection>,
+    tcp_functions: BTreeMap<u16, Box<for<'d> FnMut(&TcpConnection, &'d [u8]) -> Option<Cow<'d, [u8]>>>>,
 }
 
 impl EthernetDevice {
@@ -141,6 +144,7 @@ impl EthernetDevice {
             last_discover_at: 0,
             arp_cache: BTreeMap::new(),
             udp_functions: BTreeMap::new(),
+            tcp_connections: BTreeMap::new(),
             tcp_functions: BTreeMap::new(),
         };
 
@@ -202,7 +206,8 @@ impl EthernetDevice {
     }
 
     pub fn register_tcp_port<F>(&mut self, port: u16, f: Box<F>) -> Result<(), PortInUse<Box<F>>>
-        where F: FnMut(Tcp) -> Option<Cow<[u8]>> + 'static
+    where
+        for<'d> F: FnMut(&TcpConnection, &'d [u8]) -> Option<Cow<'d, [u8]>> + 'static,
     {
         use alloc::btree_map::Entry;
         match self.tcp_functions.entry(port) {
@@ -240,6 +245,7 @@ impl EthernetDevice {
                      ref mut requested_ipv4_addr,
                      ref mut arp_cache,
                      ref mut udp_functions,
+                     ref mut tcp_connections,
                      ref mut tcp_functions,
                      ..
                  } = self;
@@ -390,32 +396,43 @@ impl EthernetDevice {
 
                         println!("TCP: ");
 
-                        let tcp_packet = Tcp {
-                                              ip_header,
-                                              tcp_header,
-                                              payload,
-                                          };
-                        let reply = tcp_functions.get_mut(&tcp_header.dst_port).and_then(|f| f(tcp_packet));
+                        if let Some(function) = tcp_functions.get_mut(&tcp_header.dst_port) {
+                            let connection_id = (
+                                ip_header.src_addr,
+                                ip_header.dst_addr,
+                                tcp_header.src_port,
+                                tcp_header.dst_port,
+                            );
+                            let connection = tcp_connections
+                                .entry(connection_id)
+                                .or_insert_with(|| TcpConnection::new(connection_id));
 
-                        if let Some(reply_payload) = reply {
-                            let src_ip = ip_header.dst_addr;
-                            let dst_ip = ip_header.src_addr;
-                            if let Some(&dst_mac) = arp_cache.get(&dst_ip) {
-                                let packet = net::tcp::new_tcp_packet(ETH_ADDR,
-                                                                      dst_mac,
-                                                                      src_ip,
-                                                                      dst_ip,
-                                                                      tcp_header.dst_port,
-                                                                      tcp_header.src_port,
-                                                                      reply_payload);
-                                return Ok(Some(HeapTxPacket::write_out(packet)?
-                                                   .into_boxed_slice()));
-                            } else {
-                                let arp_request = arp::new_request_packet(ETH_ADDR, src_ip, dst_ip);
-                                return Ok(Some(HeapTxPacket::write_out(arp_request)?
-                                                   .into_boxed_slice()));
+                            let tcp_packet = TcpPacket {
+                                header: tcp_header,
+                                payload: payload,
+                            };
+                            let reply = connection.handle_packet(&tcp_packet, &mut **function);
+                            if let Some(reply_tcp) = reply {
+                                let src_ip = ip_header.dst_addr;
+                                let dst_ip = ip_header.src_addr;
+                                if let Some(&dst_mac) = arp_cache.get(&dst_ip) {
+                                    let packet = EthernetPacket::new_ipv4(
+                                        ETH_ADDR,
+                                        dst_mac,
+                                        Ipv4Packet::new_tcp(src_ip, dst_ip, reply_tcp),
+                                    );
+                                    return Ok(
+                                        Some(HeapTxPacket::write_out(packet)?.into_boxed_slice()),
+                                    );
+                                } else {
+                                    let arp_request = arp::new_request_packet(ETH_ADDR, src_ip, dst_ip);
+                                    return Ok(Some(
+                                        HeapTxPacket::write_out(arp_request)?.into_boxed_slice(),
+                                    ));
+                                }
                             }
-                        };
+                        }
+
                     }
 
                     _ => {} //{println!("{:?}", other)},

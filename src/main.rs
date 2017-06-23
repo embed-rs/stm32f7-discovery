@@ -18,7 +18,7 @@ extern crate compiler_builtins;
 
 // hardware register structs with accessor methods
 use stm32f7::{system_clock, sdram, lcd, i2c, audio, touch, board, ethernet, embedded};
-use stm32f7::ethernet::{Udp, Tcp};
+use stm32f7::ethernet::{Udp, TcpConnection};
 use alloc::borrow::Cow;
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
@@ -246,13 +246,14 @@ fn udp_reverse(udp: Udp) -> Option<Cow<[u8]>> {
     Some(reply.into())
 }
 
-fn tcp_reverse(tcp: Tcp) -> Option<Cow<[u8]>> {
-    for byte in tcp.payload.iter().filter(|&&b| b != 0) {
+fn tcp_reverse<'a>(connection: &TcpConnection, data: &'a [u8]) -> Option<Cow<'a, [u8]>> {
+    println!("TCP connection: {:?}", connection);
+    for byte in data.iter().filter(|&&b| b != 0) {
         print!("{}", char::from(*byte));
     }
     let mut reply = b"Reversed: ".to_vec();
     let start = reply.len();
-    reply.extend_from_slice(tcp.payload);
+    reply.extend_from_slice(data);
     let end = reply.len() - 1;
     reply[start..end].reverse();
     Some(reply.into())
