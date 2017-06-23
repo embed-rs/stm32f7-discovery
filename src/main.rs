@@ -163,7 +163,7 @@ fn main(hw: board::Hardware) -> ! {
                                                        ethernet_dma);
     match eth_device {
         Ok(ref mut eth_device) => {
-            eth_device.register_udp_port(15, Box::new(udp_reverse)).unwrap();
+            eth_device.listen_on_udp_port(15, Box::new(udp_reverse)).unwrap();
             eth_device.register_tcp_port(15, Box::new(tcp_reverse)).unwrap();
         },
         Err(e) => println!("ethernet init failed: {:?}", e),

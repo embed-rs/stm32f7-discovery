@@ -188,7 +188,7 @@ impl EthernetDevice {
         Ok(())
     }
 
-    pub fn register_udp_port<F>(&mut self, port: u16, f: Box<F>) -> Result<(), PortInUse<Box<F>>>
+    pub fn listen_on_udp_port<F>(&mut self, port: u16, f: Box<F>) -> Result<(), PortInUse<Box<F>>>
         where F: FnMut(Udp) -> Option<Cow<[u8]>> + 'static
     {
         use alloc::btree_map::Entry;
