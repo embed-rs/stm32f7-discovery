@@ -184,7 +184,6 @@ impl<T> InterruptHandle<T> {
 pub struct InterruptTable<'a> {
     _lifetime: PhantomData<&'a ()>,
     nvic: &'static mut Nvic,
-    used_interrupts: [bool; 98],
     data: [Option<* mut ()>; 98],
 }
 
@@ -211,7 +210,6 @@ pub fn scope<'a,F,C,R>(nvic: &'static mut Nvic, default_handler: F, code: C) -> 
     let mut interrupt_table = InterruptTable {
         _lifetime: PhantomData,
         nvic: nvic,
-        used_interrupts: [false; 98],
         data: [None; 98],
     };
     // When the *code(self)* panics, the programm ends in an endless loop with disabled interrupts
@@ -276,7 +274,7 @@ impl<'a> InterruptTable<'a> {
         where   T: Send,
                 F: FnMut(&mut T) + 'a + Send
     {
-        if self.used_interrupts[irq as usize] {
+        if unsafe{ISRS[irq as usize].is_some()} {
             return Err(Error::InterruptAlreadyInUse(irq));
         }
         // Insert data only, when interrupt isn't used, therefore nobody reads the data => no dataraces
@@ -308,10 +306,9 @@ impl<'a> InterruptTable<'a> {
                         isr_boxed: Box<FnMut() + 'static + Send>)
                         -> Result<InterruptHandle<T>, Error> {
         // Check if interrupt already in use
-        if self.used_interrupts[irq as usize] {
+        if unsafe{ISRS[irq as usize].is_some()} {
             return Err(Error::InterruptAlreadyInUse(irq));
         }
-        self.used_interrupts[irq as usize] = true;
         unsafe {
             ISRS[irq as usize] = Some(isr_boxed);
         }
@@ -334,13 +331,10 @@ impl<'a> InterruptTable<'a> {
         let irq = interrupt_handle.irq;
         self.dissable_interrupt(irq as u8);
 
-        self.used_interrupts[irq as usize] = false;
-
         match self.data[irq as usize].take() {
             Some(x) => {
                     // Safe: Type T is stored in interrupt_handle
-                    let result = Some(*unsafe {Box::from_raw(transmute::<*mut (), *mut T>(x))});
-                    result
+                    Some(*unsafe {Box::from_raw(transmute::<*mut (), *mut T>(x))})
                 },
             None => None,
         }
