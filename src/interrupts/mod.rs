@@ -198,27 +198,23 @@ impl Drop for InterruptTable {
     }
 }
 
-impl InterruptTable {
-    pub fn new<F>(nvic: &'static mut Nvic, default_handler: F) -> InterruptTable
-        where F: FnMut(u8) + 'static
-    {
-        unsafe {
-            DEFAULT_HANDLER = Some(Box::new(default_handler));
-        }
-        InterruptTable {
-            nvic: nvic,
-            used_interrupts: [false; 98],
-            data: [None, None, None, None, None, None, None, None, None, None, None, None, None,
-                   None, None, None, None, None, None, None, None, None, None, None, None, None,
-                   None, None, None, None, None, None, None, None, None, None, None, None, None,
-                   None, None, None, None, None, None, None, None, None, None, None, None, None,
-                   None, None, None, None, None, None, None, None, None, None, None, None, None,
-                   None, None, None, None, None, None, None, None, None, None, None, None, None,
-                   None, None, None, None, None, None, None, None, None, None, None, None, None,
-                   None, None, None, None, None, None, None],
-        }
+pub fn scope<F,C,R>(nvic: &'static mut Nvic, default_handler: F, code: C) -> R 
+    where F: FnMut(u8) + 'static,
+        C: FnOnce(&mut InterruptTable) -> R
+{
+    unsafe {
+        DEFAULT_HANDLER = Some(Box::new(default_handler));
     }
+    let mut interrupt_table = InterruptTable {
+        nvic: nvic,
+        used_interrupts: [false; 98],
+        data: [None; 98],
+    };
+    code(&mut interrupt_table)
+}
 
+impl InterruptTable {
+    
     pub fn register_static<F>(&mut self,
                               irq: InterruptRequest,
                               priority: Priority,
