@@ -181,52 +181,61 @@ impl<T> InterruptHandle<T> {
     }
 }
 
-pub struct InterruptTable {
+pub struct InterruptTable<'a> {
+    _lifetime: PhantomData<&'a ()>,
     nvic: &'static mut Nvic,
     used_interrupts: [bool; 98],
     data: [Option<* mut ()>; 98],
 }
 
-impl Drop for InterruptTable {
+impl<'a> Drop for InterruptTable<'a> {
     fn drop(&mut self) {
         unsafe {
-            for isr in ISRS.iter_mut() {
-                *isr = None;
-            }
+            DEFAULT_HANDLER = None;
+        }
+        for (i,_) in ISRS.iter().enumerate() {
+                self.dissable_interrupt(i as u8);
         }
         
     }
 }
 
-pub fn scope<F,C,R>(nvic: &'static mut Nvic, default_handler: F, code: C) -> R 
-    where F: FnMut(u8) + 'static,
-        C: FnOnce(&mut InterruptTable) -> R
+pub fn scope<'a,F,C,R>(nvic: &'static mut Nvic, default_handler: F, code: C) -> R 
+    where F: FnMut(u8) + 'a,
+        C: FnOnce(&mut InterruptTable<'a>) -> R
 {
     unsafe {
-        DEFAULT_HANDLER = Some(Box::new(default_handler));
+        
+        DEFAULT_HANDLER = Some(transmute::<Box<FnMut(u8) + 'a>, Box<FnMut(u8) + 'static>>(Box::new(default_handler)));
     }
+    
     let mut interrupt_table = InterruptTable {
+        _lifetime: PhantomData,
         nvic: nvic,
         used_interrupts: [false; 98],
         data: [None; 98],
     };
+    // When the *code(self)* panics, the programm ends in an endless loop with disabled interrupts
+    // and never returns. So the state of the ISRS does't matter.
     code(&mut interrupt_table)
+
+    // Drop is called
 }
 
-impl InterruptTable {
-    
+impl<'a> InterruptTable<'a> {
+
     pub fn register_static<F>(&mut self,
                               irq: InterruptRequest,
                               priority: Priority,
                               isr: F)
                               -> Result<InterruptHandle<()>, Error>
-        where F: FnMut() + 'static + Send
+        where F: FnMut() + 'a + Send
     {
-        let interrupt_handle = self.insert_boxed_isr(irq, Box::new(isr))?;
+        let interrupt_handle = self.insert_boxed_isr(irq, unsafe {transmute::<Box<FnMut() + 'a + Send>, Box<FnMut() + 'static + Send>>(Box::new(isr))})?;
 
         self.set_priority(&interrupt_handle, priority);
 
-        self.enable_interrupt(&interrupt_handle);
+        self.enable_interrupt(interrupt_handle.irq as u8);
 
         Ok(interrupt_handle)
 
@@ -250,7 +259,7 @@ impl InterruptTable {
         };
         let interrupt_handle = self.insert_boxed_isr::<()>(irq, isr)?;
         self.set_priority(&interrupt_handle, priority);
-        self.enable_interrupt(&interrupt_handle);
+        self.enable_interrupt(interrupt_handle.irq as u8);
 
         code(self);
 
@@ -266,7 +275,7 @@ impl InterruptTable {
                                  mut isr: F)
                                  -> Result<InterruptHandle<T>, Error>
         where   T: Send,
-                F: FnMut(&mut T) + 'static + Send
+                F: FnMut(&mut T) + 'a + Send
     {
         if self.used_interrupts[irq as usize] {
             return Err(Error::InterruptAlreadyInUse(irq));
@@ -290,7 +299,7 @@ impl InterruptTable {
         };
         let interrupt_handle = self.insert_boxed_isr(irq, isr)?;
         self.set_priority(&interrupt_handle, priority);
-        self.enable_interrupt(&interrupt_handle);
+        self.enable_interrupt(interrupt_handle.irq as u8);
 
         Ok(interrupt_handle)
     }
@@ -311,8 +320,8 @@ impl InterruptTable {
         Ok(InterruptHandle::new(irq))
     }
 
-    fn enable_interrupt<T>(&mut self, interrupt_handle: &InterruptHandle<T>) {
-        let irq = interrupt_handle.irq;
+    fn enable_interrupt(&mut self, irq: u8) {
+        assert!(irq < 98);
         let iser_num = irq as u8 / 32u8;
         let iser_bit = irq as u8 % 32u8;
 
@@ -321,20 +330,10 @@ impl InterruptTable {
             r.set_setena(old | 1 << iser_bit);
         });
     }
+    
     pub fn unregister<T>(&mut self, interrupt_handle: InterruptHandle<T>) -> Option<T> {
-        
         let irq = interrupt_handle.irq;
-        let icer_num = irq as u8 / 32u8;
-        let icer_bit = irq as u8 % 32u8;
-
-        self.nvic.icer[icer_num as usize].update(|r| {
-            let old = r.clrena();
-            r.set_clrena(old | 1 << icer_bit);
-        });
-
-        unsafe {
-            ISRS[irq as usize] = None;
-        }
+        self.dissable_interrupt(irq as u8);
 
         self.used_interrupts[irq as usize] = false;
 
@@ -349,6 +348,21 @@ impl InterruptTable {
 
     }
 
+    fn dissable_interrupt(&mut self, irq: u8) {
+        assert!(irq < 98);
+
+        let icer_num = irq as u8 / 32u8;
+        let icer_bit = irq as u8 % 32u8;
+
+        self.nvic.icer[icer_num as usize].update(|r| {
+            let old = r.clrena();
+            r.set_clrena(old | 1 << icer_bit);
+        });
+
+        unsafe {
+            ISRS[irq as usize] = None;
+        }
+    }
 
 
     // The STM32F7 only supports 16 priority levels
