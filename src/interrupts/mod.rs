@@ -192,11 +192,10 @@ impl<'a> Drop for InterruptTable<'a> {
     fn drop(&mut self) {
         unsafe {
             DEFAULT_HANDLER = None;
-        }
-        for (i,_) in ISRS.iter().enumerate() {
+            for (i,_) in ISRS.iter().enumerate() {
                 self.dissable_interrupt(i as u8);
+            }
         }
-        
     }
 }
 
