@@ -52,20 +52,22 @@ pub extern "C" fn panic_fmt(fmt: core::fmt::Arguments, file: &'static str, line:
 
     // Disable all interrupts after panic
     let mutex: PrimaskMutex<()> = PrimaskMutex::new(());
-    mutex.lock();
+    mutex.lock(|_| {
+        hprintln_err!("\nPANIC in {} at line {}:", file, line);
+        hprintln_err!("    {}", fmt);
 
-    hprintln_err!("\nPANIC in {} at line {}:", file, line);
-    hprintln_err!("    {}", fmt);
+        unsafe { lcd::stdout::force_unlock() }
+        lcd::stdout::with_stdout(|stdout| {
+            if let Some(ref mut stdout) = *stdout {
+                let _ = writeln!(stdout, "\nPANIC in {} at line {}:", file, line);
+                let _ = writeln!(stdout, "    {}", fmt);
+            }
+        });
 
-    unsafe { lcd::stdout::force_unlock() }
-    lcd::stdout::with_stdout(|stdout| {
-        if let Some(ref mut stdout) = *stdout {
-            let _ = writeln!(stdout, "\nPANIC in {} at line {}:", file, line);
-            let _ = writeln!(stdout, "    {}", fmt);
-        }
+        loop {}
     });
 
-    loop {}
+    unreachable!("Lock will end in a endless loop!");
 }
 
 

@@ -1,5 +1,4 @@
 use core::cell::UnsafeCell;
-use core::ops::{Deref, DerefMut, Drop};
 
 pub struct PrimaskMutex<T> {
     data: UnsafeCell<T>,
@@ -8,48 +7,23 @@ pub struct PrimaskMutex<T> {
 unsafe impl<T: Send> Send for PrimaskMutex<T> {}
 unsafe impl<T: Send> Sync for PrimaskMutex<T> {}
 
-pub struct PrimaskMutexGuard<'a, T: 'a> {
-    _data: &'a mut T,
-    prev: bool,
-}
-
-impl<'a, T> PrimaskMutex<T> {
+impl<T> PrimaskMutex<T> {
     pub fn new(data: T) -> PrimaskMutex<T> {
         PrimaskMutex { data: UnsafeCell::new(data) }
     }
 
-    pub fn lock(&'a self) -> PrimaskMutexGuard<'a, T> {
-        let primask = if unsafe { ::cortex_m::register::primask::read() } & 1 == 1 {
-            true
-        } else {
-            false
-        };
+    pub fn lock<F>(&self, critical_section: F) 
+        where F: FnOnce(&mut T)
+    {
+        // PRIMASK = 1 => Prevents the activation of all exceptions with configurable priority
+        let primask = unsafe { ::cortex_m::register::primask::read() } & 1 == 1;
         unsafe { ::cortex_m::interrupt::disable() };
 
-        PrimaskMutexGuard {
-            _data: unsafe { &mut *self.data.get() },
-            prev: primask,
-        }
-    }
-}
+        critical_section(unsafe { &mut *self.data.get() });
 
-impl<'a, T: 'a> Drop for PrimaskMutexGuard<'a, T> {
-    fn drop(&mut self) {
-        if !self.prev {
+        // If PRIMASK was '0' (Interrupts enabled) then enable interrupts again
+        if !primask {
             unsafe { ::cortex_m::interrupt::enable() };
         }
-    }
-}
-
-impl<'a, T: 'a> Deref for PrimaskMutexGuard<'a, T> {
-    type Target = T;
-    fn deref(&self) -> &T {
-        self._data
-    }
-}
-
-impl<'a, T: 'a> DerefMut for PrimaskMutexGuard<'a, T> {
-    fn deref_mut(&mut self) -> &mut T {
-        self._data
     }
 }
