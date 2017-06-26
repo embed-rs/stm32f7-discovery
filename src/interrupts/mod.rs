@@ -307,7 +307,7 @@ impl<'a> InterruptTable<'a> {
         reg & (1 << ispr_bit) != 0
     }
 
-    pub fn tigger(&mut self, irq: InterruptRequest) {
+    pub fn trigger(&mut self, irq: InterruptRequest) {
         let mut stir = Stir::default();
         stir.set_intid(irq as u16);
         self.nvic.stir.write(stir);
