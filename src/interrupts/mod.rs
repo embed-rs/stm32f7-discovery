@@ -10,134 +10,24 @@ use self::interrupt_request::InterruptRequest;
 pub mod interrupt_request;
 pub mod primask_mutex;
 
-macro_rules! assign_interrupt_handler {
-    ($( $name:ident ),*) => {
-        [
-            $(
-                $name,
-            )*
-        ]
-    }
-}
-
-
-macro_rules! create_interrupt_handler {
+macro_rules! create_table_and_handler {
     ($($name:ident, $irq:expr),*) => {
+        /// Interrupt vector table
+        #[no_mangle]
+        #[used]
+        #[allow(private_no_mangle_statics)]
+        static INTERRUPTS: [unsafe extern "C" fn(); 98] = [$($name,)*];
+
         $(
             unsafe extern "C" fn $name() {
-            match ISRS[$irq] {
-                Some(ref mut isr) => isr(),
-                None => default_handler($irq),
+                match ISRS[$irq] {
+                    Some(ref mut isr) => isr(),
+                    None => default_handler($irq),
+                }
             }
-        }
-        )*
+        )*        
     }
 }
-
-/// Interrupt vector table
-#[no_mangle]
-#[used]
-#[allow(private_no_mangle_statics)]
-static INTERRUPTS: [unsafe extern "C" fn(); 98] = assign_interrupt_handler!(interrupt_handler_0,
-                                                                            interrupt_handler_1,
-                                                                            interrupt_handler_2,
-                                                                            interrupt_handler_3,
-                                                                            interrupt_handler_4,
-                                                                            interrupt_handler_5,
-                                                                            interrupt_handler_6,
-                                                                            interrupt_handler_7,
-                                                                            interrupt_handler_8,
-                                                                            interrupt_handler_9,
-                                                                            interrupt_handler_10,
-                                                                            interrupt_handler_11,
-                                                                            interrupt_handler_12,
-                                                                            interrupt_handler_13,
-                                                                            interrupt_handler_14,
-                                                                            interrupt_handler_15,
-                                                                            interrupt_handler_16,
-                                                                            interrupt_handler_17,
-                                                                            interrupt_handler_18,
-                                                                            interrupt_handler_19,
-                                                                            interrupt_handler_20,
-                                                                            interrupt_handler_21,
-                                                                            interrupt_handler_22,
-                                                                            interrupt_handler_23,
-                                                                            interrupt_handler_24,
-                                                                            interrupt_handler_25,
-                                                                            interrupt_handler_26,
-                                                                            interrupt_handler_27,
-                                                                            interrupt_handler_28,
-                                                                            interrupt_handler_29,
-                                                                            interrupt_handler_30,
-                                                                            interrupt_handler_31,
-                                                                            interrupt_handler_32,
-                                                                            interrupt_handler_33,
-                                                                            interrupt_handler_34,
-                                                                            interrupt_handler_35,
-                                                                            interrupt_handler_36,
-                                                                            interrupt_handler_37,
-                                                                            interrupt_handler_38,
-                                                                            interrupt_handler_39,
-                                                                            interrupt_handler_40,
-                                                                            interrupt_handler_41,
-                                                                            interrupt_handler_42,
-                                                                            interrupt_handler_43,
-                                                                            interrupt_handler_44,
-                                                                            interrupt_handler_45,
-                                                                            interrupt_handler_46,
-                                                                            interrupt_handler_47,
-                                                                            interrupt_handler_48,
-                                                                            interrupt_handler_49,
-                                                                            interrupt_handler_50,
-                                                                            interrupt_handler_51,
-                                                                            interrupt_handler_52,
-                                                                            interrupt_handler_53,
-                                                                            interrupt_handler_54,
-                                                                            interrupt_handler_55,
-                                                                            interrupt_handler_56,
-                                                                            interrupt_handler_57,
-                                                                            interrupt_handler_58,
-                                                                            interrupt_handler_59,
-                                                                            interrupt_handler_60,
-                                                                            interrupt_handler_61,
-                                                                            interrupt_handler_62,
-                                                                            interrupt_handler_63,
-                                                                            interrupt_handler_64,
-                                                                            interrupt_handler_65,
-                                                                            interrupt_handler_66,
-                                                                            interrupt_handler_67,
-                                                                            interrupt_handler_68,
-                                                                            interrupt_handler_69,
-                                                                            interrupt_handler_70,
-                                                                            interrupt_handler_71,
-                                                                            interrupt_handler_72,
-                                                                            interrupt_handler_73,
-                                                                            interrupt_handler_74,
-                                                                            interrupt_handler_75,
-                                                                            interrupt_handler_76,
-                                                                            interrupt_handler_77,
-                                                                            interrupt_handler_78,
-                                                                            interrupt_handler_79,
-                                                                            interrupt_handler_80,
-                                                                            interrupt_handler_81,
-                                                                            interrupt_handler_82,
-                                                                            interrupt_handler_83,
-                                                                            interrupt_handler_84,
-                                                                            interrupt_handler_85,
-                                                                            interrupt_handler_86,
-                                                                            interrupt_handler_87,
-                                                                            interrupt_handler_88,
-                                                                            interrupt_handler_89,
-                                                                            interrupt_handler_90,
-                                                                            interrupt_handler_91,
-                                                                            interrupt_handler_92,
-                                                                            interrupt_handler_93,
-                                                                            interrupt_handler_94,
-                                                                            interrupt_handler_95,
-                                                                            interrupt_handler_96,
-                                                                            interrupt_handler_97);
-
-
 
 
 static mut ISRS: [Option<Box<FnMut()>>; 98] =
@@ -424,7 +314,7 @@ impl<'a> InterruptTable<'a> {
     }
 }
 
-create_interrupt_handler!(interrupt_handler_0,
+create_table_and_handler!(interrupt_handler_0,
                           0,
                           interrupt_handler_1,
                           1,
