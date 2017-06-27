@@ -79,11 +79,16 @@ pub struct InterruptTable<'a> {
 
 impl<'a> Drop for InterruptTable<'a> {
     fn drop(&mut self) {
+        let mut some_left = false;
         unsafe {
             DEFAULT_HANDLER = None;
-            for (i,_) in ISRS.iter().enumerate() {
+            for (i,isr) in ISRS.iter().enumerate() {
+                some_left = some_left || isr.is_some();
                 self.dissable_interrupt(i as u8);
             }
+        }
+        if some_left {
+            panic!("Disable interrupts first");
         }
     }
 }
@@ -93,7 +98,7 @@ pub fn scope<'a,F,C,R>(nvic: &'static mut Nvic, default_handler: F, code: C) -> 
         C: FnOnce(&mut InterruptTable<'a>) -> R
 {
     unsafe {
-        
+        debug_assert!(DEFAULT_HANDLER.is_none());
         DEFAULT_HANDLER = Some(transmute::<Box<FnMut(u8) + 'a>, Box<FnMut(u8) + 'static>>(Box::new(default_handler)));
     }
     
@@ -269,7 +274,7 @@ impl<'a> InterruptTable<'a> {
         // STM32F7 only uses 4 bits for Priority. priority << 4, because the upper 4 bits are used for priority.
         match Priority::from_u8(res >> 4) {
             Ok(priority) => priority,
-            Err(PriorityDoesNotExitError(prio_number)) => {
+            Err(PriorityDoesNotExistError(prio_number)) => {
                 unreachable!("Priority {} does not exist", prio_number)
             }
         }
@@ -531,11 +536,11 @@ pub enum Priority {
     P14,
     P15,
 }
-struct PriorityDoesNotExitError(u8);
+struct PriorityDoesNotExistError(u8);
 
 impl Priority {
     // use FromPrimitive?
-    fn from_u8(priority: u8) -> Result<Priority, PriorityDoesNotExitError> {
+    fn from_u8(priority: u8) -> Result<Priority, PriorityDoesNotExistError> {
         use self::Priority::*;
         match priority {
             0 => Ok(P0),
@@ -554,7 +559,7 @@ impl Priority {
             13 => Ok(P13),
             14 => Ok(P14),
             15 => Ok(P15),
-            _ => Err(PriorityDoesNotExitError(priority)),
+            _ => Err(PriorityDoesNotExistError(priority)),
         }
     }
 }
