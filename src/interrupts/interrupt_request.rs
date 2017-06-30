@@ -1,3 +1,5 @@
+//! Interrupt lines of the stm32f7.
+/// Interrupt lines of the stm32f7.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum InterruptRequest {
