@@ -1,11 +1,14 @@
-use alloc_cortex_m;
+use ALLOCATOR;
 
 extern "C" {
-    static mut __HEAP_START: usize;
-    static mut __HEAP_END: usize;
+    static __HEAP_START: usize;
+    static __HEAP_END: usize;
 }
 
 // Initialize the heap
 pub unsafe fn init() {
-    alloc_cortex_m::init(&mut __HEAP_START, &mut __HEAP_END);
+    let start = &__HEAP_START as *const _ as usize;
+    let end = &__HEAP_END as *const _ as usize;
+    let size = end - start;
+    ALLOCATOR.lock().init(start, size);
 }
