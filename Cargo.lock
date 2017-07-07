@@ -2,26 +2,17 @@
 name = "stm32f7_discovery"
 version = "0.1.0"
 dependencies = [
- "alloc-cortex-m 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "arrayvec 0.3.23 (registry+https://github.com/rust-lang/crates.io-index)",
  "bit_field 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "embedded_stm32f7 0.1.0 (git+https://github.com/embed-rs/embedded_stm32f7.git)",
+ "linked_list_allocator 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "net 0.1.0 (git+https://github.com/embed-rs/net.git)",
  "r0 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusttype 0.2.1 (git+https://github.com/phil-opp/rusttype.git?branch=no_std)",
  "spin 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "volatile 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "alloc-cortex-m"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "cortex-m 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "linked_list_allocator 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -80,7 +71,7 @@ dependencies = [
 [[package]]
 name = "embedded_stm32f7"
 version = "0.1.0"
-source = "git+https://github.com/embed-rs/embedded_stm32f7.git#7579c2ad2bdd244e194b4bd15e52a27d04c1e31b"
+source = "git+https://github.com/embed-rs/embedded_stm32f7.git#67730b1ff3e7e79209b611a5f986501bb442f4b6"
 dependencies = [
  "bit_field 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "embedded 0.3.0 (git+https://github.com/embed-rs/embedded-rs.git)",
@@ -90,8 +81,11 @@ dependencies = [
 
 [[package]]
 name = "linked_list_allocator"
-version = "0.2.6"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "spin 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "net"
@@ -157,7 +151,6 @@ version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [metadata]
-"checksum alloc-cortex-m 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "c0b1213ef612a17eb5de031201c0ed960c1b29dc6ef886b2bacdd352904bf917"
 "checksum arrayvec 0.3.23 (registry+https://github.com/rust-lang/crates.io-index)" = "699e63a93b79d717e8c3b5eb1b28b7780d0d6d9e59a72eb769291c83b0c8dc67"
 "checksum bit_field 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8c7f2626c064227bf8d383b35223f8ac9b7d33a7999f7bd9a5b5e491583061f6"
 "checksum bit_field 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2f2608c2dbf1057804d86937a32731a17458a60b10e83ad91c1c35c36e522f5d"
@@ -167,7 +160,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum cortex-m 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)" = "f636846f87391b548e55be42a3f787c76348288f8716486a7e184004b745c62d"
 "checksum embedded 0.3.0 (git+https://github.com/embed-rs/embedded-rs.git)" = "<none>"
 "checksum embedded_stm32f7 0.1.0 (git+https://github.com/embed-rs/embedded_stm32f7.git)" = "<none>"
-"checksum linked_list_allocator 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "63db7e15a417f1264e31e19a602970de68128e988cd3aa7c8f8b20235092f1cc"
+"checksum linked_list_allocator 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "019e577c25a9eca6aacc93ae20537a4653609be6cf7c68d16532be2f8a94e438"
 "checksum net 0.1.0 (git+https://github.com/embed-rs/net.git)" = "<none>"
 "checksum nodrop 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)" = "52cd74cd09beba596430cc6e3091b74007169a56246e1262f0ba451ea95117b2"
 "checksum odds 0.2.25 (registry+https://github.com/rust-lang/crates.io-index)" = "c3df9b730298cea3a1c3faa90b7e2f9df3a9c400d0936d6015e6165734eefcba"
