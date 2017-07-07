@@ -247,14 +247,17 @@ fn udp_reverse(udp: Udp) -> Option<Cow<[u8]>> {
 }
 
 fn tcp_reverse<'a>(connection: &TcpConnection, data: &'a [u8]) -> Option<Cow<'a, [u8]>> {
-    println!("TCP connection: {:?}", connection);
     for byte in data.iter().filter(|&&b| b != 0) {
         print!("{}", char::from(*byte));
     }
-    let mut reply = b"Reversed: ".to_vec();
-    let start = reply.len();
-    reply.extend_from_slice(data);
-    let end = reply.len() - 1;
-    reply[start..end].reverse();
-    Some(reply.into())
+    if data.len() > 0 {
+        let mut reply = b"Reversed: ".to_vec();
+        let start = reply.len();
+        reply.extend_from_slice(data);
+        let end = reply.len() - 1;
+        reply[start..end].reverse();
+        Some(reply.into())
+    } else {
+        None
+    }
 }
