@@ -11,8 +11,8 @@
 //! Shared mutable access on a variable must be synchronized with a PrimaskMutex,
 //! otherwise the compilation fails.
 //!
-//! - **Scoped IRSs with access to the enviroment**. It is guaranteed that the closure is unregistered at the end of the scope thus it is safe to
-//! access the parent stack in the interrupt service routine. 
+//! - **Scoped IRSs with access to the enviroment**. It is guaranteed that the closure is unregistered at the end 
+//! of the scope. Thus it is safe to access the parent stack in the interrupt service routine. 
 
 use alloc::boxed::Box;
 use board::nvic::Nvic;
@@ -26,12 +26,16 @@ pub mod primask_mutex;
 
 unsafe extern "C" fn dispatcher() {
     let ipsr: u32;
+    // Reads the Interrupt Program Status Register (IPSR)
     asm!("MRS $0, IPSR"
         : "=r" (ipsr)   // outputs
         :               // inputs
         :               // clobbers
         :               
     );
+    // Bits [31:9] are reserved.
+    // Bits [8:0] contains the ISR_NUMBER. IRQ0 has the ISR_NUMBER 16.
+    // We only have IRQ0-IRQ97 => [7:0] is enough => mask = 0x000000FF
     let ipsr = (ipsr & 0x000000FF) - 16;
     match ISRS[ipsr as usize] {
         Some(ref mut isr) => isr(),
@@ -75,7 +79,7 @@ pub enum Error {
     InterruptAlreadyInUse(InterruptRequest),
 }
 
-/// The `InterruptHandle`is used to access and configure an activ interrupt.
+/// The `InterruptHandle` is used to access and configure an active interrupt.
 pub struct InterruptHandle<T> {
     _data_type: PhantomData<T>,
     irq: InterruptRequest,
@@ -465,7 +469,7 @@ impl<'a> InterruptTable<'a> {
 
     }
     
-    /// Clears the pendig state of the interrupt corresponding to the `interrupt_handle`.
+    /// Clears the pending state of the interrupt corresponding to the `interrupt_handle`.
     pub fn clear_pending_state<T>(&mut self, interrupt_handle: &InterruptHandle<T>) {
         let irq = interrupt_handle.irq;
         let icpr_num = irq as u8 / 32u8;
@@ -477,7 +481,7 @@ impl<'a> InterruptTable<'a> {
         });
     }
 
-    /// Sets the pendig state of the interrupt corresponding to the `interrupt_handle`.
+    /// Sets the pending state of the interrupt corresponding to the `interrupt_handle`.
     pub fn set_pending_state<T>(&mut self, interrupt_handle: &InterruptHandle<T>) {
         let irq = interrupt_handle.irq;
         let ispr_num = irq as u8 / 32u8;
@@ -489,7 +493,7 @@ impl<'a> InterruptTable<'a> {
         });
     }
 
-    /// Returns the pendig state of the interrupt corresponding to the `interrupt_handle`.
+    /// Returns the pending state of the interrupt corresponding to the `interrupt_handle`.
     pub fn get_pending_state<T>(&self, interrupt_handle: &InterruptHandle<T>) -> bool {
         let irq = interrupt_handle.irq;
         let ispr_num = irq as u8 / 32u8;
