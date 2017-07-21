@@ -1,5 +1,7 @@
 use bit_field::BitField;
 use core::convert::TryInto;
+use core::{mem, slice};
+use alloc::boxed::Box;
 
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
@@ -24,10 +26,12 @@ impl TxDescriptor {
         self.word_0.set_bit(21, value);
     }
 
-    pub fn set_data(&mut self, buffer_address: *const u8, buffer_len: usize) {
+    pub fn set_data(&mut self, data: Box<[u8]>) {
         assert!(!self.own(), "descriptor is still owned by the hardware");
 
-        self.set_buffer(buffer_address, buffer_len);
+        mem::drop(self.buffer()); // drop old buffer if not already dropped
+
+        self.set_buffer(data);
         self.set_first_segment(true);
         self.set_last_segment(true);
         self.set_own(true);
@@ -35,6 +39,20 @@ impl TxDescriptor {
 
     pub fn own(&self) -> bool {
         self.word_0.get_bit(31)
+    }
+
+    pub fn buffer(&mut self) -> Option<Box<[u8]>> {
+        assert!(!self.own(), "descriptor is still owned by the hardware");
+        match self.buffer_1_address() {
+            0 => None,
+            ptr => {
+                self.set_buffer_1_address(0);
+                Some(unsafe {
+                         Box::from_raw(slice::from_raw_parts_mut(ptr as *mut u8,
+                                                                 self.buffer_1_size()))
+                     })
+            }
+        }
     }
 
     fn set_own(&mut self, value: bool) {
@@ -49,13 +67,23 @@ impl TxDescriptor {
         self.word_0.set_bit(29, value);
     }
 
-    fn set_buffer(&mut self, buffer_address: *const u8, buffer_len: usize) {
-        self.set_buffer_1_address(buffer_address as usize);
-        self.set_buffer_1_size(buffer_len);
+    fn set_buffer(&mut self, buffer: Box<[u8]>) {
+        assert_eq!(self.buffer_1_address(), 0);
+        self.set_buffer_1_address(buffer.as_ptr() as usize);
+        self.set_buffer_1_size(buffer.len());
+        mem::forget(buffer);
+    }
+
+    fn buffer_1_address(&self) -> usize {
+        self.word_2.try_into().unwrap()
     }
 
     fn set_buffer_1_address(&mut self, buffer_address: usize) {
         self.word_2 = buffer_address.try_into().unwrap();
+    }
+
+    fn buffer_1_size(&self) -> usize {
+        self.word_1.get_bits(0..13).try_into().unwrap()
     }
 
     fn set_buffer_1_size(&mut self, size: usize) {

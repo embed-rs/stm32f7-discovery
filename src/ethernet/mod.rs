@@ -2,7 +2,6 @@ use core::fmt;
 use alloc::boxed::Box;
 use alloc::{Vec, BTreeMap};
 use alloc::borrow::Cow;
-use alloc::arc::Arc;
 
 use board::{rcc, syscfg};
 use board::ethernet_dma::{self, EthernetDma};
@@ -185,7 +184,7 @@ impl EthernetDevice {
         let mut tx_packet = HeapTxPacket::new(packet.len());
         packet.write_out(&mut tx_packet)?;
 
-        self.tx.insert(Arc::new(tx_packet.into_boxed_slice()));
+        self.tx.insert(tx_packet.into_boxed_slice());
         self.start_send();
 
         self.last_discover_at = system_clock::ticks();
@@ -232,7 +231,7 @@ impl EthernetDevice {
 
         let reply = self.process_next_packet()?;
         if let Some(tx_packet) = reply {
-            self.tx.insert(Arc::new(tx_packet));
+            self.tx.insert(tx_packet);
             self.start_send();
         }
 
@@ -394,6 +393,8 @@ impl EthernetDevice {
                                                              payload: TcpKind::Unknown(payload),
                                                          }),
                                        }) if Some(ip_header.dst_addr) == *ipv4_addr => {
+
+                        println!("TCP: ");
 
                         if let Some(function) = tcp_functions.get_mut(&tcp_header.dst_port) {
                             let connection_id = (
@@ -566,7 +567,6 @@ impl RxDevice {
 
 struct TxDevice {
     descriptors: Box<[Volatile<tx::TxDescriptor>]>,
-    packets: Box<[Option<Arc<Box<[u8]>>>]>,
     next_descriptor: usize,
 }
 
@@ -587,21 +587,13 @@ impl TxDevice {
 
         TxDevice {
             descriptors: descriptors.into_boxed_slice(),
-            packets: vec![None; descriptor_num].into_boxed_slice(),
             next_descriptor: 0,
         }
     }
 
-    pub fn insert(&mut self, data: Arc<Box<[u8]>>) {
-        // wait until descriptor is no longer owned by hardware
+    pub fn insert(&mut self, data: Box<[u8]>) {
         while self.descriptors[self.next_descriptor].read().own() {}
-
-        // set new packet
-        let buffer_address = data.as_ptr();
-        let buffer_len = data.len();
-        self.packets[self.next_descriptor] = Some(data);
-        self.descriptors[self.next_descriptor].update(|d| d.set_data(buffer_address, buffer_len));
-
+        self.descriptors[self.next_descriptor].update(|d| d.set_data(data));
         self.next_descriptor = (self.next_descriptor + 1) % self.descriptors.len();
 
         // println!("insert tx packet");
@@ -618,9 +610,10 @@ impl TxDevice {
 
     pub fn cleanup(&mut self) {
         let mut c = 0;
-        for (packet, _) in self.packets.iter_mut().zip(self.descriptors.iter()).filter(|&(ref p, ref d)| !d.read().own() && p.is_some()) {
-            *packet = None;
-            c += 1;
+        for descriptor in self.descriptors.iter_mut() {
+            descriptor.update(|d| if !d.own() && d.buffer().is_some() {
+                                  c += 1;
+                              });
         }
         if c > 0 {
             // println!("cleaned up {} packets", c);
