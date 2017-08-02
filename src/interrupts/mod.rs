@@ -212,18 +212,11 @@ impl<'a> InterruptTable<'a> {
     pub fn register<F>(&mut self,
                               irq: InterruptRequest,
                               priority: Priority,
-                              isr: F)
+                              mut isr: F)
                               -> Result<InterruptHandle<()>, Error>
         where F: FnMut() + 'a + Send
     {
-        let interrupt_handle = self.insert_boxed_isr(irq, unsafe {transmute::<Box<FnMut() + 'a + Send>, Box<FnMut() + 'static + Send>>(Box::new(isr))})?;
-
-        self.set_priority(&interrupt_handle, priority);
-
-        self.enable_interrupt(interrupt_handle.irq as u8);
-
-        Ok(interrupt_handle)
-
+        self.register_owned(irq, priority, (), move |_| {isr()})
     }
 
     /// Registers an interrupt with the lifetime of the `InterruptTable` and pass ownership of a variable `owned_data: T` that is passed
@@ -410,18 +403,12 @@ impl<'a> InterruptTable<'a> {
     ///             assert!(data.is_none());
     /// });
     /// ```
-    pub fn unregister<T>(&mut self, interrupt_handle: InterruptHandle<T>) -> Option<T> {
+    pub fn unregister<T>(&mut self, interrupt_handle: InterruptHandle<T>) -> T {
         let irq = interrupt_handle.irq;
         self.disable_interrupt(irq as u8);
 
-        match self.data[irq as usize].take() {
-            Some(x) => {
-                    // Safe: Type T is stored in interrupt_handle
-                    Some(*unsafe {Box::from_raw(transmute::<*mut (), *mut T>(x))})
-                },
-            None => None,
-        }
-
+        let data = self.data[irq as usize].unwrap();
+        *unsafe {Box::from_raw(transmute::<*mut (), *mut T>(data))}
     }
 
     fn disable_interrupt(&mut self, irq: u8) {
