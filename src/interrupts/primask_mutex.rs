@@ -52,18 +52,20 @@ impl<T> PrimaskMutex<T> {
     /// });
     /// // Interrupts are enabled again, if interrupts was enabled before the critical section
     /// ```
-    pub fn lock<F>(&self, critical_section: F) 
-        where F: FnOnce(&mut T)
+    pub fn lock<F,R>(&self, critical_section: F) -> R
+        where F: FnOnce(&mut T) -> R
     {
         // PRIMASK = 1 => Prevents the activation of all exceptions with configurable priority
         let primask = unsafe { ::cortex_m::register::primask::read() } & 1 == 1;
         unsafe { ::cortex_m::interrupt::disable() };
 
-        critical_section(unsafe { &mut *self.data.get() });
+        let result = critical_section(unsafe { &mut *self.data.get() });
 
         // If PRIMASK was '0' (Interrupts enabled) then enable interrupts again
         if !primask {
             unsafe { ::cortex_m::interrupt::enable() };
         }
+
+        result
     }
 }

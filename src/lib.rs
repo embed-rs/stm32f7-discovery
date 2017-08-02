@@ -65,9 +65,7 @@ pub extern "C" fn panic_fmt(fmt: core::fmt::Arguments, file: &'static str, line:
         });
 
         loop {}
-    });
-
-    unreachable!("Lock will end in a endless loop!");
+    })
 }
 
 
