@@ -10,5 +10,5 @@ pub unsafe fn init() {
     let start = &__HEAP_START as *const _ as usize;
     let end = &__HEAP_END as *const _ as usize;
     let size = end - start;
-    ALLOCATOR.lock().init(start, size);
+    ALLOCATOR.init(start, size);
 }
