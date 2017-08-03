@@ -1,2 +1,5 @@
+# override the recursive dependency via git to use a path dependency instead
+paths = [".."]
+
 [build]
 target = "stm32f7"
