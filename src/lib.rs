@@ -5,7 +5,6 @@
 #![feature(alloc)]
 #![feature(try_from)]
 #![feature(drop_types_in_const)]
-#![feature(option_entry)]
 #![feature(global_allocator)]
 
 #![no_std]
@@ -26,7 +25,7 @@ extern crate spin;
 extern crate byteorder;
 extern crate net;
 extern crate rusttype;
-extern crate linked_list_allocator;
+extern crate alloc_cortex_m;
 
 #[macro_use]
 pub mod semi_hosting;
@@ -64,7 +63,7 @@ pub extern "C" fn panic_fmt(fmt: core::fmt::Arguments, file: &'static str, line:
 }
 
 
-use linked_list_allocator::LockedHeap;
+use alloc_cortex_m::CortexMHeap;
 
 #[global_allocator]
-static ALLOCATOR: LockedHeap = LockedHeap::empty();
+static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
