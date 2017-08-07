@@ -10,7 +10,7 @@
 
 use core::cell::UnsafeCell;
 
-/// Mutex that uses the `primask` core register from the cortem m processor to disable 
+/// Mutex that uses the `primask` core register from the cortem m processor to disable
 /// interrupts before the critical section and enables interrupts again, when interrupts
 /// were enabled before entering the critical section.
 ///
@@ -33,11 +33,13 @@ impl<T> PrimaskMutex<T> {
     /// let mutex = PrimaskMutex::new(x);
     /// ```
     pub fn new(data: T) -> PrimaskMutex<T> {
-        PrimaskMutex { data: UnsafeCell::new(data) }
+        PrimaskMutex {
+            data: UnsafeCell::new(data),
+        }
     }
 
     /// Executes the closure `critical_section` without interrupts.
-    /// 
+    ///
     /// If interrupts were enabled before entering the critical section, the interrupts are enabled again
     /// after the critical section
     ///
@@ -46,14 +48,15 @@ impl<T> PrimaskMutex<T> {
     /// let x = 5;
     /// let mutex = PrimaskMutex::new(x);
     /// mutex.lock(|data| {
-    ///     // Interrupt free section  
+    ///     // Interrupt free section
     ///     // Safe, because 'atomic' block
-    ///     data += 5;    
+    ///     data += 5;
     /// });
     /// // Interrupts are enabled again, if interrupts was enabled before the critical section
     /// ```
-    pub fn lock<F,R>(&self, critical_section: F) -> R
-        where F: FnOnce(&mut T) -> R
+    pub fn lock<F, R>(&self, critical_section: F) -> R
+    where
+        F: FnOnce(&mut T) -> R,
     {
         // PRIMASK = 1 => Prevents the activation of all exceptions with configurable priority
         let primask = unsafe { ::cortex_m::register::primask::read() } & 1 == 1;
