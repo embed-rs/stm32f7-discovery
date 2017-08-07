@@ -1,5 +1,5 @@
 //! Safe and "free of data races" interrupt system.
-//! 
+//!
 //! The interrupt system features are:
 //!
 //! - **Ownership based interrupt management**. The `InterruptTable` owns the nvic register
@@ -11,14 +11,15 @@
 //! Shared mutable access on a variable must be synchronized with a PrimaskMutex,
 //! otherwise the compilation fails.
 //!
-//! - **Scoped IRSs with access to the enviroment**. It is guaranteed that the closure is unregistered at the end 
-//! of the scope. Thus it is safe to access the parent stack in the interrupt service routine. 
+//! - **Scoped IRSs with access to the enviroment**. It is guaranteed that the closure is unregistered at the end
+//! of the scope. Thus it is safe to access the parent stack in the interrupt service routine.
 
 use alloc::boxed::Box;
 use board::nvic::Nvic;
 use board::nvic::Stir;
 use core::marker::PhantomData;
 use core::intrinsics::transmute;
+use core::ptr;
 use self::interrupt_request::InterruptRequest;
 
 pub mod interrupt_request;
@@ -41,7 +42,7 @@ unsafe extern "C" fn dispatcher() {
         Some(ref mut isr) => isr(),
         None => default_handler(ipsr as u8),
     }
-                 
+
 }
 
 #[no_mangle]
@@ -50,14 +51,106 @@ unsafe extern "C" fn dispatcher() {
 static INTERRUPTS: [unsafe extern "C" fn(); 98] = [dispatcher; 98];
 
 
-static mut ISRS: [Option<Box<FnMut()>>; 98] =
-    [None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
-     None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
-     None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
-     None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
-     None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
-     None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
-     None, None, None, None, None, None, None, None];
+static mut ISRS: [Option<Box<FnMut()>>; 98] = [
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+];
 
 /// Default interrupt handler
 static mut DEFAULT_HANDLER: Option<Box<FnMut(u8)>> = None;
@@ -87,7 +180,7 @@ pub struct InterruptHandle<T> {
 
 impl<T> InterruptHandle<T> {
     fn new(irq: InterruptRequest) -> Self {
-        InterruptHandle { 
+        InterruptHandle {
             irq: irq,
             _data_type: PhantomData,
         }
@@ -112,18 +205,17 @@ impl<T> InterruptHandle<T> {
 ///     });
 /// });
 /// ```
-pub struct InterruptTable<'a> {
-    _lifetime: PhantomData<&'a ()>,
+pub struct InterruptTable {
     nvic: &'static mut Nvic,
-    data: [Option<* mut ()>; 98],
+    data: [*mut (); 98],
 }
 
-impl<'a> Drop for InterruptTable<'a> {
+impl Drop for InterruptTable {
     fn drop(&mut self) {
         let mut some_left = false;
         unsafe {
             DEFAULT_HANDLER = None;
-            for (i,isr) in ISRS.iter().enumerate() {
+            for (i, isr) in ISRS.iter().enumerate() {
                 some_left = some_left || isr.is_some();
                 self.disable_interrupt(i as u8);
             }
@@ -147,7 +239,7 @@ impl<'a> Drop for InterruptTable<'a> {
 ///         nvic,
 ///         ..
 ///     } = hw;
-///    
+///
 ///     // Configure system clock
 ///     system_clock::init(rcc, pwr, flash);
 ///
@@ -166,19 +258,21 @@ impl<'a> Drop for InterruptTable<'a> {
 ///
 /// # Panics
 /// Panics if an interrupt is enabled and is not disabled after use in `code()`
-pub fn scope<'a,F,C,R>(nvic: &'static mut Nvic, default_handler: F, code: C) -> R 
-    where F: FnMut(u8) + 'a,
-        C: FnOnce(&mut InterruptTable<'a>) -> R
+pub fn scope<F, C, R>(nvic: &'static mut Nvic, default_handler: F, code: C) -> R
+where
+    F: FnMut(u8),
+    C: FnOnce(&mut InterruptTable) -> R,
 {
     unsafe {
         debug_assert!(DEFAULT_HANDLER.is_none());
-        DEFAULT_HANDLER = Some(transmute::<Box<FnMut(u8) + 'a>, Box<FnMut(u8) + 'static>>(Box::new(default_handler)));
+        DEFAULT_HANDLER = Some(transmute::<Box<FnMut(u8)>, Box<FnMut(u8) + 'static>>(
+            Box::new(default_handler),
+        ));
     }
-    
+
     let mut interrupt_table = InterruptTable {
-        _lifetime: PhantomData,
         nvic: nvic,
-        data: [None; 98],
+        data: [ptr::null_mut(); 98],
     };
     // When the *code(self)* panics, the programm ends in an endless loop with disabled interrupts
     // and never returns. So the state of the ISRS does't matter.
@@ -187,14 +281,13 @@ pub fn scope<'a,F,C,R>(nvic: &'static mut Nvic, default_handler: F, code: C) -> 
     // Drop is called
 }
 
-impl<'a> InterruptTable<'a> {
-
+impl InterruptTable {
     /// Registers an interrupt with the lifetime of the `InterruptTable`.
     ///
     /// # Examples
     /// ```
     /// use stm32f7::interrupts::interrupt_request::InterruptRequest::Tim7;
-    /// use interrupts::Priority::P1;    
+    /// use interrupts::Priority::P1;
     /// interrupts::scope(nvic, |irq| { hprintln!("Default handler: {}", irq) },
     ///     |interrupt_table| {
     ///             let interrupt_handle = interrupt_table.register(Tim7, P1,
@@ -209,25 +302,27 @@ impl<'a> InterruptTable<'a> {
     ///             assert!(data.is_none());
     /// });
     /// ```
-    pub fn register<F>(&mut self,
-                              irq: InterruptRequest,
-                              priority: Priority,
-                              mut isr: F)
-                              -> Result<InterruptHandle<()>, Error>
-        where F: FnMut() + 'a + Send
+    pub fn register<'a, F>(
+        &'a mut self,
+        irq: InterruptRequest,
+        priority: Priority,
+        mut isr: F,
+    ) -> Result<InterruptHandle<()>, Error>
+    where
+        F: FnMut() + 'a + Send,
     {
-        self.register_owned(irq, priority, (), move |_| {isr()})
+        self.register_owned(irq, priority, (), move |_| isr())
     }
 
     /// Registers an interrupt with the lifetime of the `InterruptTable` and pass ownership of a variable `owned_data: T` that is passed
     /// to the `isr(&mut T)` when the corresponding interupt `irq` occur.
-    /// 
+    ///
     /// The ownership of the data `owned_data` is returned in the `unregister()` function
     ///
     /// # Examples
     /// ```
     /// use stm32f7::interrupts::interrupt_request::InterruptRequest::Tim7;
-    /// use interrupts::Priority::P1;    
+    /// use interrupts::Priority::P1;
     /// interrupts::scope(nvic, |irq| { hprintln!("Default handler: {}", irq) },
     ///     |interrupt_table| {
     ///             let data: SomeData = ...;
@@ -243,34 +338,29 @@ impl<'a> InterruptTable<'a> {
     ///             let data = interrupt_table.unregister(interrupt_handle).unwrap();
     /// });
     /// ```
-    pub fn register_owned<F, T>(&mut self,
-                                 irq: InterruptRequest,
-                                 priority: Priority,
-                                 owned_data: T,
-                                 mut isr: F)
-                                 -> Result<InterruptHandle<T>, Error>
-        where   T: Send,
-                F: FnMut(&mut T) + 'a + Send
+    pub fn register_owned<'a, F, T>(
+        &'a mut self,
+        irq: InterruptRequest,
+        priority: Priority,
+        owned_data: T,
+        mut isr: F,
+    ) -> Result<InterruptHandle<T>, Error>
+    where
+        T: Send,
+        F: FnMut(&mut T) + 'a + Send,
     {
-        if unsafe{ISRS[irq as usize].is_some()} {
+        if unsafe { ISRS[irq as usize].is_some() } {
             return Err(Error::InterruptAlreadyInUse(irq));
         }
         // Insert data only, when interrupt isn't used, therefore nobody reads the data => no dataraces
-        self.data[irq as usize] = unsafe {
-            transmute::<Option<*mut T>, Option<*mut ()>>(Some(Box::into_raw(Box::new(owned_data))))
-        };
-        
+        self.data[irq as usize] = Box::into_raw(Box::new(owned_data)) as *mut ();
+
         // transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>> is safe, because of the drop implementation of InterruptTable ('static is not needed for closure)
         // and alway only one isr can access the data (Send is not needed for closure)
         let isr = unsafe {
             transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>>(Box::new(
-            || {
-                match self.data[irq as usize] {
-                    // Safe, since the correct type is known
-                    Some(ptr) => isr(Box::from_raw(transmute::<*mut (), *mut T>(ptr)).as_mut()),
-                    None => unreachable!("No data set"),
-                }
-            }))
+                || { isr(&mut *(self.data[irq as usize] as *mut T)); },
+            ))
         };
         let interrupt_handle = self.insert_boxed_isr(irq, isr)?;
         self.set_priority(&interrupt_handle, priority);
@@ -301,21 +391,26 @@ impl<'a> InterruptTable<'a> {
     ///         // interrupt is not set anymore, `some_data` is available again
     /// });
     /// ```
-    pub fn with_interrupt<F, C>(&mut self,
-                                       irq: InterruptRequest,
-                                       priority: Priority,
-                                       isr: F,
-                                       code: C)
-                                       -> Result<(), Error>
-        where F: FnMut() + Send,
-              C: FnOnce(&mut InterruptTable)
+    pub fn with_interrupt<F, C>(
+        &mut self,
+        irq: InterruptRequest,
+        priority: Priority,
+        isr: F,
+        code: C,
+    ) -> Result<(), Error>
+    where
+        F: FnMut() + Send,
+        C: FnOnce(&mut InterruptTable),
     {
+
+        // Insert a `()` into data to simplify `unregister`
+        self.data[irq as usize] = Box::into_raw(Box::new(())) as *mut ();
 
         // Safe: Isr is removed from the static array after the closure *code* is executed.
         // When the *code(self)* panics, the programm ends in an endless loop with disabled interrupts
         // and never returns. So the state of the ISRS does't matter.
         let isr = unsafe {
-            transmute::<Box<FnMut() + Send>,Box<FnMut() + 'static + Send>>(Box::new(isr))
+            transmute::<Box<FnMut() + Send>, Box<FnMut() + 'static + Send>>(Box::new(isr))
         };
         let interrupt_handle = self.insert_boxed_isr::<()>(irq, isr)?;
         self.set_priority(&interrupt_handle, priority);
@@ -328,12 +423,13 @@ impl<'a> InterruptTable<'a> {
         Ok(())
     }
 
-    fn insert_boxed_isr<T>(&mut self,
-                        irq: InterruptRequest,
-                        isr_boxed: Box<FnMut() + 'static + Send>)
-                        -> Result<InterruptHandle<T>, Error> {
+    fn insert_boxed_isr<T>(
+        &mut self,
+        irq: InterruptRequest,
+        isr_boxed: Box<FnMut() + 'static + Send>,
+    ) -> Result<InterruptHandle<T>, Error> {
         // Check if interrupt already in use
-        if unsafe{ISRS[irq as usize].is_some()} {
+        if unsafe { ISRS[irq as usize].is_some() } {
             return Err(Error::InterruptAlreadyInUse(irq));
         }
         unsafe {
@@ -353,7 +449,7 @@ impl<'a> InterruptTable<'a> {
             r.set_setena(old | 1 << iser_bit);
         });
     }
-    
+
     /// Unregisters the interrupt corresponding to the `interrupt_handle`.
     ///
     /// The interrupt is diabled and the binded isr is removed.
@@ -366,7 +462,7 @@ impl<'a> InterruptTable<'a> {
     ///
     /// ```
     /// use stm32f7::interrupts::interrupt_request::InterruptRequest::Tim7;
-    /// use interrupts::Priority::P1;    
+    /// use interrupts::Priority::P1;
     /// interrupts::scope(nvic, |irq| { hprintln!("Default handler: {}", irq) },
     ///     |interrupt_table| {
     ///             let data: SomeData = ...;
@@ -388,7 +484,7 @@ impl<'a> InterruptTable<'a> {
     ///
     /// ```
     /// use stm32f7::interrupts::interrupt_request::InterruptRequest::Tim7;
-    /// use interrupts::Priority::P1;    
+    /// use interrupts::Priority::P1;
     /// interrupts::scope(nvic, |irq| { hprintln!("Default handler: {}", irq) },
     ///     |interrupt_table| {
     ///             let interrupt_handle = interrupt_table.register(Tim7, P1,
@@ -407,8 +503,9 @@ impl<'a> InterruptTable<'a> {
         let irq = interrupt_handle.irq;
         self.disable_interrupt(irq as u8);
 
-        let data = self.data[irq as usize].unwrap();
-        *unsafe {Box::from_raw(transmute::<*mut (), *mut T>(data))}
+        let data = self.data[irq as usize];
+        self.data[irq as usize] = ptr::null_mut();
+        *unsafe { Box::from_raw(data as *mut T) }
     }
 
     fn disable_interrupt(&mut self, irq: u8) {
@@ -455,7 +552,7 @@ impl<'a> InterruptTable<'a> {
         }
 
     }
-    
+
     /// Clears the pending state of the interrupt corresponding to the `interrupt_handle`.
     pub fn clear_pending_state<T>(&mut self, interrupt_handle: &InterruptHandle<T>) {
         let irq = interrupt_handle.irq;
