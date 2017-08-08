@@ -402,6 +402,9 @@ impl InterruptTable {
         F: FnMut() + Send,
         C: FnOnce(&mut InterruptTable),
     {
+        if unsafe { ISRS[irq as usize].is_some() } {
+            return Err(Error::InterruptAlreadyInUse(irq));
+        }
 
         // Insert a `()` into data to simplify `unregister`
         self.data[irq as usize] = Box::into_raw(Box::new(())) as *mut ();
