@@ -205,12 +205,13 @@ impl<T> InterruptHandle<T> {
 ///     });
 /// });
 /// ```
-pub struct InterruptTable {
+pub struct InterruptTable<'a> {
+    _lifetime: PhantomData<&'a ()>,
     nvic: &'static mut Nvic,
     data: [*mut (); 98],
 }
 
-impl Drop for InterruptTable {
+impl<'a> Drop for InterruptTable<'a> {
     fn drop(&mut self) {
         let mut some_left = false;
         unsafe {
@@ -258,19 +259,20 @@ impl Drop for InterruptTable {
 ///
 /// # Panics
 /// Panics if an interrupt is enabled and is not disabled after use in `code()`
-pub fn scope<F, C, R>(nvic: &'static mut Nvic, default_handler: F, code: C) -> R
+pub fn scope<'a, F, C, R>(nvic: &'static mut Nvic, default_handler: F, code: C) -> R
 where
-    F: FnMut(u8),
-    C: FnOnce(&mut InterruptTable) -> R,
+    F: FnMut(u8) + 'a + Send,
+    C: FnOnce(&mut InterruptTable<'a>) -> R,
 {
     unsafe {
         debug_assert!(DEFAULT_HANDLER.is_none());
-        DEFAULT_HANDLER = Some(transmute::<Box<FnMut(u8)>, Box<FnMut(u8) + 'static>>(
+        DEFAULT_HANDLER = Some(transmute::<Box<FnMut(u8) + 'a + Send>, Box<FnMut(u8) + 'static>>(
             Box::new(default_handler),
         ));
     }
 
     let mut interrupt_table = InterruptTable {
+        _lifetime: PhantomData,
         nvic: nvic,
         data: [ptr::null_mut(); 98],
     };
@@ -281,7 +283,7 @@ where
     // Drop is called
 }
 
-impl InterruptTable {
+impl<'a> InterruptTable<'a> {
     /// Registers an interrupt with the lifetime of the `InterruptTable`.
     ///
     /// # Examples
@@ -302,8 +304,8 @@ impl InterruptTable {
     ///             assert!(data.is_none());
     /// });
     /// ```
-    pub fn register<'a, F>(
-        &'a mut self,
+    pub fn register<F>(
+        &mut self,
         irq: InterruptRequest,
         priority: Priority,
         mut isr: F,
@@ -338,8 +340,8 @@ impl InterruptTable {
     ///             let data = interrupt_table.unregister(interrupt_handle).unwrap();
     /// });
     /// ```
-    pub fn register_owned<'a, F, T>(
-        &'a mut self,
+    pub fn register_owned<F, T>(
+        &mut self,
         irq: InterruptRequest,
         priority: Priority,
         owned_data: T,
