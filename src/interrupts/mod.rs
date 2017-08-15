@@ -360,8 +360,9 @@ impl<'a> InterruptTable<'a> {
         // transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>> is safe, because of the drop implementation of InterruptTable ('static is not needed for closure)
         // and alway only one isr can access the data (Send is not needed for closure)
         let isr = unsafe {
+            let parameter = &mut *(self.data[irq as usize] as *mut T);
             transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>>(Box::new(
-                || { isr(&mut *(self.data[irq as usize] as *mut T)); },
+                move || { isr(parameter); },
             ))
         };
         let interrupt_handle = self.insert_boxed_isr(irq, isr)?;
