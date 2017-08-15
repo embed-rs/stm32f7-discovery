@@ -120,16 +120,12 @@ impl Exti {
             _ => unreachable!(), 
         }
 
-        hprintln!("In dings: {:p}", &mut self.exti.pr); // -> 0x40013c14
-
         let handle = ExtiHandle {
             exti_line: exti_line,
             pr: PrRef(&mut self.exti.pr),
         };
 
-        hprintln!("In dings: {:p}", handle.pr.0); // -> 0x40013c14
         Ok(handle)
-
     }
 
     pub fn unregister(&mut self, exti_handle: ExtiHandle) {

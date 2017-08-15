@@ -79,6 +79,8 @@ fn main(hw: board::Hardware) -> ! {
         syscfg,
         ethernet_mac,
         ethernet_dma,
+        nvic,
+        exti,
         ..
     } = hw;
 
@@ -167,50 +169,73 @@ fn main(hw: board::Hardware) -> ! {
     let mut audio_writer = layer_1.audio_writer();
     let mut last_led_toggle = system_clock::ticks();
     let mut button_pressed_old = false;
-    loop {
-        let ticks = system_clock::ticks();
 
-        // every 0.5 seconds
-        if ticks - last_led_toggle >= 500 {
-            // toggle the led
-            let led_current = led.get();
-            led.set(!led_current);
-            last_led_toggle = ticks;
-        }
+    use stm32f7::board::embedded::interfaces::gpio::Port;
+    use stm32f7::exti::{EdgeDetection, Exti, ExtiLine};
 
-        let button_pressed = button.get();
-        if button_pressed && !button_pressed_old {
-            // choose a new background color
-            let new_color = ((system_clock::ticks() as u32).wrapping_mul(19801)) % 0x1000000;
-            lcd.set_background_color(lcd::Color::from_hex(new_color));
-        }
+    let mut exti = Exti::new(exti);
+    let mut exti_handle = exti.register(ExtiLine::Line11(Port::PortI), EdgeDetection::FallingEdge, syscfg).unwrap();
 
-        // poll for new touch data
-        for touch in &touch::touches(&mut i2c_3).unwrap() {
-            audio_writer
-                .layer()
-                .print_point_at(touch.x as usize, touch.y as usize);
-        }
 
-        // handle new ethernet packets
-        if let Ok(ref mut eth_device) = eth_device {
-            loop {
-                let result =
-                    eth_device.with_next_packet(|packet| match packet {
-                                                    Packet::Udp(udp) => handle_udp_packet(udp),
-                                                });
-                if let Err(err) = result {
-                    match err {
-                        stm32f7::ethernet::Error::Exhausted => {}
-                        _ => {} // println!("err {:?}", e),
-                    }
-                    break;
+    use stm32f7::interrupts::{scope, Priority};
+    use stm32f7::interrupts::interrupt_request::InterruptRequest;
+
+    scope(nvic, |_| {}, 
+        |interrupt_table| {
+
+            let _ = interrupt_table.register(InterruptRequest::Exti10to15, Priority::P1,
+                || {
+                    exti_handle.clear_pending_state();
+                    println!("Button pressed!")
                 }
+            );
+
+            loop {
+                let ticks = system_clock::ticks();
+
+                // every 0.5 seconds
+                if ticks - last_led_toggle >= 500 {
+                    // toggle the led
+                    let led_current = led.get();
+                    led.set(!led_current);
+                    last_led_toggle = ticks;
+                }
+
+                let button_pressed = button.get();
+                if button_pressed && !button_pressed_old {
+                    // choose a new background color
+                    let new_color = ((system_clock::ticks() as u32).wrapping_mul(19801)) % 0x1000000;
+                    lcd.set_background_color(lcd::Color::from_hex(new_color));
+                }
+
+                // poll for new touch data
+                for touch in &touch::touches(&mut i2c_3).unwrap() {
+                    audio_writer
+                        .layer()
+                        .print_point_at(touch.x as usize, touch.y as usize);
+                }
+
+                // handle new ethernet packets
+                if let Ok(ref mut eth_device) = eth_device {
+                    loop {
+                        let result =
+                            eth_device.with_next_packet(|packet| match packet {
+                                                            Packet::Udp(udp) => handle_udp_packet(udp),
+                                                        });
+                        if let Err(err) = result {
+                            match err {
+                                stm32f7::ethernet::Error::Exhausted => {}
+                                _ => {} // println!("err {:?}", e),
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                button_pressed_old = button_pressed;
             }
         }
-
-        button_pressed_old = button_pressed;
-    }
+    )
 }
 
 fn handle_udp_packet(udp: Udp) -> Option<Cow<[u8]>> {
