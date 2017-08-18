@@ -211,6 +211,8 @@ pub struct InterruptTable<'a> {
     data: [*mut (); 98],
 }
 
+impl<'a> !Sync for InterruptTable<'a> {}
+
 impl<'a> Drop for InterruptTable<'a> {
     fn drop(&mut self) {
         let mut some_left = false;
@@ -259,14 +261,14 @@ impl<'a> Drop for InterruptTable<'a> {
 ///
 /// # Panics
 /// Panics if an interrupt is enabled and is not disabled after use in `code()`
-pub fn scope<'a, F, C, R>(nvic: &'static mut Nvic, default_handler: F, code: C) -> R
+pub fn scope<F, C, R>(nvic: &'static mut Nvic, default_handler: F, code: C) -> R
 where
-    F: FnMut(u8) + 'a + Send,
-    C: FnOnce(&mut InterruptTable<'a>) -> R,
+    F: FnMut(u8) + Send,
+    C: for<'a> FnOnce(&mut InterruptTable<'a>) -> R,
 {
     unsafe {
         debug_assert!(DEFAULT_HANDLER.is_none());
-        DEFAULT_HANDLER = Some(transmute::<Box<FnMut(u8) + 'a + Send>, Box<FnMut(u8) + 'static>>(
+        DEFAULT_HANDLER = Some(transmute::<Box<FnMut(u8) + Send>, Box<FnMut(u8) + 'static>>(
             Box::new(default_handler),
         ));
     }
