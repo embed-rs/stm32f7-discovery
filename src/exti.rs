@@ -108,13 +108,13 @@ impl Exti {
 
             },
             PvdOutput => set_registers!(16, set_mr16, set_tr16),
-            RtcAlarmEvent => set_registers!(17, set_mr17, set_tr17),
-            UsbOtgFsWakeupEvent => set_registers!(18, set_mr18, set_tr18),
-            EthernetWakeupEvent => set_registers!(19, set_mr19, set_tr19),
-            UsbOtgHsWakeupEvent => set_registers!(20, set_mr20, set_tr20),
-            RtcTamperAndTimeStampEvents => set_registers!(21, set_mr21, set_tr21),
-            RtcWakeupEvent => set_registers!(22, set_mr22, set_tr22),
-            Lptim1AsynchronousEvent => unimplemented!(),
+            RtcAlarm => set_registers!(17, set_mr17, set_tr17),
+            UsbOtgFsWakeup => set_registers!(18, set_mr18, set_tr18),
+            EthernetWakeup => set_registers!(19, set_mr19, set_tr19),
+            UsbOtgHsWakeup => set_registers!(20, set_mr20, set_tr20),
+            RtcTamperAndTimeStamp => set_registers!(21, set_mr21, set_tr21),
+            RtcWakeup => set_registers!(22, set_mr22, set_tr22),
+            Lptim1Asynchronous => unimplemented!(),
         }
 
         let handle = ExtiHandle {
@@ -157,31 +157,31 @@ impl Exti {
                 self.exti.imr.update(|r| r.set_mr16(false));
                 self.lines_used.set_bit(16, false);
             },
-            RtcAlarmEvent => {
+            RtcAlarm => {
                 self.exti.imr.update(|r| r.set_mr17(false));
                 self.lines_used.set_bit(17, false);
             },
-            UsbOtgFsWakeupEvent => {
+            UsbOtgFsWakeup => {
                 self.exti.imr.update(|r| r.set_mr18(false));
                 self.lines_used.set_bit(18, false);
             },
-            EthernetWakeupEvent => {
+            EthernetWakeup => {
                 self.exti.imr.update(|r| r.set_mr19(false));
                 self.lines_used.set_bit(19, false);
             },
-            UsbOtgHsWakeupEvent => {
+            UsbOtgHsWakeup => {
                 self.exti.imr.update(|r| r.set_mr20(false));
                 self.lines_used.set_bit(20, false);
             },
-            RtcTamperAndTimeStampEvents => {
+            RtcTamperAndTimeStamp => {
                 self.exti.imr.update(|r| r.set_mr21(false));
                 self.lines_used.set_bit(21, false);
             },
-            RtcWakeupEvent => {
+            RtcWakeup => {
                 self.exti.imr.update(|r| r.set_mr22(false));
                 self.lines_used.set_bit(22, false);
             },
-            Lptim1AsynchronousEvent => unimplemented!(),
+            Lptim1Asynchronous => unimplemented!(),
 
         }
     }
@@ -207,13 +207,13 @@ impl ExtiHandle {
 pub enum ExtiLine {
     Gpio(Port, Pin),
     PvdOutput,
-    RtcAlarmEvent,
-    UsbOtgFsWakeupEvent,
-    EthernetWakeupEvent,
-    UsbOtgHsWakeupEvent,
-    RtcTamperAndTimeStampEvents,
-    RtcWakeupEvent,
-    Lptim1AsynchronousEvent,
+    RtcAlarm,
+    UsbOtgFsWakeup,
+    EthernetWakeup,
+    UsbOtgHsWakeup,
+    RtcTamperAndTimeStamp,
+    RtcWakeup,
+    Lptim1Asynchronous,
 }
 
 pub enum EdgeDetection {
@@ -258,13 +258,13 @@ impl PrRef{
 
             },
             PvdOutput => pr.set_pr16(value),
-            RtcAlarmEvent => pr.set_pr17(value),
-            UsbOtgFsWakeupEvent => pr.set_pr18(value),
-            EthernetWakeupEvent => pr.set_pr19(value),
-            UsbOtgHsWakeupEvent => pr.set_pr20(value),
-            RtcTamperAndTimeStampEvents => pr.set_pr21(value),
-            RtcWakeupEvent => pr.set_pr22(value),
-            Lptim1AsynchronousEvent => unimplemented!(),
+            RtcAlarm => pr.set_pr17(value),
+            UsbOtgFsWakeup => pr.set_pr18(value),
+            EthernetWakeup => pr.set_pr19(value),
+            UsbOtgHsWakeup => pr.set_pr20(value),
+            RtcTamperAndTimeStamp => pr.set_pr21(value),
+            RtcWakeup => pr.set_pr22(value),
+            Lptim1Asynchronous => unimplemented!(),
   
         }
 
