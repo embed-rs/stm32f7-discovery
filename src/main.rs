@@ -170,11 +170,11 @@ fn main(hw: board::Hardware) -> ! {
     let mut last_led_toggle = system_clock::ticks();
 
     use stm32f7::board::embedded::interfaces::gpio::Port;
+    use stm32f7::board::embedded::components::gpio::stm32f7::Pin;
     use stm32f7::exti::{EdgeDetection, Exti, ExtiLine};
 
     let mut exti = Exti::new(exti);
-    let mut exti_handle = exti.register(ExtiLine::Line11(Port::PortI), EdgeDetection::FallingEdge, syscfg).unwrap();
-
+    let mut exti_handle = exti.register(ExtiLine::Gpio(Port::PortI, Pin::Pin11), EdgeDetection::FallingEdge, syscfg).unwrap();
 
     use stm32f7::interrupts::{scope, Priority};
     use stm32f7::interrupts::interrupt_request::InterruptRequest;
@@ -183,7 +183,7 @@ fn main(hw: board::Hardware) -> ! {
         |interrupt_table| {
 
             let _ = interrupt_table.register(InterruptRequest::Exti10to15, Priority::P1,
-                || {
+                move || {
                     exti_handle.clear_pending_state();
                     // choose a new background color
                     let new_color = ((system_clock::ticks() as u32).wrapping_mul(19801)) % 0x1000000;
