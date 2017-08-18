@@ -43,6 +43,7 @@ pub mod ethernet;
 pub mod heap;
 pub mod random;
 pub mod exti;
+pub mod sd;
 
 #[cfg(not(test))]
 #[lang = "panic_fmt"]
