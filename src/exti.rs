@@ -3,11 +3,12 @@ use board::embedded::components::gpio::stm32f7::Pin;
 use board::syscfg::Syscfg;
 use board::exti;
 use volatile::ReadWrite;
+use bit_field::BitField;
 
 
 pub struct Exti {
     exti: &'static mut exti::Exti,
-    lines_used: [bool; 24],
+    lines_used: u32,
 }
 
 impl Exti {
@@ -15,7 +16,7 @@ impl Exti {
     pub fn new(exti: &'static mut exti::Exti) -> Exti {
         Exti {
             exti: exti,
-            lines_used: [false; 24],
+            lines_used: 0,
         }
     }
 
@@ -23,27 +24,14 @@ impl Exti {
         
         macro_rules! set_registers {
             ($number:expr, $resyscfg:ident, $multi:ident, $imr:ident, $tr:ident, $port:ident) => {{
-                if self.lines_used[$number] {
+                if self.lines_used.get_bit($number) {
                     return Err(LineAlreadyUsedError(exti_line));
                 }
 
-                self.lines_used[$number] = true;
+                self.lines_used.set_bit($number, true);
 
-                use self::Port::*;
 
-                match $port {
-                    PortA => syscfg.$resyscfg.update(|r| r.$multi(0)),
-                    PortB => syscfg.$resyscfg.update(|r| r.$multi(1)),
-                    PortC => syscfg.$resyscfg.update(|r| r.$multi(2)),
-                    PortD => syscfg.$resyscfg.update(|r| r.$multi(3)),
-                    PortE => syscfg.$resyscfg.update(|r| r.$multi(4)),
-                    PortF => syscfg.$resyscfg.update(|r| r.$multi(5)),
-                    PortG => syscfg.$resyscfg.update(|r| r.$multi(6)),
-                    PortH => syscfg.$resyscfg.update(|r| r.$multi(7)),
-                    PortI => syscfg.$resyscfg.update(|r| r.$multi(8)),
-                    PortJ => syscfg.$resyscfg.update(|r| r.$multi(9)),
-                    PortK => syscfg.$resyscfg.update(|r| r.$multi(10)),
-                }
+                syscfg.$resyscfg.update(|r| r.$multi($port as u8));
 
                 self.exti.imr.update(|r| r.$imr(true));
 
@@ -65,11 +53,11 @@ impl Exti {
                 }
             }};
             ($number:expr, $imr:ident, $tr:ident) => {{
-                if self.lines_used[$number] {
+                if self.lines_used.get_bit($number) {
                     return Err(LineAlreadyUsedError(exti_line));
                 }
 
-                self.lines_used[$number] = true;
+                self.lines_used.set_bit($number, true);
 
                 self.exti.imr.update(|r| r.$imr(true));
 
@@ -144,7 +132,7 @@ impl Exti {
         match exti_handle.exti_line {
             Gpio(_, pin) => {
                 use self::Pin::*;
-                self.lines_used[pin as usize] = false;
+                self.lines_used.set_bit(pin as u8, false);
                 match pin {
                     Pin0 => self.exti.imr.update(|r| r.set_mr0(false)),
                     Pin1 => self.exti.imr.update(|r| r.set_mr1(false)),
@@ -167,31 +155,31 @@ impl Exti {
             },
             PvdOutput => {
                 self.exti.imr.update(|r| r.set_mr16(false));
-                self.lines_used[16] = false;
+                self.lines_used.set_bit(16, false);
             },
             RtcAlarmEvent => {
                 self.exti.imr.update(|r| r.set_mr17(false));
-                self.lines_used[17] = false;
+                self.lines_used.set_bit(17, false);
             },
             UsbOtgFsWakeupEvent => {
                 self.exti.imr.update(|r| r.set_mr18(false));
-                self.lines_used[18] = false;
+                self.lines_used.set_bit(18, false);
             },
             EthernetWakeupEvent => {
                 self.exti.imr.update(|r| r.set_mr19(false));
-                self.lines_used[19] = false;
+                self.lines_used.set_bit(19, false);
             },
             UsbOtgHsWakeupEvent => {
                 self.exti.imr.update(|r| r.set_mr20(false));
-                self.lines_used[20] = false;
+                self.lines_used.set_bit(20, false);
             },
             RtcTamperAndTimeStampEvents => {
                 self.exti.imr.update(|r| r.set_mr21(false));
-                self.lines_used[21] = false;
+                self.lines_used.set_bit(21, false);
             },
             RtcWakeupEvent => {
                 self.exti.imr.update(|r| r.set_mr22(false));
-                self.lines_used[22] = false;
+                self.lines_used.set_bit(22, false);
             },
             Lptim1AsynchronousEvent => unimplemented!(),
 
