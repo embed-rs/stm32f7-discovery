@@ -126,7 +126,7 @@ fn main(hw: board::Hardware) -> ! {
     led.set(true);
 
     let button_pin = (gpio::Port::PortI, gpio::Pin::Pin11);
-    let button = gpio.to_input(button_pin, gpio::Resistor::NoPull)
+    let _ = gpio.to_input(button_pin, gpio::Resistor::NoPull)
         .expect("button pin already in use");
 
     // init sdram (needed for display buffer)
@@ -168,7 +168,6 @@ fn main(hw: board::Hardware) -> ! {
 
     let mut audio_writer = layer_1.audio_writer();
     let mut last_led_toggle = system_clock::ticks();
-    let mut button_pressed_old = false;
 
     use stm32f7::board::embedded::interfaces::gpio::Port;
     use stm32f7::exti::{EdgeDetection, Exti, ExtiLine};
@@ -186,7 +185,9 @@ fn main(hw: board::Hardware) -> ! {
             let _ = interrupt_table.register(InterruptRequest::Exti10to15, Priority::P1,
                 || {
                     exti_handle.clear_pending_state();
-                    println!("Button pressed!")
+                    // choose a new background color
+                    let new_color = ((system_clock::ticks() as u32).wrapping_mul(19801)) % 0x1000000;
+                    lcd.set_background_color(lcd::Color::from_hex(new_color));
                 }
             );
 
@@ -201,12 +202,6 @@ fn main(hw: board::Hardware) -> ! {
                     last_led_toggle = ticks;
                 }
 
-                let button_pressed = button.get();
-                if button_pressed && !button_pressed_old {
-                    // choose a new background color
-                    let new_color = ((system_clock::ticks() as u32).wrapping_mul(19801)) % 0x1000000;
-                    lcd.set_background_color(lcd::Color::from_hex(new_color));
-                }
 
                 // poll for new touch data
                 for touch in &touch::touches(&mut i2c_3).unwrap() {
@@ -231,8 +226,6 @@ fn main(hw: board::Hardware) -> ! {
                         }
                     }
                 }
-
-                button_pressed_old = button_pressed;
             }
         }
     )

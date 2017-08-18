@@ -40,7 +40,7 @@ impl Exti {
                     PortH => syscfg.$resyscfg.update(|r| r.$multi(7)),
                     PortI => syscfg.$resyscfg.update(|r| r.$multi(8)),
                     PortJ => syscfg.$resyscfg.update(|r| r.$multi(9)),
-                    PortK => syscfg.$resyscfg.update(|r| r.$multi(110)),
+                    PortK => syscfg.$resyscfg.update(|r| r.$multi(10)),
                 }
 
                 self.exti.imr.update(|r| r.$imr(true));
@@ -168,8 +168,8 @@ impl Exti {
 pub struct LineAlreadyUsedError(ExtiLine);
 
 pub struct ExtiHandle {
-    pub exti_line: ExtiLine,
-    pub pr: PrRef,
+    exti_line: ExtiLine,
+    pr: PrRef,
 }
 
 impl ExtiHandle {
@@ -212,7 +212,7 @@ pub enum EdgeDetection {
     BothEdges,
 }
 
-pub struct PrRef(pub *mut ReadWrite<board::exti::Pr>);
+struct PrRef(*mut ReadWrite<board::exti::Pr>);
 
 unsafe impl Send for PrRef {}
 
@@ -250,8 +250,7 @@ impl PrRef{
             //Line23 => pr.set_pr23(value),
             _ => unreachable!(),
         }
-        // Data Race? I think there is no Data race, because when you write to the register bit a 1 the corresponding bit is cleared... so no read and than write again... only write.
-        // Writing a 0 to a register bit does not effect the current state.
+
         unsafe {
             (&mut *self.0).write(pr);
         };
