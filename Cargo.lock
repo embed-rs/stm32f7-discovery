@@ -69,7 +69,7 @@ dependencies = [
 [[package]]
 name = "embedded"
 version = "0.3.0"
-source = "git+https://github.com/embed-rs/embedded-rs.git#775819905584f1be6dcef861612c10feaa38bbe9"
+source = "git+https://github.com/embed-rs/embedded-rs.git#cd3d7c047848f9d7389a0b6ca591321f7b248d66"
 dependencies = [
  "arrayvec 0.3.23 (registry+https://github.com/rust-lang/crates.io-index)",
  "bit_field 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
