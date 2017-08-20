@@ -12,7 +12,6 @@ pub struct Exti {
 }
 
 impl Exti {
-
     pub fn new(exti: &'static mut exti::Exti) -> Exti {
         Exti {
             exti: exti,
@@ -20,8 +19,13 @@ impl Exti {
         }
     }
 
-    pub fn register(&mut self, exti_line: ExtiLine, edge_detection: EdgeDetection, syscfg: &mut Syscfg) -> Result<ExtiHandle, LineAlreadyUsedError> {
-        
+    pub fn register(
+        &mut self,
+        exti_line: ExtiLine,
+        edge_detection: EdgeDetection,
+        syscfg: &mut Syscfg,
+    ) -> Result<ExtiHandle, LineAlreadyUsedError> {
+
         macro_rules! set_registers {
             ($number:expr, $resyscfg:ident, $multi:ident, $imr:ident, $tr:ident, $port:ident) => {{
                 if self.lines_used.get_bit($number) {
@@ -86,7 +90,7 @@ impl Exti {
 
             Gpio(port, pin) => {
                 use self::Pin::*;
-                
+
                 match pin {
                     Pin0 => set_registers!(0, exticr1, set_exti0, set_mr0, set_tr0, port),
                     Pin1 => set_registers!(1, exticr1, set_exti1, set_mr1, set_tr1, port),
@@ -106,7 +110,7 @@ impl Exti {
                     Pin15 => set_registers!(15, exticr4, set_exti15, set_mr15, set_tr15, port),
                 }
 
-            },
+            }
             PvdOutput => set_registers!(16, set_mr16, set_tr16),
             RtcAlarm => set_registers!(17, set_mr17, set_tr17),
             UsbOtgFsWakeup => set_registers!(18, set_mr18, set_tr18),
@@ -127,9 +131,9 @@ impl Exti {
     }
 
     pub fn unregister(&mut self, exti_handle: ExtiHandle) {
-        
+
         use self::ExtiLine::*;
-        
+
         match exti_handle.exti_line {
             Gpio(_, pin) => {
                 use self::Pin::*;
@@ -153,42 +157,40 @@ impl Exti {
                     Pin15 => self.exti.imr.update(|r| r.set_mr15(false)),
                 }
 
-            },
+            }
             PvdOutput => {
                 self.exti.imr.update(|r| r.set_mr16(false));
                 self.lines_used.set_bit(16, false);
-            },
+            }
             RtcAlarm => {
                 self.exti.imr.update(|r| r.set_mr17(false));
                 self.lines_used.set_bit(17, false);
-            },
+            }
             UsbOtgFsWakeup => {
                 self.exti.imr.update(|r| r.set_mr18(false));
                 self.lines_used.set_bit(18, false);
-            },
+            }
             EthernetWakeup => {
                 self.exti.imr.update(|r| r.set_mr19(false));
                 self.lines_used.set_bit(19, false);
-            },
+            }
             UsbOtgHsWakeup => {
                 self.exti.imr.update(|r| r.set_mr20(false));
                 self.lines_used.set_bit(20, false);
-            },
+            }
             RtcTamperAndTimeStamp => {
                 self.exti.imr.update(|r| r.set_mr21(false));
                 self.lines_used.set_bit(21, false);
-            },
+            }
             RtcWakeup => {
                 self.exti.imr.update(|r| r.set_mr22(false));
                 self.lines_used.set_bit(22, false);
-            },
+            }
             // Last line is missing in embedded_stm32f7
             Lptim1Asynchronous => unimplemented!(),
 
         }
     }
-
-
 }
 
 #[derive(Debug)]
@@ -232,7 +234,7 @@ struct PrRef(*mut ReadWrite<exti::Pr>);
 
 unsafe impl Send for PrRef {}
 
-impl PrRef{
+impl PrRef {
     fn set(&self, exti_line: ExtiLine, value: bool) {
         use self::exti::Pr;
         let mut pr = Pr::default();
@@ -262,7 +264,7 @@ impl PrRef{
                     Pin15 => pr.set_pr15(value),
                 }
 
-            },
+            }
             PvdOutput => pr.set_pr16(value),
             RtcAlarm => pr.set_pr17(value),
             UsbOtgFsWakeup => pr.set_pr18(value),
@@ -272,7 +274,7 @@ impl PrRef{
             RtcWakeup => pr.set_pr22(value),
             // Last line is missing in embedded_stm32f7
             Lptim1Asynchronous => unimplemented!(),
-  
+
         }
 
         unsafe {
@@ -280,6 +282,3 @@ impl PrRef{
         };
     }
 }
-
-
-
