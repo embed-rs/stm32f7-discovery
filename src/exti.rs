@@ -114,6 +114,7 @@ impl Exti {
             UsbOtgHsWakeup => set_registers!(20, set_mr20, set_tr20),
             RtcTamperAndTimeStamp => set_registers!(21, set_mr21, set_tr21),
             RtcWakeup => set_registers!(22, set_mr22, set_tr22),
+            // Last line is missing in embedded_stm32f7
             Lptim1Asynchronous => unimplemented!(),
         }
 
@@ -181,6 +182,7 @@ impl Exti {
                 self.exti.imr.update(|r| r.set_mr22(false));
                 self.lines_used.set_bit(22, false);
             },
+            // Last line is missing in embedded_stm32f7
             Lptim1Asynchronous => unimplemented!(),
 
         }
@@ -203,6 +205,10 @@ impl ExtiHandle {
     }
 }
 
+/// This enum represents the possible lines of the exti controller.
+/// The `Gpio` variant is used to enable an interrupt for a GPIO-Pin. The Attributes are the `Port`
+/// and the `Pin` of the used GPIO-Pin and are used to configure the MUX. A GPIO-Pin with `Pin` = x
+/// is always mapped to the EXTIx line. For further information look at the reference manuel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExtiLine {
     Gpio(Port, Pin),
@@ -264,6 +270,7 @@ impl PrRef{
             UsbOtgHsWakeup => pr.set_pr20(value),
             RtcTamperAndTimeStamp => pr.set_pr21(value),
             RtcWakeup => pr.set_pr22(value),
+            // Last line is missing in embedded_stm32f7
             Lptim1Asynchronous => unimplemented!(),
   
         }
