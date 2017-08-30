@@ -1,4 +1,4 @@
-use rusttype::{Font, FontCollection, Scale, point, PositionedGlyph};
+use rusttype::{point, Font, FontCollection, PositionedGlyph, Scale};
 use alloc::Vec;
 use rusttype::stb_truetype::float_impls::FloatImpls;
 
@@ -10,8 +10,12 @@ pub struct FontRenderer<'a> {
 impl<'a> FontRenderer<'a> {
     pub fn new(font_data: &[u8], font_height: f32) -> FontRenderer {
         let collection = FontCollection::from_bytes(font_data);
-        let font = collection.into_font().unwrap(); // only succeeds if collection consists of one font
-        FontRenderer { font, height: font_height }
+        // only succeeds if collection consists of one font
+        let font = collection.into_font().unwrap();
+        FontRenderer {
+            font,
+            height: font_height,
+        }
     }
 
     pub fn font_height(&self) -> f32 {
@@ -24,10 +28,10 @@ impl<'a> FontRenderer<'a> {
             y: self.height,
         };
 
-        // The origin of a line of text is at the baseline (roughly where non-descending letters sit).
-        // We don't want to clip the text, so we shift it down with an offset when laying it out.
-        // v_metrics.ascent is the distance between the baseline and the highest edge of any glyph in
-        // the font. That's enough to guarantee that there's no clipping.
+        // The origin of a line of text is at the baseline (roughly where non-descending letters
+        // sit). We don't want to clip the text, so we shift it down with an offset when laying
+        // it out. v_metrics.ascent is the distance between the baseline and the highest edge of
+        // any glyph in the font. That's enough to guarantee that there's no clipping.
         let v_metrics = self.font.v_metrics(scale);
         let offset = point(0.0, v_metrics.ascent);
 
@@ -35,7 +39,8 @@ impl<'a> FontRenderer<'a> {
     }
 
     pub fn render<F>(&self, s: &str, mut draw_pixel: F) -> usize
-        where F: FnMut(usize, usize, f32)
+    where
+        F: FnMut(usize, usize, f32),
     {
         let glyphs = self.layout(s);
         let pixel_height = self.height.ceil() as usize;
@@ -44,11 +49,13 @@ impl<'a> FontRenderer<'a> {
         let width = glyphs
             .iter()
             .rev()
-            .map(|g| g.position().x as f32 + g.unpositioned().h_metrics().advance_width)
+            .map(|g| {
+                g.position().x as f32 + g.unpositioned().h_metrics().advance_width
+            })
             .next()
             .unwrap_or(0.0)
             .ceil() as usize;
-        
+
         for g in glyphs {
             if let Some(bb) = g.pixel_bounding_box() {
                 g.draw(|x, y, mut v| {

@@ -14,29 +14,27 @@ pub fn init(rcc: &mut Rcc, fmc: &mut Fmc, gpio: &mut Gpio) {
     rcc.ahb3rstr.update(|r| r.set_fmcrst(false));
 
     // SDRAM contol register
-    fmc.sdcr1
-        .update(|r| {
-            r.set_nc(8 - 8); // number_of_column_address_bits
-            r.set_nr(12 - 11); // number_of_row_address_bits
-            r.set_mwid(0b01 /* = 16 */); // data_bus_width
-            r.set_nb(true /* = 4 */); // number_of_internal_banks
-            r.set_cas(2); // cas_latency
-            r.set_wp(false); // write_protection
-            r.set_rburst(false); // burst_read
-            r.set_sdclk(2); // enable_sdram_clock
-        });
+    fmc.sdcr1.update(|r| {
+        r.set_nc(8 - 8); // number_of_column_address_bits
+        r.set_nr(12 - 11); // number_of_row_address_bits
+        r.set_mwid(0b01 /* = 16 */); // data_bus_width
+        r.set_nb(true /* = 4 */); // number_of_internal_banks
+        r.set_cas(2); // cas_latency
+        r.set_wp(false); // write_protection
+        r.set_rburst(false); // burst_read
+        r.set_sdclk(2); // enable_sdram_clock
+    });
 
     // SDRAM timings
-    fmc.sdtr1
-        .update(|r| {
-            r.set_tmrd(2 - 1); // load_mode_register_to_active
-            r.set_txsr(7 - 1); // exit_self_refresh_delay
-            r.set_tras(4 - 1); // self_refresh_time
-            r.set_trc(7 - 1); // row_cycle_delay
-            r.set_twr(2 - 1); // recovery_delay
-            r.set_trp(2 - 1); // row_precharge_delay
-            r.set_trcd(2 - 1); // row_to_column_delay
-        });
+    fmc.sdtr1.update(|r| {
+        r.set_tmrd(2 - 1); // load_mode_register_to_active
+        r.set_txsr(7 - 1); // exit_self_refresh_delay
+        r.set_tras(4 - 1); // self_refresh_time
+        r.set_trc(7 - 1); // row_cycle_delay
+        r.set_twr(2 - 1); // recovery_delay
+        r.set_trp(2 - 1); // row_precharge_delay
+        r.set_trcd(2 - 1); // row_to_column_delay
+    });
 
     let banks = Bank::One;
 
@@ -58,11 +56,10 @@ pub fn init(rcc: &mut Rcc, fmc: &mut Fmc, gpio: &mut Gpio) {
     send_fmc_command(fmc, banks, Command::LoadModeRegister, 1, mrd);
 
     // set refresh counter
-    fmc.sdrtr
-        .update(|r| {
-                    r.set_count(0x301);
-                    r.set_reie(false);
-                });
+    fmc.sdrtr.update(|r| {
+        r.set_count(0x301);
+        r.set_reie(false);
+    });
 
     // test sdram
     use core::ptr;
@@ -82,7 +79,7 @@ pub fn init(rcc: &mut Rcc, fmc: &mut Fmc, gpio: &mut Gpio) {
 }
 
 fn config_pins(gpio: &mut Gpio) {
-    use embedded::interfaces::gpio::{OutputType, OutputSpeed, AlternateFunction, Resistor};
+    use embedded::interfaces::gpio::{AlternateFunction, OutputSpeed, OutputType, Resistor};
     use embedded::interfaces::gpio::Port::*;
     use embedded::interfaces::gpio::Pin::*;
 
@@ -126,15 +123,54 @@ fn config_pins(gpio: &mut Gpio) {
     let ncas = (PortG, Pin15);
     let sdnwe = (PortH, Pin5);
 
-    let pins = [sdclk, sdcke0, sdcke1, sdne0, sdne1, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10,
-                a11, a12, d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d15,
-                ba0, ba1, nras, ncas, sdnwe];
-    gpio.to_alternate_function_all(&pins,
-                                   AlternateFunction::AF12,
-                                   OutputType::PushPull,
-                                   OutputSpeed::High,
-                                   Resistor::PullUp)
-        .unwrap();
+    let pins = [
+        sdclk,
+        sdcke0,
+        sdcke1,
+        sdne0,
+        sdne1,
+        a0,
+        a1,
+        a2,
+        a3,
+        a4,
+        a5,
+        a6,
+        a7,
+        a8,
+        a9,
+        a10,
+        a11,
+        a12,
+        d0,
+        d1,
+        d2,
+        d3,
+        d4,
+        d5,
+        d6,
+        d7,
+        d8,
+        d9,
+        d10,
+        d11,
+        d12,
+        d13,
+        d14,
+        d15,
+        ba0,
+        ba1,
+        nras,
+        ncas,
+        sdnwe,
+    ];
+    gpio.to_alternate_function_all(
+        &pins,
+        AlternateFunction::AF12,
+        OutputType::PushPull,
+        OutputSpeed::High,
+        Resistor::PullUp,
+    ).unwrap();
 }
 
 #[allow(dead_code)]
@@ -169,21 +205,20 @@ enum Command {
 fn send_fmc_command(fmc: &mut Fmc, bank: Bank, command: Command, auto_refresh: u8, modereg: u16) {
     assert!(!fmc.sdsr.read().busy());
 
-    fmc.sdcmr
-        .update(|cmr| {
-            match bank {
-                Bank::One => cmr.set_ctb1(true),
-                Bank::Two => cmr.set_ctb2(true),
-                Bank::Both => {
-                    cmr.set_ctb1(true);
-                    cmr.set_ctb2(true);
-                }
+    fmc.sdcmr.update(|cmr| {
+        match bank {
+            Bank::One => cmr.set_ctb1(true),
+            Bank::Two => cmr.set_ctb2(true),
+            Bank::Both => {
+                cmr.set_ctb1(true);
+                cmr.set_ctb2(true);
             }
+        }
 
-            cmr.set_mode(command as u8);
-            cmr.set_nrfs(auto_refresh); // number_of_auto_refresh
-            cmr.set_mrd(modereg); // mode_register_definition
-        });
+        cmr.set_mode(command as u8);
+        cmr.set_nrfs(auto_refresh); // number_of_auto_refresh
+        cmr.set_mrd(modereg); // mode_register_definition
+    });
 
     while fmc.sdsr.read().busy() {
         // wait

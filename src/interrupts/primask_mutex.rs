@@ -40,8 +40,8 @@ impl<T> PrimaskMutex<T> {
 
     /// Executes the closure `critical_section` without interrupts.
     ///
-    /// If interrupts were enabled before entering the critical section, the interrupts are enabled again
-    /// after the critical section
+    /// If interrupts were enabled before entering the critical section, the interrupts are enabled
+    /// again after the critical section
     ///
     /// # Examples
     /// ```

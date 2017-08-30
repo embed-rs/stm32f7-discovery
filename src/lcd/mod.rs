@@ -46,7 +46,9 @@ impl Lcd {
         if self.layer_1_in_use {
             None
         } else {
-            Some(Layer { framebuffer: FramebufferArgb8888::new(LAYER_1_START) })
+            Some(Layer {
+                framebuffer: FramebufferArgb8888::new(LAYER_1_START),
+            })
         }
     }
 
@@ -54,7 +56,9 @@ impl Lcd {
         if self.layer_2_in_use {
             None
         } else {
-            Some(Layer { framebuffer: FramebufferAl88::new(LAYER_2_START) })
+            Some(Layer {
+                framebuffer: FramebufferAl88::new(LAYER_2_START),
+            })
         }
     }
 }
@@ -106,25 +110,49 @@ pub struct Layer<T> {
 
 impl<T: Framebuffer> Layer<T> {
     pub fn horizontal_stripes(&mut self) {
-        let colors = [0xffffff, 0xcccccc, 0x999999, 0x666666, 0x333333, 0x0, 0xff0000, 0x0000ff];
+        let colors = [
+            0xffffff,
+            0xcccccc,
+            0x999999,
+            0x666666,
+            0x333333,
+            0x0,
+            0xff0000,
+            0x0000ff,
+        ];
 
         // horizontal stripes
         for i in 0..HEIGHT {
             for j in 0..WIDTH {
-                self.framebuffer
-                    .set_pixel(j, i, Color::from_rgb888(colors[(i / 10) % colors.len()]));
+                self.framebuffer.set_pixel(
+                    j,
+                    i,
+                    Color::from_rgb888(colors[(i / 10) % colors.len()]),
+                );
             }
         }
     }
 
     pub fn vertical_stripes(&mut self) {
-        let colors = [0xcccccc, 0x999999, 0x666666, 0x333333, 0x0, 0xff0000, 0x0000ff, 0xffffff];
+        let colors = [
+            0xcccccc,
+            0x999999,
+            0x666666,
+            0x333333,
+            0x0,
+            0xff0000,
+            0x0000ff,
+            0xffffff,
+        ];
 
         // vertical stripes
         for i in 0..HEIGHT {
             for j in 0..WIDTH {
-                self.framebuffer
-                    .set_pixel(j, i, Color::from_rgb888(colors[(j / 10) % colors.len()]));
+                self.framebuffer.set_pixel(
+                    j,
+                    i,
+                    Color::from_rgb888(colors[(j / 10) % colors.len()]),
+                );
             }
         }
     }
@@ -234,16 +262,16 @@ pub struct TextWriter<'a, T: Framebuffer + 'a> {
     y_pos: usize,
 }
 
-impl <'a, T: Framebuffer> TextWriter<'a, T> {
+impl<'a, T: Framebuffer> TextWriter<'a, T> {
     fn write_str_no_newlines(&mut self, s: &str) -> fmt::Result {
         let font_height = self.font_renderer.font_height() as usize;
         let &mut TextWriter {
-                     ref mut layer,
-                     ref mut font_renderer,
-                     ref mut x_pos,
-                     ref mut y_pos,
-                     ..
-                 } = self;
+            ref mut layer,
+            ref mut font_renderer,
+            ref mut x_pos,
+            ref mut y_pos,
+            ..
+        } = self;
 
         let width = font_renderer.render(s, |x, y, v| {
             if *x_pos + x >= WIDTH {

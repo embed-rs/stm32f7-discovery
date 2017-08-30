@@ -34,11 +34,10 @@ pub fn init(rcc: &mut Rcc, pwr: &mut Pwr, flash: &mut Flash) {
     rcc.apb1enr.read(); // delay
 
     // Reset HSEON and HSEBYP bits before configuring the HSE
-    rcc.cr
-        .update(|r| {
-                    r.set_hseon(false);
-                    r.set_hsebyp(false);
-                });
+    rcc.cr.update(|r| {
+        r.set_hseon(false);
+        r.set_hsebyp(false);
+    });
     // wait till HSE is disabled
     while rcc.cr.read().hserdy() {}
     // turn HSE on
@@ -110,7 +109,7 @@ pub fn init(rcc: &mut Rcc, pwr: &mut Pwr, flash: &mut Flash) {
     rcc.cfgr.update(|r| r.set_ppre2(DIVIDE_2));
 
 
-    let mut systick = unsafe { peripheral::syst_mut() };
+    let systick = unsafe { peripheral::syst_mut() };
 
     let pll_cfgr = rcc.pllcfgr.read();
     let pllm = u32::from(pll_cfgr.pllm());

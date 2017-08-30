@@ -139,11 +139,10 @@ pub fn init_sai_2(sai: &mut Sai, rcc: &mut Rcc) {
     // PLLI2S_VCO Input  = PLL_SOURCE/PLLM
     // PLLI2S_VCO Output = PLLI2S_VCO Input * PLLI2SN
     // SAI_CLK(first level) = PLLI2S_VCO Output/PLLI2SQ
-    rcc.plli2scfgr
-        .update(|r| {
-                    r.set_plli2sn(344);
-                    r.set_plli2sq(7);
-                });
+    rcc.plli2scfgr.update(|r| {
+        r.set_plli2sn(344);
+        r.set_plli2sq(7);
+    });
 
     // SAI_CLK_x = SAI_CLK(first level)/PLLI2SDIVQ
     rcc.dkcfgr1.update(|r| r.set_plli2sdiv(1 - 1));
@@ -282,7 +281,7 @@ pub fn init_sai_2(sai: &mut Sai, rcc: &mut Rcc) {
 }
 
 pub fn init_sai_2_pins(gpio: &mut Gpio) {
-    use embedded::interfaces::gpio::{OutputType, OutputSpeed, AlternateFunction, Resistor};
+    use embedded::interfaces::gpio::{AlternateFunction, OutputSpeed, OutputType, Resistor};
     use embedded::interfaces::gpio::Port::*;
     use embedded::interfaces::gpio::Pin::*;
 
@@ -295,10 +294,11 @@ pub fn init_sai_2_pins(gpio: &mut Gpio) {
     let sai2_sd_b = (PortG, Pin10);
 
     let pins = [sai2_fs_a, sai2_sck_a, sai2_sd_a, sai2_mclk_a, sai2_sd_b];
-    gpio.to_alternate_function_all(&pins,
-                                   AlternateFunction::AF10,
-                                   OutputType::PushPull,
-                                   OutputSpeed::High,
-                                   Resistor::NoPull)
-        .unwrap();
+    gpio.to_alternate_function_all(
+        &pins,
+        AlternateFunction::AF10,
+        OutputType::PushPull,
+        OutputSpeed::High,
+        Resistor::NoPull,
+    ).unwrap();
 }

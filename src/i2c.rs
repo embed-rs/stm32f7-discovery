@@ -23,18 +23,17 @@ impl Address {
 }
 
 pub fn init_pins_and_clocks(rcc: &mut Rcc, gpio: &mut Gpio) {
-    use embedded::interfaces::gpio::{OutputType, OutputSpeed, AlternateFunction, Resistor};
+    use embedded::interfaces::gpio::{AlternateFunction, OutputSpeed, OutputType, Resistor};
     use embedded::interfaces::gpio::Port::*;
     use embedded::interfaces::gpio::Pin::*;
 
     // enable clocks
-    rcc.apb1enr
-        .update(|r| {
-                    r.set_i2c1en(true);
-                    r.set_i2c2en(true);
-                    r.set_i2c3en(true);
-                    r.set_i2c4en(true);
-                });
+    rcc.apb1enr.update(|r| {
+        r.set_i2c1en(true);
+        r.set_i2c2en(true);
+        r.set_i2c3en(true);
+        r.set_i2c4en(true);
+    });
 
     let i2c1_scl = (PortB, Pin8);
     let i2c1_sda = (PortB, Pin9);
@@ -45,13 +44,23 @@ pub fn init_pins_and_clocks(rcc: &mut Rcc, gpio: &mut Gpio) {
     let i2c4_scl = (PortH, Pin11);
     let i2c4_sda = (PortD, Pin13);
 
-    let pins = [i2c1_scl, i2c1_sda, i2c2_scl, i2c2_sda, i2c3_scl, i2c3_sda, i2c4_scl, i2c4_sda];
-    gpio.to_alternate_function_all(&pins,
-                                   AlternateFunction::AF4,
-                                   OutputType::OpenDrain,
-                                   OutputSpeed::Medium,
-                                   Resistor::PullUp)
-        .unwrap();
+    let pins = [
+        i2c1_scl,
+        i2c1_sda,
+        i2c2_scl,
+        i2c2_sda,
+        i2c3_scl,
+        i2c3_sda,
+        i2c4_scl,
+        i2c4_sda,
+    ];
+    gpio.to_alternate_function_all(
+        &pins,
+        AlternateFunction::AF4,
+        OutputType::OpenDrain,
+        OutputSpeed::Medium,
+        Resistor::PullUp,
+    ).unwrap();
 }
 
 pub fn init(i2c: &'static mut i2c::I2c) -> I2C {
@@ -59,44 +68,39 @@ pub fn init(i2c: &'static mut i2c::I2c) -> I2C {
     i2c.cr1.update(|r| r.set_pe(false)); // peripheral_enable
 
     // configure timing register TODO: check/understand values
-    i2c.timingr
-        .update(|r| {
-                    r.set_presc(0x4); // timing_prescaler
-                    r.set_scldel(0x9); // data_setup_time
-                    r.set_sdadel(0x1); // data_hold_time
-                    r.set_sclh(0x27); // scl_high_period
-                    r.set_scll(0x32); // scl_low_period
-                });
+    i2c.timingr.update(|r| {
+        r.set_presc(0x4); // timing_prescaler
+        r.set_scldel(0x9); // data_setup_time
+        r.set_sdadel(0x1); // data_hold_time
+        r.set_sclh(0x27); // scl_high_period
+        r.set_scll(0x32); // scl_low_period
+    });
 
     // configure oar1
     i2c.oar1.update(|r| r.set_oa1en(false)); // own_address_1_enable
-    i2c.oar1
-        .update(|r| {
-                    r.set_oa1(0x00); // own_address_1
-                    r.set_oa1mode(false); // 10 bit mode
-                    r.set_oa1en(false); // TODO
-                });
+    i2c.oar1.update(|r| {
+        r.set_oa1(0x00); // own_address_1
+        r.set_oa1mode(false); // 10 bit mode
+        r.set_oa1en(false); // TODO
+    });
 
     // configure cr2
-    i2c.cr2
-        .update(|r| {
-                    r.set_add10(false); // 10_bit_addressing mode
-                    r.set_autoend(false); // automatic_end_mode
-                });
+    i2c.cr2.update(|r| {
+        r.set_add10(false); // 10_bit_addressing mode
+        r.set_autoend(false); // automatic_end_mode
+    });
 
     // configure oar2
-    i2c.oar2
-        .update(|r| {
-                    r.set_oa2en(false); // own_address_2_enable
-                });
+    i2c.oar2.update(|r| {
+        r.set_oa2en(false); // own_address_2_enable
+    });
 
     // configure cr1
-    i2c.cr1
-        .update(|r| {
-                    r.set_gcen(false); // general_call
-                    r.set_nostretch(false); // clock_stretching_disable
-                    r.set_pe(true); // peripheral_enable
-                });
+    i2c.cr1.update(|r| {
+        r.set_gcen(false); // general_call
+        r.set_nostretch(false); // clock_stretching_disable
+        r.set_pe(true); // peripheral_enable
+    });
     // wait that init can finish
     ::system_clock::wait(50);
     I2C(i2c)
@@ -123,19 +127,25 @@ pub struct I2cConnection<'a, T: RegisterType> {
 }
 
 pub trait RegisterType: Sized {
-    fn write<F>(&self, f: F) -> Result<(), Error> where F: FnOnce(&[u8]) -> Result<(), Error>;
-    fn read<F>(f: F) -> Result<Self, Error> where F: FnOnce(&mut [u8]) -> Result<(), Error>;
+    fn write<F>(&self, f: F) -> Result<(), Error>
+    where
+        F: FnOnce(&[u8]) -> Result<(), Error>;
+    fn read<F>(f: F) -> Result<Self, Error>
+    where
+        F: FnOnce(&mut [u8]) -> Result<(), Error>;
 }
 
 impl RegisterType for u8 {
     fn write<F>(&self, f: F) -> Result<(), Error>
-        where F: FnOnce(&[u8]) -> Result<(), Error>
+    where
+        F: FnOnce(&[u8]) -> Result<(), Error>,
     {
         f(&[*self])
     }
 
     fn read<F>(f: F) -> Result<Self, Error>
-        where F: FnOnce(&mut [u8]) -> Result<(), Error>
+    where
+        F: FnOnce(&mut [u8]) -> Result<(), Error>,
     {
         let mut buf = [0];
         f(&mut buf)?;
@@ -145,13 +155,15 @@ impl RegisterType for u8 {
 
 impl RegisterType for u16 {
     fn write<F>(&self, f: F) -> Result<(), Error>
-        where F: FnOnce(&[u8]) -> Result<(), Error>
+    where
+        F: FnOnce(&[u8]) -> Result<(), Error>,
     {
         f(&[(*self >> 8) as u8, *self as u8])
     }
 
     fn read<F>(f: F) -> Result<Self, Error>
-        where F: FnOnce(&mut [u8]) -> Result<(), Error>
+    where
+        F: FnOnce(&mut [u8]) -> Result<(), Error>,
     {
         let mut buf = [0, 0];
         f(&mut buf)?;
@@ -171,12 +183,15 @@ impl<'a, T: RegisterType> I2cConnection<'a, T> {
     }
 
     fn write_bytes<ITER>(&mut self, bytes: ITER) -> Result<(), Error>
-        where ITER: Iterator<Item = u8> + TrustedLen
+    where
+        ITER: Iterator<Item = u8> + TrustedLen,
     {
         assert!(bytes.size_hint().1.is_some());
-        assert_eq!(bytes.size_hint().0 as u8 as usize,
-                   bytes.size_hint().0,
-                   "transfers > 255 bytes are not implemented yet");
+        assert_eq!(
+            bytes.size_hint().0 as u8 as usize,
+            bytes.size_hint().0,
+            "transfers > 255 bytes are not implemented yet"
+        );
         self.start(false, bytes.size_hint().0 as u8);
 
         for b in bytes {
@@ -195,12 +210,15 @@ impl<'a, T: RegisterType> I2cConnection<'a, T> {
     }
 
     fn read_bytes_raw<'b, ITER>(&mut self, buffer: ITER) -> Result<(), Error>
-        where ITER: Iterator<Item = &'b mut u8> + TrustedLen
+    where
+        ITER: Iterator<Item = &'b mut u8> + TrustedLen,
     {
         assert!(buffer.size_hint().1.is_some());
-        assert_eq!(buffer.size_hint().0 as u8 as usize,
-                   buffer.size_hint().0,
-                   "transfers > 255 bytes are not implemented yet");
+        assert_eq!(
+            buffer.size_hint().0 as u8 as usize,
+            buffer.size_hint().0,
+            "transfers > 255 bytes are not implemented yet"
+        );
         self.start(true, buffer.size_hint().0 as u8);
 
         // read data from receive data register
@@ -233,8 +251,7 @@ impl<'a, T: RegisterType> I2cConnection<'a, T> {
     pub fn read(&mut self, register_address: T) -> Result<T, Error> {
         self.pre();
 
-        register_address
-            .write(|addr_bytes| self.write_bytes(addr_bytes.iter().cloned()))?;
+        register_address.write(|addr_bytes| self.write_bytes(addr_bytes.iter().cloned()))?;
 
         T::read(|val_bytes| self.read_bytes_raw(val_bytes.iter_mut()))
     }
@@ -242,8 +259,7 @@ impl<'a, T: RegisterType> I2cConnection<'a, T> {
     pub fn read_bytes(&mut self, register_address: T, bytes: &mut [u8]) -> Result<(), Error> {
         self.pre();
 
-        register_address
-            .write(|addr_bytes| self.write_bytes(addr_bytes.iter().cloned()))?;
+        register_address.write(|addr_bytes| self.write_bytes(addr_bytes.iter().cloned()))?;
 
         self.read_bytes_raw(bytes.iter_mut())
     }
@@ -251,17 +267,18 @@ impl<'a, T: RegisterType> I2cConnection<'a, T> {
     pub fn write(&mut self, register_address: T, value: T) -> Result<(), Error> {
         self.pre();
         register_address.write(|addr_bytes| {
-                                   value.write(|val_bytes| {
+            value.write(|val_bytes| {
                 self.write_bytes(addr_bytes.iter().cloned().chain(val_bytes.iter().cloned()))
             })
-                               })
+        })
     }
 }
 
 impl I2C {
     pub fn connect<T, F>(&mut self, device_address: Address, f: F) -> Result<(), Error>
-        where T: RegisterType,
-              F: FnOnce(I2cConnection<T>) -> Result<(), Error>
+    where
+        T: RegisterType,
+        F: FnOnce(I2cConnection<T>) -> Result<(), Error>,
     {
         {
             let conn = I2cConnection {
@@ -284,12 +301,14 @@ impl I2C {
         self.wait_for_stop()
     }
 
-    pub fn update<F>(&mut self,
-                     device_address: Address,
-                     register_address: u16,
-                     f: F)
-                     -> Result<(), Error>
-        where F: FnOnce(&mut u16)
+    pub fn update<F>(
+        &mut self,
+        device_address: Address,
+        register_address: u16,
+        f: F,
+    ) -> Result<(), Error>
+    where
+        F: FnOnce(&mut u16),
     {
         self.connect(device_address, |mut conn| {
             let mut value = conn.read(register_address)?;
@@ -358,15 +377,14 @@ impl I2C {
 
     // provokes a NACK
     pub fn test_1(&mut self) {
-        let mut i2c = &mut self.0;
+        let i2c = &mut self.0;
 
-        i2c.cr2
-            .update(|r| {
-                        r.set_sadd(Address::bits_7(0b1010101).0); // slave_address
-                        r.set_start(true); // start_generation
-                        r.set_nbytes(0); // number_of_bytes
-                        r.set_autoend(true); // automatic_end_mode
-                    });
+        i2c.cr2.update(|r| {
+            r.set_sadd(Address::bits_7(0b1010101).0); // slave_address
+            r.set_start(true); // start_generation
+            r.set_nbytes(0); // number_of_bytes
+            r.set_autoend(true); // automatic_end_mode
+        });
 
         loop {
             let isr = i2c.isr.read();
@@ -384,17 +402,16 @@ impl I2C {
     // try all addresses
     #[allow(dead_code)]
     pub fn test_2(&mut self) {
-        let mut i2c = &mut self.0;
+        let i2c = &mut self.0;
 
         let mut addr = 0;
         loop {
-            i2c.cr2
-                .update(|r| {
-                            r.set_sadd(Address::bits_7(addr).0); // slave_address
-                            r.set_start(true); // start_generation
-                            r.set_nbytes(0); // number_of_bytes
-                            r.set_autoend(true); // automatic_end_mode
-                        });
+            i2c.cr2.update(|r| {
+                r.set_sadd(Address::bits_7(addr).0); // slave_address
+                r.set_start(true); // start_generation
+                r.set_nbytes(0); // number_of_bytes
+                r.set_autoend(true); // automatic_end_mode
+            });
 
             let mut isr = i2c.isr.read();
             loop {

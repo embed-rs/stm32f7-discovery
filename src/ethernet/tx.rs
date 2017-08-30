@@ -48,9 +48,11 @@ impl TxDescriptor {
             ptr => {
                 self.set_buffer_1_address(0);
                 Some(unsafe {
-                         Box::from_raw(slice::from_raw_parts_mut(ptr as *mut u8,
-                                                                 self.buffer_1_size()))
-                     })
+                    Box::from_raw(slice::from_raw_parts_mut(
+                        ptr as *mut u8,
+                        self.buffer_1_size(),
+                    ))
+                })
             }
         }
     }

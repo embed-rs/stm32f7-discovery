@@ -55,28 +55,26 @@ pub enum ErrorType {
 impl Rng {
     ///! This will take semi-ownership (with &'static) for the rng struct
     /// from board::rng.
-    pub fn init(rng: &'static mut board::rng::Rng,
-                rcc: &mut board::rcc::Rcc)
-                -> Result<Rng, ErrorType> {
-
+    pub fn init(
+        rng: &'static mut board::rng::Rng,
+        rcc: &mut board::rcc::Rcc,
+    ) -> Result<Rng, ErrorType> {
         let control_register = rng.cr.read().rngen();
         if control_register {
             return Err(ErrorType::AlreadyEnabled);
         }
 
-        let mut rng = Rng {
+        let rng = Rng {
             last_number: 0x0,
             counter: 0x0,
             board_rng: rng,
         };
         rcc.ahb2enr.update(|r| r.set_rngen(true));
 
-        rng.board_rng
-            .cr
-            .update(|r| {
-                        r.set_ie(false);
-                        r.set_rngen(true);
-                    });
+        rng.board_rng.cr.update(|r| {
+            r.set_ie(false);
+            r.set_rngen(true);
+        });
 
         Ok(rng)
     }
@@ -84,7 +82,6 @@ impl Rng {
 
     /// For Testing purposes. Do not use except for debugging!
     pub fn tick(&mut self) -> u32 {
-
         self.poll_and_get().unwrap_or(0)
     }
 
@@ -92,7 +89,6 @@ impl Rng {
     /// Actually try to acquire some random number
     /// Returns Ok(number) or Err!
     pub fn poll_and_get(&mut self) -> Result<u32, ErrorType> {
-
         let status = self.board_rng.sr.read();
 
         if status.ceis() {
