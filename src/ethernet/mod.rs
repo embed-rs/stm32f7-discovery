@@ -374,7 +374,6 @@ impl EthernetDevice {
                                        }) if Some(ip_header.dst_addr) == *ipv4_addr => {
                         match icmp.type_ {
                             IcmpType::EchoRequest { .. } => {
-                                //println!("icmp echo request");
                                 let src_ip = ip_header.dst_addr;
                                 let dst_ip = ip_header.src_addr;
                                 if let Some(&dst_mac) = arp_cache.get(&dst_ip) {
@@ -448,8 +447,6 @@ impl EthernetDevice {
                                                              payload: TcpKind::Unknown(payload),
                                                          }),
                                        }) if Some(ip_header.dst_addr) == *ipv4_addr => {
-
-                        println!("TCP: ");
 
                         if let Some(function) = tcp_functions.get_mut(&tcp_header.dst_port) {
                             let connection_id = (
@@ -638,7 +635,6 @@ impl TxDevice {
         self.descriptors[self.next_descriptor].update(|d| d.set_data(data));
         self.next_descriptor = (self.next_descriptor + 1) % self.descriptors.len();
 
-        // println!("insert tx packet");
         self.cleanup();
     }
 
