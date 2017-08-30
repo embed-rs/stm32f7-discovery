@@ -64,7 +64,7 @@ impl Rng {
             return Err(ErrorType::AlreadyEnabled);
         }
 
-        let mut rng = Rng {
+        let rng = Rng {
             last_number: 0x0,
             counter: 0x0,
             board_rng: rng,

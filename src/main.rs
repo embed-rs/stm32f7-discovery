@@ -246,7 +246,7 @@ fn udp_reverse(udp: Udp) -> Option<Cow<[u8]>> {
     Some(reply.into())
 }
 
-fn tcp_reverse<'a>(connection: &TcpConnection, data: &'a [u8]) -> Option<Cow<'a, [u8]>> {
+fn tcp_reverse<'a>(_connection: &TcpConnection, data: &'a [u8]) -> Option<Cow<'a, [u8]>> {
     for byte in data.iter().filter(|&&b| b != 0) {
         print!("{}", char::from(*byte));
     }

@@ -8,7 +8,7 @@ pub fn init(layer: Layer<FramebufferAl88>) {
     static mut LAYER: Option<Layer<FramebufferAl88>> = None;
 
     let mut stdout = STDOUT.lock();
-    let mut layer = unsafe {LAYER.get_or_insert_with(|| layer)};
+    let layer = unsafe { LAYER.get_or_insert_with(|| layer) };
     *stdout = Some(layer.text_writer());
 }
 

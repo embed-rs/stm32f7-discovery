@@ -358,7 +358,7 @@ impl I2C {
 
     // provokes a NACK
     pub fn test_1(&mut self) {
-        let mut i2c = &mut self.0;
+        let i2c = &mut self.0;
 
         i2c.cr2
             .update(|r| {
@@ -384,7 +384,7 @@ impl I2C {
     // try all addresses
     #[allow(dead_code)]
     pub fn test_2(&mut self) {
-        let mut i2c = &mut self.0;
+        let i2c = &mut self.0;
 
         let mut addr = 0;
         loop {

@@ -110,7 +110,7 @@ pub fn init(rcc: &mut Rcc, pwr: &mut Pwr, flash: &mut Flash) {
     rcc.cfgr.update(|r| r.set_ppre2(DIVIDE_2));
 
 
-    let mut systick = unsafe { peripheral::syst_mut() };
+    let systick = unsafe { peripheral::syst_mut() };
 
     let pll_cfgr = rcc.pllcfgr.read();
     let pllm = u32::from(pll_cfgr.pllm());
