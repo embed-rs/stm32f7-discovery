@@ -57,7 +57,7 @@ impl Color {
 
     pub fn to_argb1555(&self) -> u16 {
         (u16::from(self.alpha) & 0x80) << 8 | (u16::from(self.red) & 0xf8) << 7 |
-        (u16::from(self.green) & 0xf8) << 2 | (u16::from(self.blue) & 0xf8) >> 3
+            (u16::from(self.green) & 0xf8) << 2 | (u16::from(self.blue) & 0xf8) >> 3
     }
 
     pub fn from_argb1555(color: u16) -> Color {

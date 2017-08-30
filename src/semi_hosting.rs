@@ -9,14 +9,14 @@ unsafe fn call_svc(num: usize, addr: *const ()) -> usize {
     // move type and argument into registers r0 and r1, then trigger
     // breakpoint 0xAB. afterwards, save a potential return value in r0
     asm!("mov r0,$1\n\t\
-          mov r1,$2\n\t\
-          bkpt 0xAB\n\t\
-          mov $0,r0"
-        : "=ri"(result)
-        : "ri"(num), "ri"(addr)
-        : "r0", "r1"
-        : "volatile"
-       );
+       mov r1,$2\n\t\
+       bkpt 0xAB\n\t\
+       mov $0,r0"
+     : "=ri"(result)
+     : "ri"(num), "ri"(addr)
+     : "r0", "r1"
+     : "volatile"
+    );
 
     // return result (== r0)
     result

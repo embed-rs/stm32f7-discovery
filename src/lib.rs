@@ -8,26 +8,25 @@
 #![feature(global_allocator)]
 #![feature(used)]
 #![feature(optin_builtin_traits)]
-
 #![no_std]
 
-// hardware register structs with accessor methods
+/// hardware register structs with accessor methods
 pub extern crate embedded_stm32f7 as board;
 pub use board::embedded;
 
-// low level access to the cortex-m cpu
+/// low level access to the cortex-m cpu
 pub extern crate cortex_m;
-// volatile wrapper types
-extern crate volatile;
+
 #[macro_use]
 extern crate alloc;
+extern crate alloc_cortex_m;
 extern crate arrayvec;
 extern crate bit_field;
-extern crate spin;
 extern crate byteorder;
 extern crate net;
 extern crate rusttype;
-extern crate alloc_cortex_m;
+extern crate spin;
+extern crate volatile;
 
 #[macro_use]
 pub mod semi_hosting;
@@ -59,11 +58,9 @@ pub extern "C" fn panic_fmt(fmt: core::fmt::Arguments, file: &'static str, line:
         hprintln_err!("    {}", fmt);
 
         unsafe { lcd::stdout::force_unlock() }
-        lcd::stdout::with_stdout(|stdout| {
-            if let Some(ref mut stdout) = *stdout {
-                let _ = writeln!(stdout, "\nPANIC in {} at line {}:", file, line);
-                let _ = writeln!(stdout, "    {}", fmt);
-            }
+        lcd::stdout::with_stdout(|stdout| if let Some(ref mut stdout) = *stdout {
+            let _ = writeln!(stdout, "\nPANIC in {} at line {}:", file, line);
+            let _ = writeln!(stdout, "    {}", fmt);
         });
 
         loop {}

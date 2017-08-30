@@ -5,14 +5,16 @@
 //! - **Ownership based interrupt management**. The `InterruptTable` owns the nvic register
 //! and thus it is the only one that can access and change the interrupt controller.
 //!
-//! - **Easy to use closure-based ISR registration**. Closures can be registered as interrupt service routine.
+//! - **Easy to use closure-based ISR registration**. Closures can be registered as interrupt
+//! service routine.
 //!
-//! - **Free of data races**. Thanks to Rust `Send` and `Sync` concept, the interrupt system is free of data races.
-//! Shared mutable access on a variable must be synchronized with a PrimaskMutex,
-//! otherwise the compilation fails.
+//! - **Free of data races**. Thanks to Rust `Send` and `Sync` concept, the interrupt system
+//! is free of data races. Shared mutable access on a variable must be synchronized with a
+//! PrimaskMutex, otherwise the compilation fails.
 //!
-//! - **Scoped IRSs with access to the enviroment**. It is guaranteed that the closure is unregistered at the end
-//! of the scope. Thus it is safe to access the parent stack in the interrupt service routine.
+//! - **Scoped IRSs with access to the enviroment**. It is guaranteed that the closure is
+//! unregistered at the end of the scope. Thus it is safe to access the parent stack in the
+//! interrupt service routine.
 
 use alloc::boxed::Box;
 use board::nvic::Nvic;
@@ -32,7 +34,7 @@ unsafe extern "C" fn dispatcher() {
         : "=r" (ipsr)   // outputs
         :               // inputs
         :               // clobbers
-        :               
+        :
     );
     // Bits [31:9] are reserved.
     // Bits [8:0] contains the ISR_NUMBER. IRQ0 has the ISR_NUMBER 16.
@@ -42,7 +44,6 @@ unsafe extern "C" fn dispatcher() {
         Some(ref mut isr) => isr(),
         None => default_handler(ipsr as u8),
     }
-
 }
 
 #[no_mangle]
@@ -155,7 +156,8 @@ static mut ISRS: [Option<Box<FnMut()>>; 98] = [
 /// Default interrupt handler
 static mut DEFAULT_HANDLER: Option<Box<FnMut(u8)>> = None;
 
-// Unreachable at the moment (only when interrupt was enabled before InterruptTable got ownership...)
+// Unreachable at the moment (only when interrupt was enabled before InterruptTable got
+// ownership...)
 fn default_handler(irq: u8) {
     unsafe {
         match DEFAULT_HANDLER {
@@ -190,8 +192,8 @@ impl<T> InterruptHandle<T> {
 /// The `InterruptTable` guarantees safe and 'free of data races' use of interrupts.
 ///
 /// To ensure that no data races can occur, it uses the Send and Sync concurrency concept from Rust.
-/// The `InterruptTable` can only be used in the `code(&mut InterruptTable)` function passed to the `scope` function,
-/// to ensure that `InterruptTable.drop()` is called.
+/// The `InterruptTable` can only be used in the `code(&mut InterruptTable)` function passed to the
+/// `scope` function, to ensure that `InterruptTable.drop()` is called.
 ///
 /// # Examples
 /// ```
@@ -268,9 +270,9 @@ where
 {
     unsafe {
         debug_assert!(DEFAULT_HANDLER.is_none());
-        DEFAULT_HANDLER = Some(transmute::<Box<FnMut(u8) + Send>, Box<FnMut(u8) + 'static>>(
-            Box::new(default_handler),
-        ));
+        DEFAULT_HANDLER = Some(
+            transmute::<Box<FnMut(u8) + Send>, Box<FnMut(u8) + 'static>>(Box::new(default_handler)),
+        );
     }
 
     let mut interrupt_table = InterruptTable {
@@ -318,8 +320,9 @@ impl<'a> InterruptTable<'a> {
         self.register_owned(irq, priority, (), move |_| isr())
     }
 
-    /// Registers an interrupt with the lifetime of the `InterruptTable` and pass ownership of a variable `owned_data: T` that is passed
-    /// to the `isr(&mut T)` when the corresponding interupt `irq` occur.
+    /// Registers an interrupt with the lifetime of the `InterruptTable` and pass ownership
+    /// of a variable `owned_data: T` that is passed to the `isr(&mut T)` when the corresponding
+    /// interupt `irq` occur.
     ///
     /// The ownership of the data `owned_data` is returned in the `unregister()` function
     ///
@@ -356,16 +359,18 @@ impl<'a> InterruptTable<'a> {
         if unsafe { ISRS[irq as usize].is_some() } {
             return Err(Error::InterruptAlreadyInUse(irq));
         }
-        // Insert data only, when interrupt isn't used, therefore nobody reads the data => no dataraces
+        // Insert data only, when interrupt isn't used, therefore nobody reads the data
+        // => no dataraces
         self.data[irq as usize] = Box::into_raw(Box::new(owned_data)) as *mut ();
 
-        // transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>> is safe, because of the drop implementation of InterruptTable ('static is not needed for closure)
+        // transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>> is safe, because of the
+        // drop implementation of InterruptTable ('static is not needed for closure)
         // and alway only one isr can access the data (Send is not needed for closure)
         let isr = unsafe {
             let parameter = &mut *(self.data[irq as usize] as *mut T);
-            transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>>(Box::new(
-                move || { isr(parameter); },
-            ))
+            transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>>(
+                Box::new(move || { isr(parameter); }),
+            )
         };
         let interrupt_handle = self.insert_boxed_isr(irq, isr)?;
         self.set_priority(&interrupt_handle, priority);
@@ -415,8 +420,8 @@ impl<'a> InterruptTable<'a> {
         self.data[irq as usize] = Box::into_raw(Box::new(())) as *mut ();
 
         // Safe: Isr is removed from the static array after the closure *code* is executed.
-        // When the *code(self)* panics, the programm ends in an endless loop with disabled interrupts
-        // and never returns. So the state of the ISRS does't matter.
+        // When the *code(self)* panics, the programm ends in an endless loop with disabled
+        // interrupts and never returns. So the state of the ISRS does't matter.
         let isr = unsafe {
             transmute::<Box<FnMut() + Send>, Box<FnMut() + 'static + Send>>(Box::new(isr))
         };
@@ -538,7 +543,8 @@ impl<'a> InterruptTable<'a> {
         let irq = interrupt_handle.irq;
         // The STM32F7 only supports 16 priority levels
         // Assert that priority < 16
-        // STM32F7 only uses 4 bits for Priority. priority << 4, because the upper 4 bits are used for priority.
+        // STM32F7 only uses 4 bits for Priority. priority << 4, because the upper 4 bits are used
+        // for priority.
         let priority = (priority as u8) << 4;
 
         self.nvic.ipr[irq as usize].update(|r| r.set(priority));
@@ -551,14 +557,14 @@ impl<'a> InterruptTable<'a> {
 
         let res = self.nvic.ipr[irq as usize].read().get();
 
-        // STM32F7 only uses 4 bits for Priority. priority << 4, because the upper 4 bits are used for priority.
+        // STM32F7 only uses 4 bits for Priority. priority << 4, because the upper 4 bits are used
+        // for priority.
         match Priority::from_u8(res >> 4) {
             Ok(priority) => priority,
             Err(PriorityDoesNotExistError(prio_number)) => {
                 unreachable!("Priority {} does not exist", prio_number)
             }
         }
-
     }
 
     /// Clears the pending state of the interrupt corresponding to the `interrupt_handle`.

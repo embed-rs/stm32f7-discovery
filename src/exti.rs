@@ -25,7 +25,6 @@ impl Exti {
         edge_detection: EdgeDetection,
         syscfg: &mut Syscfg,
     ) -> Result<ExtiHandle, LineAlreadyUsedError> {
-
         macro_rules! set_registers {
             ($number:expr, $resyscfg:ident, $multi:ident, $imr:ident, $tr:ident, $port:ident) => {{
                 if self.lines_used.get_bit($number) {
@@ -87,7 +86,6 @@ impl Exti {
         use self::ExtiLine::*;
 
         match exti_line {
-
             Gpio(port, pin) => {
                 use self::Pin::*;
 
@@ -109,7 +107,6 @@ impl Exti {
                     Pin14 => set_registers!(14, exticr4, set_exti14, set_mr14, set_tr14, port),
                     Pin15 => set_registers!(15, exticr4, set_exti15, set_mr15, set_tr15, port),
                 }
-
             }
             PvdOutput => set_registers!(16, set_mr16, set_tr16),
             RtcAlarm => set_registers!(17, set_mr17, set_tr17),
@@ -131,7 +128,6 @@ impl Exti {
     }
 
     pub fn unregister(&mut self, exti_handle: ExtiHandle) {
-
         use self::ExtiLine::*;
 
         match exti_handle.exti_line {
@@ -156,7 +152,6 @@ impl Exti {
                     Pin14 => self.exti.imr.update(|r| r.set_mr14(false)),
                     Pin15 => self.exti.imr.update(|r| r.set_mr15(false)),
                 }
-
             }
             PvdOutput => {
                 self.exti.imr.update(|r| r.set_mr16(false));
@@ -188,7 +183,6 @@ impl Exti {
             }
             // Last line is missing in embedded_stm32f7
             Lptim1Asynchronous => unimplemented!(),
-
         }
     }
 }
@@ -242,7 +236,6 @@ impl PrRef {
         use self::ExtiLine::*;
 
         match exti_line {
-
             Gpio(_, pin) => {
                 use self::Pin::*;
                 match pin {
@@ -263,7 +256,6 @@ impl PrRef {
                     Pin14 => pr.set_pr14(value),
                     Pin15 => pr.set_pr15(value),
                 }
-
             }
             PvdOutput => pr.set_pr16(value),
             RtcAlarm => pr.set_pr17(value),
@@ -274,7 +266,6 @@ impl PrRef {
             RtcWakeup => pr.set_pr22(value),
             // Last line is missing in embedded_stm32f7
             Lptim1Asynchronous => unimplemented!(),
-
         }
 
         unsafe {

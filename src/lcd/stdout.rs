@@ -1,6 +1,6 @@
 use spin::Mutex;
 use core::fmt;
-use super::{TextWriter, Layer, FramebufferAl88};
+use super::{FramebufferAl88, Layer, TextWriter};
 
 static STDOUT: Mutex<Option<TextWriter<FramebufferAl88>>> = Mutex::new(None);
 
@@ -34,7 +34,10 @@ pub fn print(args: fmt::Arguments) {
     }
 }
 
-pub fn with_stdout<F>(f: F) where F: FnOnce(&mut Option<TextWriter<FramebufferAl88>>) {
+pub fn with_stdout<F>(f: F)
+where
+    F: FnOnce(&mut Option<TextWriter<FramebufferAl88>>),
+{
     f(&mut *STDOUT.lock())
 }
 

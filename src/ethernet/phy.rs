@@ -33,10 +33,12 @@ pub enum Speed {
 
 pub fn init(ethernet_mac: &mut EthernetMac) -> Result<AutoNegotiationResult, Error> {
     // reset PHY
-    phy_write(ethernet_mac,
-              LAN8742A_PHY_ADDRESS,
-              BASIC_CONTROL_REG,
-              PHY_RESET);
+    phy_write(
+        ethernet_mac,
+        LAN8742A_PHY_ADDRESS,
+        BASIC_CONTROL_REG,
+        PHY_RESET,
+    );
     // wait 0.5s
     system_clock::wait(500);
     // wait for reset bit auto clear
@@ -51,10 +53,12 @@ pub fn init(ethernet_mac: &mut EthernetMac) -> Result<AutoNegotiationResult, Err
     }
 
     // enable auto-negotiation
-    phy_write(ethernet_mac,
-              LAN8742A_PHY_ADDRESS,
-              BASIC_CONTROL_REG,
-              AUTONEGOTIATION_ENABLE | AUTONEGOTIATION_RESTART);
+    phy_write(
+        ethernet_mac,
+        LAN8742A_PHY_ADDRESS,
+        BASIC_CONTROL_REG,
+        AUTONEGOTIATION_ENABLE | AUTONEGOTIATION_RESTART,
+    );
 
     // wait until auto-negotiation complete bit is set
     let ticks = system_clock::ticks();
@@ -68,30 +72,28 @@ pub fn init(ethernet_mac: &mut EthernetMac) -> Result<AutoNegotiationResult, Err
     // auto-negotiation done bit should be set
     assert!(ssr.get_bit(12));
     let (duplex, speed) = match ssr.get_bits(2..5) {
-        0b001 => (false, Speed::Speed10M), // 10BASE-T half-duplex
-        0b101 => (true, Speed::Speed10M), // 10BASE-T full-duplex
+        0b001 => (false, Speed::Speed10M),  // 10BASE-T half-duplex
+        0b101 => (true, Speed::Speed10M),   // 10BASE-T full-duplex
         0b010 => (false, Speed::Speed100M), // 100BASE-TX half-duplex
-        0b110 => (true, Speed::Speed100M), // 100BASE-TX full-duplex
+        0b110 => (true, Speed::Speed100M),  // 100BASE-TX full-duplex
         other => unreachable!("invalid auto-negotiation value: {:#b}", other),
     };
     Ok(AutoNegotiationResult {
-           duplex: duplex,
-           speed: speed,
-       })
+        duplex: duplex,
+        speed: speed,
+    })
 }
 
 fn phy_read(ethernet_mac: &mut EthernetMac, phy_address: u8, register: u8) -> u16 {
     // set the MII address register
-    ethernet_mac
-        .macmiiar
-        .update(|r| {
-                    assert_eq!(r.mb(), false); // assert that MII is not busy
+    ethernet_mac.macmiiar.update(|r| {
+        assert_eq!(r.mb(), false); // assert that MII is not busy
 
-                    r.set_pa(phy_address); // set phy address
-                    r.set_mr(register); // set mii register address
-                    r.set_mw(false); // MII write operation (false = read)
-                    r.set_mb(true); // MII busy
-                });
+        r.set_pa(phy_address); // set phy address
+        r.set_mr(register); // set mii register address
+        r.set_mw(false); // MII write operation (false = read)
+        r.set_mb(true); // MII busy
+    });
 
     // wait for completion (busy flag cleared)
     while ethernet_mac.macmiiar.read().mb() {}
@@ -109,14 +111,12 @@ fn phy_write(ethernet_mac: &mut EthernetMac, phy_address: u8, register: u8, valu
     ethernet_mac.macmiidr.write(macmiidr);
 
     // set the MII address register
-    ethernet_mac
-        .macmiiar
-        .update(|r| {
-                    r.set_pa(phy_address); // set phy address
-                    r.set_mr(register); // set mii register address
-                    r.set_mw(true); // MII write operation (true = write)
-                    r.set_mb(true); // MII busy
-                });
+    ethernet_mac.macmiiar.update(|r| {
+        r.set_pa(phy_address); // set phy address
+        r.set_mr(register); // set mii register address
+        r.set_mw(true); // MII write operation (true = write)
+        r.set_mb(true); // MII busy
+    });
 
     // wait for completion (busy flag cleared)
     while ethernet_mac.macmiiar.read().mb() {}

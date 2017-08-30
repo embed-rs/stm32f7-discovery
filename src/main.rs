@@ -3,7 +3,6 @@
 #![feature(alloc)]
 #![feature(asm)]
 #![feature(compiler_builtins_lib)]
-
 #![no_std]
 #![no_main]
 
@@ -11,14 +10,15 @@
 extern crate stm32f7_discovery as stm32f7;
 
 // initialization routines for .data and .bss
-extern crate r0;
+
 #[macro_use]
 extern crate alloc;
 extern crate compiler_builtins;
+extern crate r0;
 
 // hardware register structs with accessor methods
-use stm32f7::{system_clock, sdram, lcd, i2c, audio, touch, board, ethernet, embedded};
-use stm32f7::ethernet::{Udp, TcpConnection};
+use stm32f7::{audio, board, embedded, ethernet, lcd, sdram, system_clock, touch, i2c};
+use stm32f7::ethernet::{TcpConnection, Udp};
 use alloc::borrow::Cow;
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
@@ -85,43 +85,45 @@ fn main(hw: board::Hardware) -> ! {
         ..
     } = hw;
 
-    let mut gpio = Gpio::new(gpio_a,
-                             gpio_b,
-                             gpio_c,
-                             gpio_d,
-                             gpio_e,
-                             gpio_f,
-                             gpio_g,
-                             gpio_h,
-                             gpio_i,
-                             gpio_j,
-                             gpio_k);
+    let mut gpio = Gpio::new(
+        gpio_a,
+        gpio_b,
+        gpio_c,
+        gpio_d,
+        gpio_e,
+        gpio_f,
+        gpio_g,
+        gpio_h,
+        gpio_i,
+        gpio_j,
+        gpio_k,
+    );
 
     system_clock::init(rcc, pwr, flash);
 
     // enable all gpio ports
-    rcc.ahb1enr
-        .update(|r| {
-            r.set_gpioaen(true);
-            r.set_gpioben(true);
-            r.set_gpiocen(true);
-            r.set_gpioden(true);
-            r.set_gpioeen(true);
-            r.set_gpiofen(true);
-            r.set_gpiogen(true);
-            r.set_gpiohen(true);
-            r.set_gpioien(true);
-            r.set_gpiojen(true);
-            r.set_gpioken(true);
-        });
+    rcc.ahb1enr.update(|r| {
+        r.set_gpioaen(true);
+        r.set_gpioben(true);
+        r.set_gpiocen(true);
+        r.set_gpioden(true);
+        r.set_gpioeen(true);
+        r.set_gpiofen(true);
+        r.set_gpiogen(true);
+        r.set_gpiohen(true);
+        r.set_gpioien(true);
+        r.set_gpiojen(true);
+        r.set_gpioken(true);
+    });
 
     // configure led pin as output pin
     let led_pin = (gpio::Port::PortI, gpio::Pin::Pin1);
-    let mut led = gpio.to_output(led_pin,
-                                 gpio::OutputType::PushPull,
-                                 gpio::OutputSpeed::Low,
-                                 gpio::Resistor::NoPull)
-        .expect("led pin already in use");
+    let mut led = gpio.to_output(
+        led_pin,
+        gpio::OutputType::PushPull,
+        gpio::OutputSpeed::Low,
+        gpio::Resistor::NoPull,
+    ).expect("led pin already in use");
 
     // turn led on
     led.set(true);
@@ -154,18 +156,24 @@ fn main(hw: board::Hardware) -> ! {
     assert!(audio::init_wm8994(&mut i2c_3).is_ok());
 
     // ethernet
-    let mut eth_device = ethernet::EthernetDevice::new(Default::default(),
-                                                       Default::default(),
-                                                       rcc,
-                                                       syscfg,
-                                                       &mut gpio,
-                                                       ethernet_mac,
-                                                       ethernet_dma);
+    let mut eth_device = ethernet::EthernetDevice::new(
+        Default::default(),
+        Default::default(),
+        rcc,
+        syscfg,
+        &mut gpio,
+        ethernet_mac,
+        ethernet_dma,
+    );
     match eth_device {
         Ok(ref mut eth_device) => {
-            eth_device.listen_on_udp_port(15, Box::new(udp_reverse)).unwrap();
-            eth_device.register_tcp_port(15, Box::new(tcp_reverse)).unwrap();
-        },
+            eth_device
+                .listen_on_udp_port(15, Box::new(udp_reverse))
+                .unwrap();
+            eth_device
+                .register_tcp_port(15, Box::new(tcp_reverse))
+                .unwrap();
+        }
         Err(e) => println!("ethernet init failed: {:?}", e),
     }
 
@@ -179,22 +187,25 @@ fn main(hw: board::Hardware) -> ! {
     use stm32f7::exti::{EdgeDetection, Exti, ExtiLine};
 
     let mut exti = Exti::new(exti);
-    let mut exti_handle = exti.register(ExtiLine::Gpio(Port::PortI, Pin::Pin11), EdgeDetection::FallingEdge, syscfg).unwrap();
+    let mut exti_handle = exti.register(
+        ExtiLine::Gpio(Port::PortI, Pin::Pin11),
+        EdgeDetection::FallingEdge,
+        syscfg,
+    ).unwrap();
 
     use stm32f7::interrupts::{scope, Priority};
     use stm32f7::interrupts::interrupt_request::InterruptRequest;
 
-    scope(nvic, |_| {}, 
+    scope(
+        nvic,
+        |_| {},
         |interrupt_table| {
-
-            let _ = interrupt_table.register(InterruptRequest::Exti10to15, Priority::P1,
-                move || {
-                    exti_handle.clear_pending_state();
-                    // choose a new background color
-                    let new_color = ((system_clock::ticks() as u32).wrapping_mul(19801)) % 0x1000000;
-                    lcd.set_background_color(lcd::Color::from_hex(new_color));
-                }
-            );
+            let _ = interrupt_table.register(InterruptRequest::Exti10to15, Priority::P1, move || {
+                exti_handle.clear_pending_state();
+                // choose a new background color
+                let new_color = ((system_clock::ticks() as u32).wrapping_mul(19801)) % 0x1000000;
+                lcd.set_background_color(lcd::Color::from_hex(new_color));
+            });
 
             loop {
                 let ticks = system_clock::ticks();
@@ -230,7 +241,7 @@ fn main(hw: board::Hardware) -> ! {
                     }
                 }
             }
-        }
+        },
     )
 }
 

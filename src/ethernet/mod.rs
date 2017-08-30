@@ -1,6 +1,6 @@
 use core::fmt;
 use alloc::boxed::Box;
-use alloc::{Vec, VecDeque, BTreeMap};
+use alloc::{BTreeMap, Vec, VecDeque};
 use alloc::borrow::Cow;
 
 use board::{rcc, syscfg};
@@ -61,15 +61,16 @@ pub enum Packet<'a> {
 impl<'a> Packet<'a> {
     pub fn udp_port(&self, port: u16) -> Option<&Udp> {
         if let &Packet::Udp(ref udp) = self {
-                if udp.udp_header.dst_port == port {
-                    return Some(udp);
-                }
+            if udp.udp_header.dst_port == port {
+                return Some(udp);
             }
+        }
         None
     }
 
     pub fn bind_udp<F>(&self, port: u16, f: F)
-        where F: FnOnce(&Udp)
+    where
+        F: FnOnce(&Udp),
     {
         if let Some(udp) = self.udp_port(port) {
             f(udp)
@@ -99,19 +100,26 @@ pub struct EthernetDevice {
     arp_cache: BTreeMap<Ipv4Address, EthernetAddress>,
     udp_functions: BTreeMap<u16, Box<FnMut(Udp) -> Option<Cow<[u8]>>>>,
     tcp_connections: BTreeMap<(Ipv4Address, Ipv4Address, u16, u16), TcpConnection>,
-    tcp_functions: BTreeMap<u16, Box<for<'d> FnMut(&TcpConnection, &'d [u8]) -> Option<Cow<'d, [u8]>>>>,
+    tcp_functions: BTreeMap<
+        u16,
+        Box<
+            for<'d> FnMut(&TcpConnection, &'d [u8])
+                -> Option<Cow<'d, [u8]>>,
+        >,
+    >,
     packet_queue: VecDeque<Box<[u8]>>,
 }
 
 impl EthernetDevice {
-    pub fn new(rx_config: RxConfig,
-               tx_config: TxConfig,
-               rcc: &mut rcc::Rcc,
-               syscfg: &mut syscfg::Syscfg,
-               gpio: &mut gpio::Gpio,
-               ethernet_mac: &'static mut EthernetMac,
-               ethernet_dma: &'static mut EthernetDma)
-               -> Result<EthernetDevice, Error> {
+    pub fn new(
+        rx_config: RxConfig,
+        tx_config: TxConfig,
+        rcc: &mut rcc::Rcc,
+        syscfg: &mut syscfg::Syscfg,
+        gpio: &mut gpio::Gpio,
+        ethernet_mac: &'static mut EthernetMac,
+        ethernet_dma: &'static mut EthernetDma,
+    ) -> Result<EthernetDevice, Error> {
         use byteorder::{ByteOrder, LittleEndian};
 
         init::init(rcc, syscfg, gpio, ethernet_mac, ethernet_dma)?;
@@ -156,11 +164,13 @@ impl EthernetDevice {
     }
 
     fn start_send(&mut self) {
-        match self.ethernet_dma.dmasr.read().tps() { // transmit process state
+        match self.ethernet_dma.dmasr.read().tps() {
+            // transmit process state
             0b000 => panic!("stopped"), // stopped
             0b001 | 0b010 | 0b011 | 0b111 => {
                 println!("running");
-            } // running
+            }
+            // running
             0b110 => {
                 // suspended
                 if !self.tx.queue_empty() {
@@ -195,14 +205,15 @@ impl EthernetDevice {
     }
 
     pub fn listen_on_udp_port<F>(&mut self, port: u16, f: Box<F>) -> Result<(), PortInUse<Box<F>>>
-        where F: FnMut(Udp) -> Option<Cow<[u8]>> + 'static
+    where
+        F: FnMut(Udp) -> Option<Cow<[u8]>> + 'static,
     {
         use alloc::btree_map::Entry;
         match self.udp_functions.entry(port) {
             Entry::Vacant(entry) => {
                 entry.insert(f);
                 Ok(())
-            },
+            }
             Entry::Occupied(_) => Err(PortInUse::new(false, port, f)),
         }
     }
@@ -216,7 +227,7 @@ impl EthernetDevice {
             Entry::Vacant(entry) => {
                 entry.insert(f);
                 Ok(())
-            },
+            }
             Entry::Occupied(_) => Err(PortInUse::new(true, port, f)),
         }
     }
@@ -250,7 +261,8 @@ impl EthernetDevice {
                         self.packet_queue.push_back(packet);
                     } else {
                         let arp_request = arp::new_request_packet(ETH_ADDR, id.1, id.0);
-                        let arp_request_packet = HeapTxPacket::write_out(arp_request)?.into_boxed_slice();
+                        let arp_request_packet =
+                            HeapTxPacket::write_out(arp_request)?.into_boxed_slice();
                         self.packet_queue.push_back(arp_request_packet);
                     }
                 }
@@ -275,30 +287,30 @@ impl EthernetDevice {
 
     fn process_next_packet(&mut self) -> Result<(), Error> {
         let &mut EthernetDevice {
-                     ref mut rx,
-                     ref mut ipv4_addr,
-                     ref mut requested_ipv4_addr,
-                     ref mut arp_cache,
-                     ref mut udp_functions,
-                     ref mut tcp_connections,
-                     ref mut tcp_functions,
-                     ref mut packet_queue,
-                     ..
-                 } = self;
+            ref mut rx,
+            ref mut ipv4_addr,
+            ref mut requested_ipv4_addr,
+            ref mut arp_cache,
+            ref mut udp_functions,
+            ref mut tcp_connections,
+            ref mut tcp_functions,
+            ref mut packet_queue,
+            ..
+        } = self;
 
         rx.receive(|data| -> Result<_, Error> {
-                use net;
-                use net::ethernet::EthernetKind;
-                use net::arp;
-                use net::ipv4::{Ipv4Packet, Ipv4Kind};
-                use net::udp::{UdpPacket, UdpKind};
-                use net::tcp::{TcpPacket, TcpKind};
-                use net::dhcp::{self, DhcpPacket, DhcpType};
-                use net::icmp::IcmpType;
+            use net;
+            use net::ethernet::EthernetKind;
+            use net::arp;
+            use net::ipv4::{Ipv4Kind, Ipv4Packet};
+            use net::udp::{UdpKind, UdpPacket};
+            use net::tcp::{TcpKind, TcpPacket};
+            use net::dhcp::{self, DhcpPacket, DhcpType};
+            use net::icmp::IcmpType;
 
-                let EthernetPacket { header: _, payload } = net::parse(data)?;
+            let EthernetPacket { header: _, payload } = net::parse(data)?;
 
-                match payload {
+            match payload {
                     // DHCP offer or ack for us
                     EthernetKind::Ipv4(Ipv4Packet {
                                            header: _,
@@ -317,7 +329,8 @@ impl EthernetDevice {
                                 if requested_ipv4_addr.is_none() {
                                     *requested_ipv4_addr = Some(ip);
                                     let reply = dhcp::new_request_msg(ETH_ADDR, ip, dhcp_server_ip);
-                                    let reply_packet = HeapTxPacket::write_out(reply)?.into_boxed_slice();
+                                    let reply_packet = HeapTxPacket::write_out(reply)?
+                                        .into_boxed_slice();
                                     packet_queue.push_back(reply_packet);
                                 }
                             }
@@ -342,7 +355,8 @@ impl EthernetDevice {
                                          arp.src_ip,
                                          arp.src_mac);
                                 let reply = arp.response_packet(ETH_ADDR);
-                                let reply_packet = HeapTxPacket::write_out(reply)?.into_boxed_slice();
+                                let reply_packet = HeapTxPacket::write_out(reply)?
+                                    .into_boxed_slice();
                                 packet_queue.push_back(reply_packet);
                             }
                             ArpOperation::Response => {
@@ -366,12 +380,14 @@ impl EthernetDevice {
                                 if let Some(&dst_mac) = arp_cache.get(&dst_ip) {
                                     let reply =
                                         icmp.echo_reply_packet(ETH_ADDR, dst_mac, src_ip, dst_ip);
-                                    let reply_packet = HeapTxPacket::write_out(reply)?.into_boxed_slice();
+                                    let reply_packet = HeapTxPacket::write_out(reply)?
+                                        .into_boxed_slice();
                                     packet_queue.push_back(reply_packet);
                                 } else {
                                     let arp_request =
                                         arp::new_request_packet(ETH_ADDR, src_ip, dst_ip);
-                                    let arp_request_packet = HeapTxPacket::write_out(arp_request)?.into_boxed_slice();
+                                    let arp_request_packet = HeapTxPacket::write_out(arp_request)?
+                                        .into_boxed_slice();
                                     packet_queue.push_back(arp_request_packet);
                                 }
                             }
@@ -400,7 +416,8 @@ impl EthernetDevice {
                                               udp_header,
                                               payload,
                                           };
-                        let reply = udp_functions.get_mut(&udp_header.dst_port).and_then(|f| f(udp_packet));
+                        let reply = udp_functions.get_mut(&udp_header.dst_port)
+                            .and_then(|f| f(udp_packet));
                         if let Some(reply_payload) = reply {
                             let src_ip = ip_header.dst_addr;
                             let dst_ip = ip_header.src_addr;
@@ -416,7 +433,8 @@ impl EthernetDevice {
                                 packet_queue.push_back(packet);
                             } else {
                                 let arp_request = arp::new_request_packet(ETH_ADDR, src_ip, dst_ip);
-                                let packet = HeapTxPacket::write_out(arp_request)?.into_boxed_slice();
+                                let packet = HeapTxPacket::write_out(arp_request)?
+                                    .into_boxed_slice();
                                 packet_queue.push_back(packet);
                             }
                         };
@@ -442,7 +460,7 @@ impl EthernetDevice {
                             );
                             let connection = tcp_connections
                                 .entry(connection_id)
-                                .or_insert_with(|| { println!("new connection"); TcpConnection::new(connection_id)});
+                                .or_insert_with(|| { TcpConnection::new(connection_id) });
 
                             let tcp_packet = TcpPacket {
                                 header: tcp_header,
@@ -458,8 +476,8 @@ impl EthernetDevice {
                     _ => {} //{println!("{:?}", other)},
                 }
 
-                Ok(())
-            })?
+            Ok(())
+        })?
     }
 }
 
@@ -477,17 +495,18 @@ pub struct PortInUse<F> {
 
 impl<F> PortInUse<F> {
     pub fn new(tcp: bool, port: u16, f: F) -> PortInUse<F> {
-        PortInUse {
-            tcp,
-            port,
-            f,
-        }
+        PortInUse { tcp, port, f }
     }
 }
 
 impl<F> fmt::Debug for PortInUse<F> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "{} port {} already in use", if self.tcp { "TCP" } else { "UDP" }, self.port)
+        writeln!(
+            f,
+            "{} port {} already in use",
+            if self.tcp { "TCP" } else { "UDP" },
+            self.port
+        )
     }
 }
 
@@ -519,11 +538,11 @@ impl RxDevice {
         }
 
         Ok(RxDevice {
-               config: config,
-               buffer: buffer,
-               descriptors: descriptors.into_boxed_slice(),
-               next_descriptor: 0,
-           })
+            config: config,
+            buffer: buffer,
+            descriptors: descriptors.into_boxed_slice(),
+            next_descriptor: 0,
+        })
     }
 
     fn packet_data(&self, descriptor_index: usize) -> Result<&[u8], Error> {
@@ -540,8 +559,10 @@ impl RxDevice {
         let mut i = 0;
         while !last_descriptor.is_last_descriptor() {
             i += 1;
-            assert!(descriptor_index + i < self.descriptors.len(),
-                    "last descriptor buffer too small"); // no wrap around
+            assert!(
+                descriptor_index + i < self.descriptors.len(),
+                "last descriptor buffer too small"
+            ); // no wrap around
             last_descriptor = self.descriptors[descriptor_index + i].read();
             if last_descriptor.own() {
                 return Err(Error::Exhausted); // packet is not fully received
@@ -558,7 +579,8 @@ impl RxDevice {
     }
 
     fn receive<T, F>(&mut self, f: F) -> Result<T, Error>
-        where F: FnOnce(&[u8]) -> T
+    where
+        F: FnOnce(&[u8]) -> T,
     {
         let descriptor_index = self.next_descriptor;
         let ret = self.packet_data(descriptor_index).map(f);
@@ -632,8 +654,8 @@ impl TxDevice {
         let mut c = 0;
         for descriptor in self.descriptors.iter_mut() {
             descriptor.update(|d| if !d.own() && d.buffer().is_some() {
-                                  c += 1;
-                              });
+                c += 1;
+            });
         }
         if c > 0 {
             // println!("cleaned up {} packets", c);
@@ -680,6 +702,8 @@ pub struct TxConfig {
 
 impl Default for TxConfig {
     fn default() -> TxConfig {
-        TxConfig { number_of_descriptors: 64 }
+        TxConfig {
+            number_of_descriptors: 64,
+        }
     }
 }
