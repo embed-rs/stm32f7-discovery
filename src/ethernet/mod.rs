@@ -231,16 +231,49 @@ impl EthernetDevice {
             self.send_dhcp_discover()?;
         }
 
-        let reply = self.process_next_packet()?;
-        if let Some(tx_packet) = reply {
-            self.tx.insert(tx_packet);
+        self.process_next_packet()?;
+
+        // TODO move somewhere else
+        {
+            use net::arp;
+            use net::ipv4::Ipv4Packet;
+
+            for (id, connection) in self.tcp_connections.iter_mut() {
+                for packet in connection.packets() {
+                    if let Some(&dst_mac) = self.arp_cache.get(&id.0) {
+                        let packet = EthernetPacket::new_ipv4(
+                            ETH_ADDR,
+                            dst_mac,
+                            Ipv4Packet::new_tcp(id.1, id.0, packet),
+                        );
+                        let packet = HeapTxPacket::write_out(packet)?.into_boxed_slice();
+                        self.packet_queue.push_back(packet);
+                    } else {
+                        let arp_request = arp::new_request_packet(ETH_ADDR, id.1, id.0);
+                        let arp_request_packet = HeapTxPacket::write_out(arp_request)?.into_boxed_slice();
+                        self.packet_queue.push_back(arp_request_packet);
+                    }
+                }
+            }
+        }
+
+        let packets_inserted = {
+            let packets = self.packet_queue.drain(..);
+            let packets_inserted = packets.len();
+            for packet in packets {
+                self.tx.insert(packet);
+            }
+            packets_inserted
+        };
+
+        if packets_inserted > 0 {
             self.start_send();
         }
 
         Ok(())
     }
 
-    fn process_next_packet(&mut self) -> Result<Option<Box<[u8]>>, Error> {
+    fn process_next_packet(&mut self) -> Result<(), Error> {
         let &mut EthernetDevice {
                      ref mut rx,
                      ref mut ipv4_addr,
@@ -409,32 +442,15 @@ impl EthernetDevice {
                             );
                             let connection = tcp_connections
                                 .entry(connection_id)
-                                .or_insert_with(|| TcpConnection::new(connection_id));
+                                .or_insert_with(|| { println!("new connection"); TcpConnection::new(connection_id)});
 
                             let tcp_packet = TcpPacket {
                                 header: tcp_header,
                                 payload: payload,
                             };
-                            let reply = connection.handle_packet(&tcp_packet, &mut **function);
-                            if let Some(reply_tcp) = reply {
-                                let src_ip = ip_header.dst_addr;
-                                let dst_ip = ip_header.src_addr;
-                                if let Some(&dst_mac) = arp_cache.get(&dst_ip) {
-                                    let packet = EthernetPacket::new_ipv4(
-                                        ETH_ADDR,
-                                        dst_mac,
-                                        Ipv4Packet::new_tcp(src_ip, dst_ip, reply_tcp),
-                                    );
-                                    return Ok(
-                                        Some(HeapTxPacket::write_out(packet)?.into_boxed_slice()),
-                                    );
-                                } else {
-                                    let arp_request = arp::new_request_packet(ETH_ADDR, src_ip, dst_ip);
-                                    return Ok(Some(
-                                        HeapTxPacket::write_out(arp_request)?.into_boxed_slice(),
-                                    ));
-                                }
-                            }
+
+                            connection.handle_packet(&tcp_packet, &mut **function);
+
                         }
 
                     }
@@ -442,7 +458,7 @@ impl EthernetDevice {
                     _ => {} //{println!("{:?}", other)},
                 }
 
-                Ok(None)
+                Ok(())
             })?
     }
 }
