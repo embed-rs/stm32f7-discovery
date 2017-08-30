@@ -1,6 +1,6 @@
 use core::fmt;
 use alloc::boxed::Box;
-use alloc::{Vec, BTreeMap};
+use alloc::{Vec, VecDeque, BTreeMap};
 use alloc::borrow::Cow;
 
 use board::{rcc, syscfg};
@@ -100,6 +100,7 @@ pub struct EthernetDevice {
     udp_functions: BTreeMap<u16, Box<FnMut(Udp) -> Option<Cow<[u8]>>>>,
     tcp_connections: BTreeMap<(Ipv4Address, Ipv4Address, u16, u16), TcpConnection>,
     tcp_functions: BTreeMap<u16, Box<for<'d> FnMut(&TcpConnection, &'d [u8]) -> Option<Cow<'d, [u8]>>>>,
+    packet_queue: VecDeque<Box<[u8]>>,
 }
 
 impl EthernetDevice {
@@ -146,6 +147,7 @@ impl EthernetDevice {
             udp_functions: BTreeMap::new(),
             tcp_connections: BTreeMap::new(),
             tcp_functions: BTreeMap::new(),
+            packet_queue: VecDeque::new(),
         };
 
         device.send_dhcp_discover()?;
@@ -247,6 +249,7 @@ impl EthernetDevice {
                      ref mut udp_functions,
                      ref mut tcp_connections,
                      ref mut tcp_functions,
+                     ref mut packet_queue,
                      ..
                  } = self;
 
@@ -281,8 +284,8 @@ impl EthernetDevice {
                                 if requested_ipv4_addr.is_none() {
                                     *requested_ipv4_addr = Some(ip);
                                     let reply = dhcp::new_request_msg(ETH_ADDR, ip, dhcp_server_ip);
-                                    return Ok(Some(HeapTxPacket::write_out(reply)?
-                                                       .into_boxed_slice()));
+                                    let reply_packet = HeapTxPacket::write_out(reply)?.into_boxed_slice();
+                                    packet_queue.push_back(reply_packet);
                                 }
                             }
                             DhcpType::Ack { ip } => {
@@ -306,7 +309,8 @@ impl EthernetDevice {
                                          arp.src_ip,
                                          arp.src_mac);
                                 let reply = arp.response_packet(ETH_ADDR);
-                                return Ok(Some(HeapTxPacket::write_out(reply)?.into_boxed_slice()));
+                                let reply_packet = HeapTxPacket::write_out(reply)?.into_boxed_slice();
+                                packet_queue.push_back(reply_packet);
                             }
                             ArpOperation::Response => {
                                 println!("arp response from {:?} for ip {:?}",
@@ -329,13 +333,13 @@ impl EthernetDevice {
                                 if let Some(&dst_mac) = arp_cache.get(&dst_ip) {
                                     let reply =
                                         icmp.echo_reply_packet(ETH_ADDR, dst_mac, src_ip, dst_ip);
-                                    return Ok(Some(HeapTxPacket::write_out(reply)?
-                                                       .into_boxed_slice()));
+                                    let reply_packet = HeapTxPacket::write_out(reply)?.into_boxed_slice();
+                                    packet_queue.push_back(reply_packet);
                                 } else {
                                     let arp_request =
                                         arp::new_request_packet(ETH_ADDR, src_ip, dst_ip);
-                                    return Ok(Some(HeapTxPacket::write_out(arp_request)?
-                                                       .into_boxed_slice()));
+                                    let arp_request_packet = HeapTxPacket::write_out(arp_request)?.into_boxed_slice();
+                                    packet_queue.push_back(arp_request_packet);
                                 }
                             }
                             IcmpType::EchoReply {
@@ -375,12 +379,12 @@ impl EthernetDevice {
                                                                       udp_header.dst_port,
                                                                       udp_header.src_port,
                                                                       reply_payload);
-                                return Ok(Some(HeapTxPacket::write_out(packet)?
-                                                   .into_boxed_slice()));
+                                let packet = HeapTxPacket::write_out(packet)?.into_boxed_slice();
+                                packet_queue.push_back(packet);
                             } else {
                                 let arp_request = arp::new_request_packet(ETH_ADDR, src_ip, dst_ip);
-                                return Ok(Some(HeapTxPacket::write_out(arp_request)?
-                                                   .into_boxed_slice()));
+                                let packet = HeapTxPacket::write_out(arp_request)?.into_boxed_slice();
+                                packet_queue.push_back(packet);
                             }
                         };
                     }
