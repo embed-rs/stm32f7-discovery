@@ -4,7 +4,6 @@
 #![feature(asm)]
 #![feature(alloc)]
 #![feature(try_from)]
-#![feature(drop_types_in_const)]
 #![feature(global_allocator)]
 #![feature(used)]
 #![feature(optin_builtin_traits)]
