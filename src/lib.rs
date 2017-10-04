@@ -8,6 +8,7 @@
 #![feature(global_allocator)]
 #![feature(used)]
 #![feature(optin_builtin_traits)]
+#![feature(const_atomic_usize_new)]
 #![no_std]
 
 /// hardware register structs with accessor methods
