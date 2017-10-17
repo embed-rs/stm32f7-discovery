@@ -1,5 +1,5 @@
-use super::*;
-use self::command;
+use super::{Sd, CardType, command};
+use super::error::Error;
 use board::rcc::Rcc;
 use board::sdmmc::Sdmmc;
 use embedded::interfaces::gpio::Gpio;
@@ -18,11 +18,11 @@ pub fn init(sdmmc: &'static mut Sdmmc, gpio: &mut Gpio, rcc: &mut Rcc) -> Result
         clkcr.set_clkdiv(0x76);
     });
 
-    power_on(sdmmc)?;
+    let card_type = power_on(sdmmc)?;
 
     Ok(Sd {
         _registers: sdmmc,
-        _card_type: CardType::Sd,
+        _card_type: card_type,
     })
 }
 
@@ -90,14 +90,17 @@ fn init_pins(gpio: &mut Gpio) {
 
 }
 
-fn power_on(sdmmc: &mut Sdmmc) -> Result<(), Error> {
+fn power_on(sdmmc: &mut Sdmmc) -> Result<CardType, Error> {
     sdmmc.clkcr.update(|clkcr| clkcr.set_clken(false));
     sdmmc.power.update(|pwr| pwr.set_pwrctrl(0x03));
     sdmmc.clkcr.update(|clkcr| clkcr.set_clken(true));
 
+    let mut card_type = CardType::SDv1;
     // set sd card to idle state
     command::send_command_idle(sdmmc, 5000)?;
-    command::send_command_oper_cond(sdmmc)?;
+    if let Ok(_) = command::send_command_oper_cond(sdmmc) {
+        card_type = CardType::SDv2;
+    };
 
-    Ok(())
+    Ok(card_type)
 }
