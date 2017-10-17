@@ -1,15 +1,10 @@
 pub use self::init::init;
 
+pub mod error;
 mod init;
 mod command;
 
 use board::sdmmc::Sdmmc;
-
-#[derive(Debug)]
-pub enum Error {
-    NoSdCard,
-    Timeout,
-}
 
 pub struct Sd {
     _registers: &'static mut Sdmmc,
@@ -18,8 +13,7 @@ pub struct Sd {
 
 #[allow(dead_code)]
 enum CardType {
-    Mmc,
-    Sd,
-    Sdio,
+    SDv1,
+    SDv2,
 }
 

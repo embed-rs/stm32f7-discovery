@@ -27,6 +27,8 @@ extern crate net;
 extern crate rusttype;
 extern crate spin;
 extern crate volatile;
+#[macro_use]
+extern crate bitflags;
 
 #[macro_use]
 pub mod semi_hosting;
