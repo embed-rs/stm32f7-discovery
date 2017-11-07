@@ -49,7 +49,7 @@ pub unsafe extern "C" fn reset() -> ! {
 fn main(hw: board::Hardware) -> ! {
     use embedded::interfaces::gpio::Gpio;
 
-    hprintln!("Entering main");
+    // hprintln!("Entering main");
 
     let board::Hardware {
         rcc,
@@ -120,12 +120,10 @@ fn main(hw: board::Hardware) -> ! {
 
     let sd = sd::init(sdmmc, &mut gpio, rcc);
     match sd {
-        Ok(_)  => println!("Hurray!"),
-        Err(x) => println!("{:?}", x)
+        Ok(card) => println!("Hooray! CardType: {:?}, RCA: {:?}", card.get_card_type(), card. get_rca()),
+        Err(x)   => println!("Error: {:?}", x)
     }
 
     loop {
-
-
     }
 }

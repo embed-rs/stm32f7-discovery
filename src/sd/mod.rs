@@ -7,13 +7,23 @@ mod command;
 use board::sdmmc::Sdmmc;
 
 pub struct Sd {
-    _registers: &'static mut Sdmmc,
-    _card_type: CardType,
+    _sdmmc: &'static mut Sdmmc,
+    card_type: CardType,
+    rca: u16,
 }
 
-#[allow(dead_code)]
-enum CardType {
+impl Sd {
+    pub fn get_card_type(&self) -> &CardType {
+        &self.card_type
+    }
+    pub fn get_rca(&self) -> u16 {
+        self.rca
+    }
+}
+
+#[derive(Debug)]
+pub enum CardType {
     SDv1,
-    SDv2,
+    SDv2SC,
+    SDv2HC,
 }
-
