@@ -49,7 +49,7 @@ pub unsafe extern "C" fn reset() -> ! {
 fn main(hw: board::Hardware) -> ! {
     use embedded::interfaces::gpio::Gpio;
 
-    // hprintln!("Entering main");
+    hprintln!("Entering main");
 
     let board::Hardware {
         rcc,
