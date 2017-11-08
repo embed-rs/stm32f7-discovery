@@ -26,7 +26,12 @@ define semihosting-enable
   catch signal SIGTRAP
   commands
     silent
-    if (*(int)$pc&0xff) == 0xab
+    if $rust_syn
+      set $break = (*($pc as u32)&0xff) == 0xab
+    else
+      set $break = (*(int)$pc&0xff) == 0xab
+    end
+    if $break
       pi SemiHostHelper.on_break()
       set $pc = $pc + 2
       continue
