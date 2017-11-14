@@ -72,13 +72,14 @@ class SemiHostHelper(object):
             sys.stderr.write(data.decode('utf8'))
 
 
-# On GDB version 8.0 and above, gdb expects rust syntax after connecting
-# with the microcontroller.
-# This sets the variable $rust_syn in gdb so the right syntax is used
-# in the .gdbinit file
+# Since GDB version 7.10, GDB expects Rust syntax after connecting with the
+# microcontroller.
+# The following code sets the variable $rust_syn in gdb so the right syntax is
+# used in the .gdbinit file
 gdb_version = gdb.execute("show version", False, True)\
         .splitlines()[0].split()[-1].split('.')
-if int(gdb_version[0]) > 7:
+if int(gdb_version[0]) > 7 \
+   or (int(gdb_version[0]) == 7 and int(gdb_version[1]) >= 10):
     gdb.execute("set $rust_syn = 0x1")
 else:
     gdb.execute("set $rust_syn = 0x0")
