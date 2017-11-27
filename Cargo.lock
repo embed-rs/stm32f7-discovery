@@ -1,20 +1,3 @@
-[root]
-name = "stm32f7_discovery"
-version = "0.1.0"
-dependencies = [
- "alloc-cortex-m 0.2.2 (git+https://github.com/f-bro/alloc-cortex-m.git?branch=new-alloc-api)",
- "arrayvec 0.3.23 (registry+https://github.com/rust-lang/crates.io-index)",
- "bit_field 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "cortex-m 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "embedded_stm32f7 0.1.0 (git+https://github.com/embed-rs/embedded_stm32f7.git)",
- "net 0.1.0 (git+https://github.com/embed-rs/net.git)",
- "r0 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rusttype 0.2.1 (git+https://github.com/phil-opp/rusttype.git?branch=no_std)",
- "spin 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "volatile 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
 [[package]]
 name = "alloc-cortex-m"
 version = "0.2.2"
@@ -26,11 +9,11 @@ dependencies = [
 
 [[package]]
 name = "arrayvec"
-version = "0.3.23"
+version = "0.3.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "nodrop 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "odds 0.2.25 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nodrop 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "odds 0.2.26 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -76,7 +59,7 @@ name = "embedded"
 version = "0.3.0"
 source = "git+https://github.com/embed-rs/embedded-rs.git#dac92b81eb877765256b75a02a606fed9c96dffc"
 dependencies = [
- "arrayvec 0.3.23 (registry+https://github.com/rust-lang/crates.io-index)",
+ "arrayvec 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)",
  "bit_field 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "volatile 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -104,7 +87,7 @@ dependencies = [
 [[package]]
 name = "net"
 version = "0.1.0"
-source = "git+https://github.com/embed-rs/net.git#ccd3238b567ee5e1591a2534d6713fe0eded7b47"
+source = "git+https://github.com/embed-rs/net.git#ce3a6a8581ca4468a8dbdef5d3873935d7c08195"
 dependencies = [
  "bit_field 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bitflags-associated-constants 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -113,15 +96,12 @@ dependencies = [
 
 [[package]]
 name = "nodrop"
-version = "0.1.9"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "odds 0.2.25 (registry+https://github.com/rust-lang/crates.io-index)",
-]
 
 [[package]]
 name = "odds"
-version = "0.2.25"
+version = "0.2.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -139,7 +119,7 @@ name = "rusttype"
 version = "0.2.1"
 source = "git+https://github.com/phil-opp/rusttype.git?branch=no_std#0fedf1e3b07538d6f13075819afa40e4ad73ff11"
 dependencies = [
- "arrayvec 0.3.23 (registry+https://github.com/rust-lang/crates.io-index)",
+ "arrayvec 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)",
  "stb_truetype 0.2.1 (git+https://github.com/phil-opp/stb_truetype-rs.git)",
 ]
 
@@ -157,6 +137,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "stm32f7_discovery"
+version = "0.1.0"
+dependencies = [
+ "alloc-cortex-m 0.2.2 (git+https://github.com/f-bro/alloc-cortex-m.git?branch=new-alloc-api)",
+ "arrayvec 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bit_field 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cortex-m 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "embedded_stm32f7 0.1.0 (git+https://github.com/embed-rs/embedded_stm32f7.git)",
+ "net 0.1.0 (git+https://github.com/embed-rs/net.git)",
+ "r0 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rusttype 0.2.1 (git+https://github.com/phil-opp/rusttype.git?branch=no_std)",
+ "spin 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "volatile 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "volatile"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -168,7 +165,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [metadata]
 "checksum alloc-cortex-m 0.2.2 (git+https://github.com/f-bro/alloc-cortex-m.git?branch=new-alloc-api)" = "<none>"
-"checksum arrayvec 0.3.23 (registry+https://github.com/rust-lang/crates.io-index)" = "699e63a93b79d717e8c3b5eb1b28b7780d0d6d9e59a72eb769291c83b0c8dc67"
+"checksum arrayvec 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)" = "e003cbf6e0e1c43a0fc8df2ea8ea24174514d35cbcf60c35ca6112e0139f65e2"
 "checksum bit_field 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8c7f2626c064227bf8d383b35223f8ac9b7d33a7999f7bd9a5b5e491583061f6"
 "checksum bit_field 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2f2608c2dbf1057804d86937a32731a17458a60b10e83ad91c1c35c36e522f5d"
 "checksum bit_field 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ff91a64014e1bc53bf643920f2c9ab5f0980d92a0948295f3ee550e9266849ad"
@@ -180,8 +177,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum embedded_stm32f7 0.1.0 (git+https://github.com/embed-rs/embedded_stm32f7.git)" = "<none>"
 "checksum linked_list_allocator 0.4.2 (git+https://github.com/phil-opp/linked-list-allocator.git)" = "<none>"
 "checksum net 0.1.0 (git+https://github.com/embed-rs/net.git)" = "<none>"
-"checksum nodrop 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)" = "52cd74cd09beba596430cc6e3091b74007169a56246e1262f0ba451ea95117b2"
-"checksum odds 0.2.25 (registry+https://github.com/rust-lang/crates.io-index)" = "c3df9b730298cea3a1c3faa90b7e2f9df3a9c400d0936d6015e6165734eefcba"
+"checksum nodrop 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)" = "9a2228dca57108069a5262f2ed8bd2e82496d2e074a06d1ccc7ce1687b6ae0a2"
+"checksum odds 0.2.26 (registry+https://github.com/rust-lang/crates.io-index)" = "4eae0151b9dacf24fcc170d9995e511669a082856a91f958a2fe380bfab3fb22"
 "checksum once 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "931fb7a4cf34610cf6cbe58d52a8ca5ef4c726d4e2e178abd0dc13a6551c6d73"
 "checksum r0 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1627d705506f5bf4c16126c4f85cd8c59d45c151f2aef890b45bdd4a91ca152f"
 "checksum rusttype 0.2.1 (git+https://github.com/phil-opp/rusttype.git?branch=no_std)" = "<none>"
