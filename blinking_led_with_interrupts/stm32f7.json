@@ -1,0 +1,21 @@
+{
+  "arch": "arm",
+  "cpu": "cortex-m7",
+  "llvm-target": "thumbv7m-none-eabihf",
+  "data-layout": "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64",
+  "target-endian": "little",
+  "target-pointer-width": "32",
+  "target-c-int-width": "32",
+  "os": "none",
+  "features": "+fp-only-sp",
+
+  "linker-flavor": "gcc",
+  "linker": "arm-none-eabi-gcc",
+  "pre-link-args": {
+    "gcc": ["-Tstm32f7.ld", "-nostartfiles"]
+  },
+  "executables": true,
+
+  "relocation-model": "static",
+  "panic-strategy": "abort"
+}
