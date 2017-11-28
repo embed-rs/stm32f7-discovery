@@ -263,10 +263,10 @@ impl<'a> Drop for InterruptTable<'a> {
 ///
 /// # Panics
 /// Panics if an interrupt is enabled and is not disabled after use in `code()`
-pub fn scope<F, C, R>(nvic: &'static mut Nvic, default_handler: F, code: C) -> R
+pub fn scope<'a, F, C, R>(nvic: &'static mut Nvic, default_handler: F, code: C) -> R
 where
     F: FnMut(u8) + Send,
-    C: for<'a> FnOnce(&mut InterruptTable<'a>) -> R,
+    C: FnOnce(&mut InterruptTable<'a>) -> R,
 {
     unsafe {
         debug_assert!(DEFAULT_HANDLER.is_none());

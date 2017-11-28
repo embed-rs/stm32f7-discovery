@@ -1,6 +1,6 @@
 #![no_std]
 #![no_main]
-#![feature(compiler_builtins_lib)]
+#![feature(compiler_builtins_lib, asm)]
 
 extern crate stm32f7_discovery as stm32f7;
 extern crate compiler_builtins;
@@ -12,29 +12,24 @@ use stm32f7::{system_clock, board, embedded};
 pub unsafe extern "C" fn reset() -> ! {
     extern "C" {
         static __DATA_LOAD: u32;
-        static __DATA_END: u32;
+        static mut __DATA_END: u32;
         static mut __DATA_START: u32;
 
         static mut __BSS_START: u32;
         static mut __BSS_END: u32;
     }
 
-    let data_load = &__DATA_LOAD;
-    let data_start = &mut __DATA_START;
-    let data_end = &__DATA_END;
-
-    let bss_start = &mut __BSS_START;
-    let bss_end = &__BSS_END;
-
-    // initializes the .data section
-    // (copy the data segment initializers from flash to RAM)
-    r0::init_data(data_start, data_end, data_load);
+    // initializes the .data section (copy the data segment initializers from flash to RAM)
+    r0::init_data(&mut __DATA_START, &mut __DATA_END, &__DATA_LOAD);
     // zeroes the .bss section
-    r0::zero_bss(bss_start, bss_end);
+    r0::zero_bss(&mut __BSS_START, &__BSS_END);
 
-    // Initialize the floating point unit
+    stm32f7::heap::init();
+
+    // enable floating point unit
     let scb = stm32f7::cortex_m::peripheral::scb_mut();
     scb.cpacr.modify(|v| v | 0b1111 << 20);
+    asm!("DSB; ISB;"::::"volatile"); // pipeline flush
 
     main(board::hw());
 }
@@ -58,6 +53,8 @@ fn main(hw: board::Hardware) -> ! {
         gpio_i,
         gpio_j,
         gpio_k,
+        nvic,
+        tim6,
         ..
     } = hw;
 
@@ -102,16 +99,40 @@ fn main(hw: board::Hardware) -> ! {
     // turn led on
     led.set(true);
 
+    // enable timers
+    rcc.apb1enr.update(|r| {
+        r.set_tim6en(true);
+    });
 
-    let mut last_led_toggle = system_clock::ticks();
-    loop {
-        let ticks = system_clock::ticks();
-        // every 0.5 seconds
-        if ticks - last_led_toggle >= 500 {
-            // toggle the led
-            let current_state = led.get();
-            led.set(!current_state);
-            last_led_toggle = ticks;
-        }
-    }
+    // configure timer
+    // clear update event
+    tim6.sr.update(|sr| sr.set_uif(false));
+
+    // setup timing
+    tim6.psc.update(|psc| psc.set_psc(42000));
+    tim6.arr.update(|arr| arr.set_arr(3000));
+
+    // enable interrupt
+    tim6.dier.update(|dier| dier.set_uie(true));
+    // start the timer counter
+    tim6.cr1.update(|cr1| cr1.set_cen(true));
+
+    stm32f7::interrupts::scope(
+        nvic,
+        |_| {},
+        |interrupt_table| {
+            use stm32f7::interrupts::Priority;
+            use stm32f7::interrupts::interrupt_request::InterruptRequest;
+
+            let _ = interrupt_table.register(InterruptRequest::Tim6Dac, Priority::P1, || {
+                // toggle the led
+                let current_state = led.get();
+                led.set(!current_state);
+                // make sure the interrupt doesn't just restart again by clearing the flag
+                tim6.sr.update(|sr| sr.set_uif(false));
+            });
+
+            loop {}
+        },
+    )
 }
