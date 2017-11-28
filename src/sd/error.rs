@@ -1,17 +1,27 @@
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
-    Error,                              // Unknown Error
-    NoSdCard,                           // No SD Card
-    Timeout,                            // Timeout while waiting for a response
-    InvalidVoltrange,                   // Voltage Trial failed TODO: move/rename?
-    CardError { t: CardStatusFlags },   // Card Error, see CardStatusFlags
-    SdmmcError { t: SdmmcErrorType },   // Response to a command failed
+    Error,                                      // Unknown Error
+    NoSdCard,                                   // No SD Card
+    Timeout,                                    // Timeout while waiting for a response
+    InvalidVoltrange,                           // Voltage Trial failed
+    CardError { t: CardStatusFlags },           // Card Error, see CardStatusFlags
+    SdmmcError { t: SdmmcErrorType },           // Response to a failed command
+    RWError { t: RWErrorType },   // Error during writing to card
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SdmmcErrorType {
     CmdCrcFailed,   // CRC check failed
     CmdRespTimeout, // No response to command
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RWErrorType {
+    AddressOutOfRange,
+    DataTimeout,
+    DataCrcFailed,
+    TxUnderrun,
+    RxOverrun,
 }
 
 bitflags! {

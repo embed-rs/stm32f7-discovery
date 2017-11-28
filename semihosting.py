@@ -78,8 +78,7 @@ class SemiHostHelper(object):
 # used in the .gdbinit file
 gdb_version = gdb.execute("show version", False, True)\
         .splitlines()[0].split()[-1].split('.')
+gdb.execute("set $rust_syn = 0x0")
 if int(gdb_version[0]) > 7 \
    or (int(gdb_version[0]) == 7 and int(gdb_version[1]) >= 10):
     gdb.execute("set $rust_syn = 0x1")
-else:
-    gdb.execute("set $rust_syn = 0x0")
