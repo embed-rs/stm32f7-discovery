@@ -1,4 +1,4 @@
-use super::{Sd, CardType, command};
+use super::{Sd, CardType, sdmmc_cmd};
 use super::error::Error;
 use board::rcc::Rcc;
 use board::sdmmc::Sdmmc;
@@ -12,7 +12,7 @@ use embedded::interfaces::gpio::Gpio;
 /// The initialization returns an error if something in the process went wrong. Most of the time
 /// this should only be the Error `NoSdCard`. Other errors are an indication that some clock or pin
 /// could not be activated correctly.
-pub fn init(sdmmc: &'static mut Sdmmc, gpio: &mut Gpio, rcc: &mut Rcc) -> Result<Sd, Error> {
+pub fn init(sd: &mut Sd, gpio: &mut Gpio, rcc: &mut Rcc) -> Result<(), Error> {
     // Check for SD card
     sd_card_present(gpio, rcc)?;
 
@@ -20,26 +20,45 @@ pub fn init(sdmmc: &'static mut Sdmmc, gpio: &mut Gpio, rcc: &mut Rcc) -> Result
     init_hw(gpio, rcc)?;
 
     // default clock configuration
-    sdmmc.clkcr.update(|clkcr| {
+    sd.sdmmc.clkcr.update(|clkcr| {
         clkcr.set_negedge(false);
         clkcr.set_bypass(false);
         clkcr.set_pwrsav(false);
-        clkcr.set_widbus(1);
+        clkcr.set_widbus(0);
         clkcr.set_hwfc_en(false);
         clkcr.set_clkdiv(0x76);
     });
 
-    let card_type = power_on(sdmmc)?;
+    sd.card_info.card_type = power_on(sd.sdmmc)?;
 
-    command::send_cmd_send_cid(sdmmc)?;
+    // Let the card send the CID and enter identification process
+    sdmmc_cmd::send_cid(sd.sdmmc)?;
 
-    let rca = command::send_cmd_set_rel_add(sdmmc)?;
+    // Get the RCA of the card
+    sd.card_info.rca = sdmmc_cmd::set_rel_add(sd.sdmmc)?;
 
-    Ok(Sd {
-        _sdmmc: sdmmc,
-        card_type: card_type,
-        rca: rca,
-    })
+    sdmmc_cmd::send_csd(sd.sdmmc, (sd.card_info.rca as u32) << 16)?;
+
+    let csd = [sd.sdmmc.resp1.read().cardstatus1(),
+               sd.sdmmc.resp2.read().cardstatus2(),
+               sd.sdmmc.resp3.read().cardstatus3(),
+               sd.sdmmc.resp4.read().cardstatus4()];
+
+    get_card_csd(sd, csd);
+
+    sdmmc_cmd::sel_desel(sd.sdmmc, (sd.card_info.rca as u32) << 16)?;
+
+    //TODO: needed?
+    sd.sdmmc.clkcr.update(|clkcr| {
+        clkcr.set_negedge(false);
+        clkcr.set_bypass(false);
+        clkcr.set_pwrsav(false);
+        clkcr.set_widbus(0);
+        clkcr.set_hwfc_en(false);
+        clkcr.set_clkdiv(0x76);
+    });
+
+    Ok(())
 }
 
 fn sd_card_present(gpio: &mut Gpio, rcc: &mut Rcc) -> Result<(), Error> {
@@ -62,7 +81,7 @@ fn sd_card_present(gpio: &mut Gpio, rcc: &mut Rcc) -> Result<(), Error> {
 fn init_hw(gpio: &mut Gpio, rcc: &mut Rcc) -> Result<(), Error> {
     // Enable SDMMC1 clock
     rcc.apb2enr.update(|r| r.set_sdmmc1en(true));
-    // Enable data and command port
+    // Enable data and sdmmc_cmd port
     rcc.ahb1enr.update(|r| {
         r.set_gpiocen(true); // Data and clock port
         r.set_gpioden(true); // CMD port
@@ -97,7 +116,7 @@ fn init_pins(gpio: &mut Gpio) {
     // Clock
     let ck = (PortC, Pin12);
 
-    // Command
+    // sdmmc_cmd
     let cmd = (PortD, Pin2);
 
     let pins = [d0,
@@ -127,13 +146,13 @@ fn power_on(sdmmc: &mut Sdmmc) -> Result<CardType, Error> {
     let mut card_type = CardType::SDv1;
 
     // set sd card to idle state
-    command::send_cmd_idle(sdmmc, 5000)?;
+    sdmmc_cmd::idle(sdmmc, 5000)?;
 
     // get Card version and operation voltage
     let mut count = 0;
     let max_volt_trial = 0xFFFF;
     let mut valid_voltage = false;
-    if command::send_cmd_oper_cond(sdmmc).is_ok() {
+    if sdmmc_cmd::oper_cond(sdmmc).is_ok() {
         let mut card_status = 0;
         // voltage trial for card V2
         while !valid_voltage {
@@ -142,11 +161,11 @@ fn power_on(sdmmc: &mut Sdmmc) -> Result<CardType, Error> {
             }
             count += 1;
 
-            // Send CMD55, needed for next CMD. println!("Send CMD55");
-            command::send_cmd_app(sdmmc, 0)?;
+            // Send CMD55, needed for next CMD.
+            sdmmc_cmd::app(sdmmc, 0)?;
 
-            // Send ACMD41. 0x40..0 for high capacity. println!("Send ACMD41");
-            command::send_cmd_app_oper(sdmmc, 0x4000_0000)?;
+            // Send ACMD41. 0x40..0 for high capacity.
+            sdmmc_cmd::app_oper(sdmmc, 0x4000_0000)?;
 
             card_status = sdmmc.resp1.read().cardstatus1();
 
@@ -165,11 +184,11 @@ fn power_on(sdmmc: &mut Sdmmc) -> Result<CardType, Error> {
             }
             count += 1;
 
-            // Send CMD55, needed for next CMD. println!("Send CMD55");
-            command::send_cmd_app(sdmmc, 0)?;
+            // Send CMD55, needed for next CMD.
+            sdmmc_cmd::app(sdmmc, 0)?;
 
-            // Send ACMD41. 0x0 for standard capacity. println!("Send ACMD41");
-            command::send_cmd_app_oper(sdmmc, 0x0)?;
+            // Send ACMD41. 0x0 for standard capacity.
+            sdmmc_cmd::app_oper(sdmmc, 0x0)?;
 
             let card_status = sdmmc.resp1.read().cardstatus1();
 
@@ -178,4 +197,34 @@ fn power_on(sdmmc: &mut Sdmmc) -> Result<CardType, Error> {
     }
 
     Ok(card_type)
+}
+
+fn get_card_csd(sd: &mut Sd, csd: [u32; 4]) {
+    if sd.card_info.card_type == CardType::SDv2HC {
+        let tmp = csd[1] & 0xFF;
+        let mut device_size = (tmp & 0x3F) << 16;
+
+        let tmp = (csd[2] & 0xFFFF_0000) >> 16;
+        device_size |= tmp;
+
+        sd.card_info.blk_number = (device_size + 1) * 1024;
+        sd.card_info.log_blk_number = sd.card_info.blk_number;
+        sd.card_info.blk_size = 512;
+        sd.card_info.log_blk_size = sd.card_info.blk_size;
+    } else {
+        let tmp = csd[1] & 0x3FF;
+        let mut device_size = tmp << 2;
+
+        let tmp = (csd[2] & 0xFF00_0000) >> 24;
+        device_size |= (tmp & 0xC0) >> 6;
+
+        let device_size_mul = (csd[2] & 0x0003_8000) >> 15;
+
+        let rd_blk_len = (csd[1] & 0x000F_0000) >> 16;
+
+        sd.card_info.blk_number = (device_size + 1) * (1 << (device_size_mul + 2));
+        sd.card_info.blk_size = 1 << rd_blk_len;
+        sd.card_info.log_blk_number = sd.card_info.blk_number * (sd.card_info.blk_size / 512);
+        sd.card_info.log_blk_size = 512;
+    }
 }

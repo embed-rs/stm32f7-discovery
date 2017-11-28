@@ -2,14 +2,14 @@ use super::error::*;
 use board::sdmmc::Sdmmc;
 
 /// Set the SD card into idle state
-pub fn send_cmd_idle(sdmmc: &mut Sdmmc, timeout: u32) -> Result<(), Error> {
-    send_cmd(sdmmc, 0, 0x00, true, false, false, 0x00, false);
+pub fn idle(sdmmc: &mut Sdmmc, timeout: u32) -> Result<(), Error> {
+    send_cmd(sdmmc, 0, 0x00, true, false, 0x00);
 
     let timeout = ::system_clock::ticks() as u32 + timeout;
     while (::system_clock::ticks() as u32) < timeout
         && !sdmmc.sta.read().cmdsent() {}
 
-    if timeout == 0 {
+    if (::system_clock::ticks() as u32) >= timeout {
         return Err(Error::Timeout);
     }
 
@@ -17,26 +17,24 @@ pub fn send_cmd_idle(sdmmc: &mut Sdmmc, timeout: u32) -> Result<(), Error> {
 }
 
 /// Send CMD55 to signalize that the next command is an app command
-pub fn send_cmd_app(sdmmc: &mut Sdmmc, argument: u32) -> Result<u32, Error> {
-    send_cmd(sdmmc, argument, 55, true, false, false, 0x01, false);
+pub fn app(sdmmc: &mut Sdmmc, argument: u32) -> Result<(), Error> {
+    send_cmd(sdmmc, argument, 55, true, false, 0x01);
 
     get_cmd_resp1(sdmmc, 55, 5000)
 }
 
 /// Send ACMD41 to get the operation condition register (OCR) of the card.
 /// Always send CMD55 before sending this command.
-pub fn send_cmd_app_oper(sdmmc: &mut Sdmmc, capacity: u32) -> Result<(), Error> {
-    send_cmd(sdmmc, 0x8010_0000 | capacity, 41, true, false, false, 0x01, false);
+pub fn app_oper(sdmmc: &mut Sdmmc, capacity: u32) -> Result<(), Error> {
+    send_cmd(sdmmc, 0x8010_0000 | capacity, 41, true, false, 0x01);
 
-    get_cmd_resp3(sdmmc, 5000)?;
-
-    Ok(())
+    get_cmd_resp3(sdmmc, 5000)
 }
 
 /// Get the Operation Condition of the card. This command is only supported
 /// by SD card v2 and can therefore be used to determine the version of the card.
-pub fn send_cmd_oper_cond(sdmmc: &mut Sdmmc) -> Result<(), Error> {
-    send_cmd(sdmmc, 0x1AA, 8, true, false, false, 0x01, false);
+pub fn oper_cond(sdmmc: &mut Sdmmc) -> Result<(), Error> {
+    send_cmd(sdmmc, 0x1AA, 8, true, false, 0x01);
 
     wait_resp(sdmmc, 5000)?;
 
@@ -46,40 +44,92 @@ pub fn send_cmd_oper_cond(sdmmc: &mut Sdmmc) -> Result<(), Error> {
 }
 
 /// Get the Card Indentification Number (CID) of the card. (CMD2)
-pub fn send_cmd_send_cid(sdmmc: &mut Sdmmc) -> Result<(), Error> {
-    send_cmd(sdmmc, 0, 2, true, false, false, 0x03, false);
+pub fn send_cid(sdmmc: &mut Sdmmc) -> Result<(), Error> {
+    send_cmd(sdmmc, 0, 2, true, false, 0x03);
 
-    get_cmd_resp2(sdmmc, 5000)?;
-
-    Ok(())
+    get_cmd_resp2(sdmmc, 5000)
 }
 
 /// Get the Relative Card Address (RCA) of the card. This number is shorter
 /// than the CID. (CMD3)
-pub fn send_cmd_set_rel_add(sdmmc: &mut Sdmmc) -> Result<u16, Error> {
-    send_cmd(sdmmc, 0, 3, true, false, false, 0x01, false);
+pub fn set_rel_add(sdmmc: &mut Sdmmc) -> Result<u16, Error> {
+    send_cmd(sdmmc, 0, 3, true, false, 0x01);
 
     get_cmd_resp6(sdmmc, 3, 5000)
+}
+
+pub fn send_csd(sdmmc: &mut Sdmmc, rca: u32) -> Result<(), Error> {
+    send_cmd(sdmmc, rca, 9, true, false, 0x03);
+
+    get_cmd_resp2(sdmmc, 5000)
+}
+
+pub fn sel_desel(sdmmc: &mut Sdmmc, rca: u32) -> Result<(), Error> {
+    send_cmd(sdmmc, rca, 7, true, false, 0x01);
+
+    get_cmd_resp1(sdmmc, 7, 5000)
+}
+
+pub fn block_length(sdmmc: &mut Sdmmc, block_size: u32) -> Result<(), Error> {
+    send_cmd(sdmmc, block_size, 16, true, false, 0x01);
+
+    get_cmd_resp1(sdmmc, 16, 5000)
+}
+
+pub fn write_single_blk(sdmmc: &mut Sdmmc, block_add: u32) -> Result<(), Error> {
+    send_cmd(sdmmc, block_add, 24, true, false, 0x01);
+
+    get_cmd_resp1(sdmmc, 24, 5000)
+}
+
+pub fn write_multi_blk(sdmmc: &mut Sdmmc, block_add: u32) -> Result<(), Error> {
+    send_cmd(sdmmc, block_add, 25, true, false, 0x01);
+
+    get_cmd_resp1(sdmmc, 25, 5000)
+}
+
+pub fn read_single_blk(sdmmc: &mut Sdmmc, block_add: u32) -> Result<(), Error> {
+    send_cmd(sdmmc, block_add, 17, true, false, 0x01);
+
+    get_cmd_resp1(sdmmc, 17, 5000)
+}
+
+pub fn read_multi_blk(sdmmc: &mut Sdmmc, block_add: u32) -> Result<(), Error> {
+    send_cmd(sdmmc, block_add, 18, true, false, 0x01);
+
+    get_cmd_resp1(sdmmc, 18, 5000)
+}
+
+pub fn set_blk_count(sdmmc: &mut Sdmmc, number_of_blks: u16) -> Result<(), Error> {
+    send_cmd(sdmmc, number_of_blks as u32, 23, true, false, 0x01);
+
+    get_cmd_resp1(sdmmc, 23, 5000)
+}
+
+pub fn stop_transfer(sdmmc: &mut Sdmmc) -> Result<(), Error> {
+    send_cmd(sdmmc, 0, 12, true, false, 0x01);
+
+    get_cmd_resp1(sdmmc, 12, 5000)?;
+
+    Ok(())
 }
 
 /// Send a command to the card.
 pub fn send_cmd(sdmmc: &mut Sdmmc,
                 argument: u32, cmdidx: u8,
                 cpsmen: bool,
-                waitpend: bool, waitint: bool, waitresp: u8,
-                stdiosus: bool) {
+                waitint: bool,
+                waitresp: u8) {
     sdmmc.arg.update(|arg| arg.set_cmdarg(argument));
     sdmmc.cmd.update(|cmd| {
-        cmd.set_sdiosuspend(stdiosus);
         cmd.set_cpsmen(cpsmen);
-        cmd.set_waitpend(waitpend);
         cmd.set_waitint(waitint);
         cmd.set_waitresp(waitresp);
         cmd.set_cmdindex(cmdidx);
     });
 }
 
-fn get_cmd_resp1(sdmmc: &mut Sdmmc, cmd_idx: u8, timeout: u32) -> Result<u32, Error> {
+fn get_cmd_resp1(sdmmc: &mut Sdmmc, cmd_idx: u8, timeout: u32) -> Result<(), Error> {
     wait_resp_crc(sdmmc, timeout)?;
 
     if sdmmc.respcmd.read().respcmd() != cmd_idx {
@@ -95,7 +145,7 @@ fn get_cmd_resp1(sdmmc: &mut Sdmmc, cmd_idx: u8, timeout: u32) -> Result<u32, Er
 
     check_for_errors(card_status)?;
 
-    Ok(card_status)
+    Ok(())
 }
 
 fn get_cmd_resp2(sdmmc: &mut Sdmmc, timeout: u32) -> Result<(), Error> {
@@ -117,7 +167,6 @@ fn get_cmd_resp3(sdmmc: &mut Sdmmc, timeout: u32) -> Result<(), Error> {
 fn get_cmd_resp6(sdmmc: &mut Sdmmc, cmd_idx: u8, timeout: u32) -> Result<u16, Error> {
     wait_resp_crc(sdmmc, timeout)?;
 
-    // TODO: always 0?!
     if sdmmc.respcmd.read().respcmd() != cmd_idx {
         return Err(Error::SdmmcError {
             t: SdmmcErrorType::CmdCrcFailed
@@ -147,7 +196,7 @@ fn wait_resp(sdmmc: &mut Sdmmc, timeout: u32) -> Result<(), Error> {
         && !sdmmc.sta.read().ccrcfail()
         && !sdmmc.sta.read().ctimeout() {}
 
-    if timeout == 0 {
+    if (::system_clock::ticks() as u32) >= timeout {
         return Err(Error::Timeout);
     }
 
@@ -173,7 +222,7 @@ fn wait_resp_crc(sdmmc: &mut Sdmmc, timeout: u32) -> Result<(), Error> {
     Ok(())
 }
 
-fn clear_all_static_status_flags(sdmmc: &mut Sdmmc) {
+pub fn clear_all_static_status_flags(sdmmc: &mut Sdmmc) {
     sdmmc.icr.update(|icr| {
         icr.set_ccrcfailc(true);
         icr.set_dcrcfailc(true);
