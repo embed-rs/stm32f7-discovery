@@ -23,7 +23,7 @@ extern crate alloc_cortex_m;
 extern crate arrayvec;
 extern crate bit_field;
 extern crate byteorder;
-extern crate net;
+extern crate smoltcp;
 extern crate rusttype;
 extern crate spin;
 extern crate volatile;

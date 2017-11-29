@@ -15,7 +15,6 @@ cortex-m = "0.1.4"
 r0 = "0.1.0"
 spin = "0.4.5"
 volatile = "0.2.1"
-net = {git = "https://github.com/embed-rs/net.git"}
 rusttype = {git = "https://github.com/phil-opp/rusttype.git", branch = "no_std"}
 alloc-cortex-m = {git = "https://github.com/f-bro/alloc-cortex-m.git", branch = "new-alloc-api"}
 
@@ -25,6 +24,11 @@ version = "0.3.20"
 
 [dependencies.embedded_stm32f7]
 git = "https://github.com/embed-rs/embedded_stm32f7.git"
+
+[dependencies.smoltcp]
+git = "https://github.com/m-labs/smoltcp.git"
+default-features = false
+features = ["alloc", "socket-raw", "socket-udp", "socket-tcp", "socket-icmp"]
 
 [profile]
 

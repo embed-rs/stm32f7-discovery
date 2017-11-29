@@ -15,11 +15,12 @@ extern crate stm32f7_discovery as stm32f7;
 extern crate alloc;
 extern crate compiler_builtins;
 extern crate r0;
+extern crate smoltcp;
 
 // hardware register structs with accessor methods
 use stm32f7::{audio, board, embedded, ethernet, lcd, sdram, system_clock, touch, i2c};
-use stm32f7::ethernet::{TcpConnection, Udp};
-use alloc::borrow::Cow;
+use smoltcp::socket::{SocketSet, UdpSocket, TcpSocket};
+
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
     extern "C" {
@@ -50,7 +51,7 @@ pub unsafe extern "C" fn reset() -> ! {
 #[inline(never)] //             reset() before the FPU is initialized
 fn main(hw: board::Hardware) -> ! {
     use embedded::interfaces::gpio::{self, Gpio};
-    use alloc::boxed::Box;
+    use alloc::Vec;
 
     hprintln!("Entering main");
 
@@ -156,7 +157,7 @@ fn main(hw: board::Hardware) -> ! {
     assert!(audio::init_wm8994(&mut i2c_3).is_ok());
 
     // ethernet
-    let mut eth_device = ethernet::EthernetDevice::new(
+    let mut ethernet_interface = ethernet::EthernetDevice::new(
         Default::default(),
         Default::default(),
         rcc,
@@ -164,18 +165,30 @@ fn main(hw: board::Hardware) -> ! {
         &mut gpio,
         ethernet_mac,
         ethernet_dma,
-    );
-    match eth_device {
-        Ok(ref mut eth_device) => {
-            eth_device
-                .listen_on_udp_port(15, Box::new(udp_reverse))
-                .unwrap();
-            eth_device
-                .register_tcp_port(15, Box::new(tcp_reverse))
-                .unwrap();
+    ).map(|device| device.into_interface());
+    if let Err(e) = ethernet_interface {
+        println!("ethernet init failed: {:?}", e);
+    };
+
+    let mut sockets = SocketSet::new(Vec::new());
+    let new_socket_buffer = || {
+        use smoltcp::storage::RingBuffer;
+        use smoltcp::socket::UdpPacketBuffer;
+
+        let new_packet_buffer = || {
+            UdpPacketBuffer::new(vec![0; ethernet::MTU].into_boxed_slice())
+        };
+
+        let mut packet_buffers = Vec::new();
+        for _ in 0..3 {
+            packet_buffers.push(new_packet_buffer());
         }
-        Err(e) => println!("ethernet init failed: {:?}", e),
-    }
+
+        RingBuffer::new(packet_buffers)
+    };
+    let example_udp_socket = UdpSocket::new(new_socket_buffer(), new_socket_buffer());
+
+    sockets.add(example_udp_socket);
 
     touch::check_family_id(&mut i2c_3).unwrap();
 
@@ -228,15 +241,15 @@ fn main(hw: board::Hardware) -> ! {
 
 
                 // handle new ethernet packets
-                if let Ok(ref mut eth_device) = eth_device {
+                if let Ok(ref mut eth) = ethernet_interface {
                     loop {
-                        let result = eth_device.handle_next_packet();
-                        if let Err(err) = result {
-                            match err {
-                                stm32f7::ethernet::Error::Exhausted => {}
-                                _ => {} // println!("err {:?}", e),
-                            }
-                            break;
+                        match eth.poll(&mut sockets, system_clock::ticks() as u64) {
+                            Err(::smoltcp::Error::Exhausted) => break,
+                            Err(_) => { /* ignore */ },
+                            Ok(Some(deadline)) if deadline > 0 => {
+                                /* TODO sleep until deadline */
+                            },
+                            Ok(_) => { /* still packets waiting => continue */ }
                         }
                     }
                 }
@@ -245,6 +258,7 @@ fn main(hw: board::Hardware) -> ! {
     )
 }
 
+/*
 fn udp_reverse(udp: Udp) -> Option<Cow<[u8]>> {
     for byte in udp.payload.iter().filter(|&&b| b != 0) {
         print!("{}", char::from(*byte));
@@ -272,3 +286,4 @@ fn tcp_reverse<'a>(_connection: &TcpConnection, data: &'a [u8]) -> Option<Cow<'a
         None
     }
 }
+*/

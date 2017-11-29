@@ -37,11 +37,6 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "bitflags-associated-constants"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
 name = "byteorder"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -85,14 +80,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "net"
-version = "0.1.0"
-source = "git+https://github.com/embed-rs/net.git#ce3a6a8581ca4468a8dbdef5d3873935d7c08195"
-dependencies = [
- "bit_field 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "bitflags-associated-constants 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
+name = "managed"
+version = "0.4.0"
+source = "git+https://github.com/m-labs/rust-managed.git?rev=629a6786a1cf1692015f464ed16c04eafa5cb8d1#629a6786a1cf1692015f464ed16c04eafa5cb8d1"
 
 [[package]]
 name = "nodrop"
@@ -124,6 +114,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "smoltcp"
+version = "0.4.0"
+dependencies = [
+ "byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "managed 0.4.0 (git+https://github.com/m-labs/rust-managed.git?rev=629a6786a1cf1692015f464ed16c04eafa5cb8d1)",
+]
+
+[[package]]
 name = "spin"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -146,9 +144,9 @@ dependencies = [
  "byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "embedded_stm32f7 0.1.0 (git+https://github.com/embed-rs/embedded_stm32f7.git)",
- "net 0.1.0 (git+https://github.com/embed-rs/net.git)",
  "r0 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusttype 0.2.1 (git+https://github.com/phil-opp/rusttype.git?branch=no_std)",
+ "smoltcp 0.4.0",
  "spin 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "volatile 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -170,13 +168,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum bit_field 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2f2608c2dbf1057804d86937a32731a17458a60b10e83ad91c1c35c36e522f5d"
 "checksum bit_field 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ff91a64014e1bc53bf643920f2c9ab5f0980d92a0948295f3ee550e9266849ad"
 "checksum bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "aad18937a628ec6abcd26d1489012cc0e18c21798210f491af69ded9b881106d"
-"checksum bitflags-associated-constants 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b728f25689d3cfa631e76bcec5c52fcbf6aae99a2bdba77900f78f691b9bc9fe"
 "checksum byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ff81738b726f5d099632ceaffe7fb65b90212e8dce59d518729e7e8634032d3d"
 "checksum cortex-m 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "de9b334d0778b1ace2dfb63672594d0c0db093a3924617ad4e2f1669d32832dc"
 "checksum embedded 0.3.0 (git+https://github.com/embed-rs/embedded-rs.git)" = "<none>"
 "checksum embedded_stm32f7 0.1.0 (git+https://github.com/embed-rs/embedded_stm32f7.git)" = "<none>"
 "checksum linked_list_allocator 0.4.2 (git+https://github.com/phil-opp/linked-list-allocator.git)" = "<none>"
-"checksum net 0.1.0 (git+https://github.com/embed-rs/net.git)" = "<none>"
+"checksum managed 0.4.0 (git+https://github.com/m-labs/rust-managed.git?rev=629a6786a1cf1692015f464ed16c04eafa5cb8d1)" = "<none>"
 "checksum nodrop 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)" = "9a2228dca57108069a5262f2ed8bd2e82496d2e074a06d1ccc7ce1687b6ae0a2"
 "checksum odds 0.2.26 (registry+https://github.com/rust-lang/crates.io-index)" = "4eae0151b9dacf24fcc170d9995e511669a082856a91f958a2fe380bfab3fb22"
 "checksum once 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "931fb7a4cf34610cf6cbe58d52a8ca5ef4c726d4e2e178abd0dc13a6551c6d73"
