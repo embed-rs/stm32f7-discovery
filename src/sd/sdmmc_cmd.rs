@@ -1,6 +1,7 @@
 use super::error::*;
 use board::sdmmc::Sdmmc;
 
+// Initialization commands
 /// Set the SD card into idle state
 pub fn idle(sdmmc: &mut Sdmmc, timeout: u32) -> Result<(), Error> {
     send_cmd(sdmmc, 0, 0x00, true, false, 0x00);
@@ -70,42 +71,56 @@ pub fn sel_desel(sdmmc: &mut Sdmmc, rca: u32) -> Result<(), Error> {
     get_cmd_resp1(sdmmc, 7, 5000)
 }
 
+// Read/Write commands
+/// Set the block length of the blocks to read/write.
 pub fn block_length(sdmmc: &mut Sdmmc, block_size: u32) -> Result<(), Error> {
     send_cmd(sdmmc, block_size, 16, true, false, 0x01);
 
     get_cmd_resp1(sdmmc, 16, 5000)
 }
 
+/// Instruct the controller, that a single block will be written.
 pub fn write_single_blk(sdmmc: &mut Sdmmc, block_add: u32) -> Result<(), Error> {
     send_cmd(sdmmc, block_add, 24, true, false, 0x01);
 
     get_cmd_resp1(sdmmc, 24, 5000)
 }
 
+/// Instruct the controller, that multiple blocks will be written. End the write process with a
+/// call to `stop_transfer()`.
+// TODO: This doesn't seem to work...
 pub fn write_multi_blk(sdmmc: &mut Sdmmc, block_add: u32) -> Result<(), Error> {
     send_cmd(sdmmc, block_add, 25, true, false, 0x01);
 
     get_cmd_resp1(sdmmc, 25, 5000)
 }
 
+/// Instruct the controller, that a single block will be read.
 pub fn read_single_blk(sdmmc: &mut Sdmmc, block_add: u32) -> Result<(), Error> {
     send_cmd(sdmmc, block_add, 17, true, false, 0x01);
 
     get_cmd_resp1(sdmmc, 17, 5000)
 }
 
+/// Instruct the controller, that multiple blocks will be read. End the read process with a
+/// call to `stop_transfer()`.
+// TODO: This doesn't seem to work...
 pub fn read_multi_blk(sdmmc: &mut Sdmmc, block_add: u32) -> Result<(), Error> {
     send_cmd(sdmmc, block_add, 18, true, false, 0x01);
 
     get_cmd_resp1(sdmmc, 18, 5000)
 }
 
+// An alternative, to end multi-block read/write with `stop_transfer()`, is to specify the number of
+// blocks that should be written beforehand.
+// The controller doesn't seem to accept this command and always returns with a CmdRespTimeout Error.
 // pub fn set_blk_count(sdmmc: &mut Sdmmc, number_of_blks: u16) -> Result<(), Error> {
 //     send_cmd(sdmmc, number_of_blks as u32, 23, true, false, 0x01);
 //
 //     get_cmd_resp1(sdmmc, 23, 5000)
 // }
 
+/// Stops the tranfer to the card after a multi-block read/write.
 pub fn stop_transfer(sdmmc: &mut Sdmmc) -> Result<(), Error> {
     send_cmd(sdmmc, 0, 12, true, false, 0x01);
 
@@ -129,6 +144,7 @@ pub fn send_cmd(sdmmc: &mut Sdmmc,
     });
 }
 
+// Command responses from the controller
 fn get_cmd_resp1(sdmmc: &mut Sdmmc, cmd_idx: u8, timeout: u32) -> Result<(), Error> {
     wait_resp_crc(sdmmc, timeout)?;
 
@@ -189,6 +205,7 @@ fn get_cmd_resp6(sdmmc: &mut Sdmmc, cmd_idx: u8, timeout: u32) -> Result<u16, Er
     }
 }
 
+// Wait for the Controller to respond to a command.
 fn wait_resp(sdmmc: &mut Sdmmc, timeout: u32) -> Result<(), Error> {
     let timeout = ::system_clock::ticks() as u32 + timeout;
     while (::system_clock::ticks() as u32) < timeout
@@ -210,6 +227,7 @@ fn wait_resp(sdmmc: &mut Sdmmc, timeout: u32) -> Result<(), Error> {
     Ok(())
 }
 
+// Similiar to wait_resp(), but also checks the CRC afterwards
 fn wait_resp_crc(sdmmc: &mut Sdmmc, timeout: u32) -> Result<(), Error> {
     wait_resp(sdmmc, timeout)?;
     if sdmmc.sta.read().ccrcfail() {

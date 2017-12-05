@@ -1,12 +1,12 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
-    Error,                                      // Unknown Error
-    NoSdCard,                                   // No SD Card
-    Timeout,                                    // Timeout while waiting for a response
-    InvalidVoltrange,                           // Voltage Trial failed
-    CardError { t: CardStatusFlags },           // Card Error, see CardStatusFlags
-    SdmmcError { t: SdmmcErrorType },           // Response to a failed command
-    RWError { t: RWErrorType },   // Error during writing to card
+    Error,                              // Unknown Error
+    NoSdCard,                           // No SD Card
+    Timeout,                            // Timeout while waiting for a response
+    InvalidVoltrange,                   // Voltage Trial failed
+    CardError { t: CardStatusFlags },   // Card Error, see CardStatusFlags
+    SdmmcError { t: SdmmcErrorType },   // Response to a failed command
+    RWError { t: RWErrorType },         // Error during reading from/writing to the card
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,10 +20,11 @@ pub enum RWErrorType {
     AddressOutOfRange,
     DataTimeout,
     DataCrcFailed,
-    TxUnderrun,
-    RxOverrun,
+    TxUnderrun,         // FIFO underrun
+    RxOverrun,          // FIFO overrun
 }
 
+// See Documentation Table 207 and Table 228
 bitflags! {
     pub flags CardStatusFlags: u32 {
         // Error bits
@@ -53,7 +54,7 @@ bitflags! {
         const CURRENT_STATE         = 0x0000_1E00,
         const CARD_IS_LOCKED        = 0x0200_0000,
 
-        //R6 errors
+        // R6 errors
         const R6_GENERAL_UNKNOWN_ERROR  = 0x2000,
         const R6_ILLEGAL_COMMAND        = 0x4000,
         const R6_CRC_FAILED             = 0x8000,

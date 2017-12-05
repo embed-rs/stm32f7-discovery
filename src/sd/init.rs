@@ -4,6 +4,48 @@ use board::rcc::Rcc;
 use board::sdmmc::Sdmmc;
 use embedded::interfaces::gpio::Gpio;
 
+/// Initializes the SD Card, if it is inserted and not already initialized. If the card is already
+/// initialized this function does nothing and returns no error.
+///
+/// # Errors
+///
+/// This function returns `NoSdCard` Error, if there is no SD Card inserted. This function also
+/// fails, if a command to the SDMMC-Controller fails.
+///
+/// # Examples
+/// Initialization, if a card is inserted on startup.
+///
+/// ```rust
+/// fn main(hw: board::Hardware) -> ! {
+///     // Setup board...
+///
+///     let mut sd = sd::Sd::new(sdmmc, &mut gpio, rcc);
+///     sd::init(&mut sd).expect("Init failed");
+///
+///     loop {}
+/// }
+/// ```
+///
+/// On-the-fly (de-)initialization of the SD Card.
+///
+/// ```rust
+/// fn main(hw: board::Hardware) -> ! {
+///     // Setup board...
+///
+///     let mut sd = sd::Sd::new(sdmmc, &mut gpio, rcc);
+///
+///     loop {
+///         if sd.card_present() && !sd.card_initialized() {
+///             if let Some(i_err) = sd::init(&mut sd).err() {
+///                 hprintln!("{:?}", i_err);
+///             }
+///         } else if !sd.card_present() && sd.card_initialized() {
+///             sd::de_init(&mut sd);
+///         }
+///     }
+/// }
+/// ```
+// TODO: Automate the (de-)initialization with interupts?
 pub fn init(sd: &mut Sd) -> Result<(), Error> {
     // Check for SD card
     if !sd.card_present() {
@@ -11,7 +53,7 @@ pub fn init(sd: &mut Sd) -> Result<(), Error> {
     }
 
     // Card already initialized
-    if sd.card_info.is_some() {
+    if sd.card_initialized() {
         return Ok(())
     }
 
@@ -50,12 +92,14 @@ pub fn init(sd: &mut Sd) -> Result<(), Error> {
     Ok(())
 }
 
+/// Deinitializes the SD Card.
 pub fn de_init(sd: &mut Sd) {
     sd.card_info = None;
 
     sd.sdmmc.power.update(|pwr| pwr.set_pwrctrl(0x00));
 }
 
+/// Initializes the hardware, including the clocks and pins used by the SDMMC-Controller.
 pub fn init_hw(gpio: &mut Gpio, rcc: &mut Rcc) {
     // Enable SDMMC1 clock
     rcc.apb2enr.update(|r| r.set_sdmmc1en(true));
