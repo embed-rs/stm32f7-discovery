@@ -47,24 +47,17 @@ impl Sd {
     pub fn card_initialized(&self) -> bool {
         self.card_info.is_some()
     }
-    pub fn read_blocks(
-        &mut self,
-        block_add: u32,
-        number_of_blks: u16) -> Result<Vec<u32>, Error> {
+    pub fn read_blocks(&mut self, block_add: u32, number_of_blks: u16) -> Result<Vec<u32>, Error> {
         let mut data = vec![];
-        for i in 0..(number_of_blks as u32) {
+        for i in 0..u32::from(number_of_blks) {
             let mut block = self.read_blocks_h(block_add + i, 1, 5000)?;
             data.append(&mut block);
         }
 
         Ok(data)
     }
-    pub fn write_blocks(
-        &mut self,
-        data: &[u32],
-        block_add: u32,
-        number_of_blks: u16) -> Result<(), Error> {
-        for i in 0..(number_of_blks as u32) {
+    pub fn write_blocks(&mut self, data: &[u32], block_add: u32, number_of_blks: u16) -> Result<(), Error> {
+        for i in 0..u32::from(number_of_blks) {
             self.write_blocks_h(&data[min((i as usize)*128, data.len())..], block_add + i, 1, 5000)?;
         }
 
@@ -85,7 +78,7 @@ impl Sd {
         let mut block_add = block_add;
         let card_info = self.card_info.as_ref().unwrap();
 
-        if block_add + (number_of_blks as u32) > card_info.log_blk_number {
+        if block_add + u32::from(number_of_blks) > card_info.log_blk_number {
             return Err( Error::RWError { t: RWErrorType::AddressOutOfRange } )
         }
 
@@ -103,7 +96,7 @@ impl Sd {
         }
 
         // Set up the Data Path State Machine (DPSM)
-        let data_length = (number_of_blks as u32) * card_info.log_blk_size;
+        let data_length = u32::from(number_of_blks) * card_info.log_blk_size;
         self.sdmmc.dlen.update(|d| d.set_datalength(data_length));
         self.sdmmc.dtimer.update(|d| d.set_datatime(0xFFFF_FFFF));
         self.sdmmc.dctrl.update(|d| {
@@ -178,7 +171,7 @@ impl Sd {
         let mut block_add = block_add;
         let card_info = self.card_info.as_ref().unwrap();
 
-        if block_add + (number_of_blks as u32) > card_info.log_blk_number {
+        if block_add + u32::from(number_of_blks) > card_info.log_blk_number {
             return Err( Error::RWError { t: RWErrorType::AddressOutOfRange } )
         }
 
@@ -196,7 +189,7 @@ impl Sd {
         }
 
         // Set up the Data Path State Machine (DPSM)
-        let data_length = (number_of_blks as u32) * card_info.log_blk_size;
+        let data_length = u32::from(number_of_blks) * card_info.log_blk_size;
         self.sdmmc.dlen.update(|d| d.set_datalength(data_length));
         self.sdmmc.dtimer.update(|d| d.set_datatime(0xFFFF_FFFF));
         self.sdmmc.dctrl.update(|d| {
