@@ -34,7 +34,7 @@ pub fn init(sd: &mut Sd) -> Result<(), Error> {
     // Get the RCA of the card
     card_info.rca = sdmmc_cmd::set_rel_add(sd.sdmmc)?;
 
-    sdmmc_cmd::send_csd(sd.sdmmc, (card_info.rca as u32) << 16)?;
+    sdmmc_cmd::send_csd(sd.sdmmc, u32::from(card_info.rca) << 16)?;
 
     let csd = [sd.sdmmc.resp1.read().cardstatus1(),
                sd.sdmmc.resp2.read().cardstatus2(),
@@ -43,7 +43,7 @@ pub fn init(sd: &mut Sd) -> Result<(), Error> {
 
     get_card_csd(&mut card_info, csd);
 
-    sdmmc_cmd::sel_desel(sd.sdmmc, (card_info.rca as u32) << 16)?;
+    sdmmc_cmd::sel_desel(sd.sdmmc, u32::from(card_info.rca) << 16)?;
 
     sd.card_info = Some(card_info);
 
