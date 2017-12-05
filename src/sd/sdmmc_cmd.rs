@@ -100,11 +100,11 @@ pub fn read_multi_blk(sdmmc: &mut Sdmmc, block_add: u32) -> Result<(), Error> {
     get_cmd_resp1(sdmmc, 18, 5000)
 }
 
-pub fn set_blk_count(sdmmc: &mut Sdmmc, number_of_blks: u16) -> Result<(), Error> {
-    send_cmd(sdmmc, number_of_blks as u32, 23, true, false, 0x01);
-
-    get_cmd_resp1(sdmmc, 23, 5000)
-}
+// pub fn set_blk_count(sdmmc: &mut Sdmmc, number_of_blks: u16) -> Result<(), Error> {
+//     send_cmd(sdmmc, number_of_blks as u32, 23, true, false, 0x01);
+//
+//     get_cmd_resp1(sdmmc, 23, 5000)
+// }
 
 pub fn stop_transfer(sdmmc: &mut Sdmmc) -> Result<(), Error> {
     send_cmd(sdmmc, 0, 12, true, false, 0x01);

@@ -14,8 +14,6 @@ extern crate stm32f7_discovery as stm32f7;
 
 extern crate compiler_builtins;
 extern crate r0;
-#[macro_use]
-extern crate alloc;
 
 // hardware register structs with accessor methods
 use stm32f7::{system_clock, sdram, sd, lcd, board, embedded};
@@ -120,24 +118,15 @@ fn main(hw: board::Hardware) -> ! {
 
     lcd.set_background_color(lcd::Color::from_hex(0x0));
 
-    let mut sd = sd::Sd::new(sdmmc);
-    if let Some(sd_err) = sd::init(&mut sd, &mut gpio, rcc).err() {
-        hprintln!("{:?}", sd_err);
-    }
-
-    hprintln!("Card info: {:?}", sd.get_card_info());
-
-    let data = vec![42; 128];
-
-    if let Some(w_err) = sd.write_blocks(&data[..], 420, 1, 5000).err() {
-        hprintln!("{:?}", w_err);
-    }
-
-    match sd.read_blocks(420, 1, 5000) {
-        Ok(data) => hprintln!("length: {}\ndata: {:?}", data.len(), data),
-        Err(err) => hprintln!("{:?}", err),
-    }
+    let mut sd = sd::Sd::new(sdmmc, &mut gpio, rcc);
 
     loop {
+        if sd.card_present() && !sd.card_initialized() {
+            if let Some(i_err) = sd::init(&mut sd).err() {
+                hprintln!("{:?}", i_err);
+            }
+        } else if !sd.card_present() && sd.card_initialized() {
+            sd::de_init(&mut sd);
+        }
     }
 }

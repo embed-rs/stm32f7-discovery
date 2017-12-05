@@ -1,23 +1,19 @@
-use super::{Sd, CardType, sdmmc_cmd};
+use super::{Sd, CardType, sdmmc_cmd, CardInfo};
 use super::error::Error;
 use board::rcc::Rcc;
 use board::sdmmc::Sdmmc;
 use embedded::interfaces::gpio::Gpio;
 
-/// Initializes the SD card. This includes the initialization of the pins and clocks that the card
-/// needs to operate. If the initialization succeeds an SD card struct is returned.
-///
-/// # Errors
-///
-/// The initialization returns an error if something in the process went wrong. Most of the time
-/// this should only be the Error `NoSdCard`. Other errors are an indication that some clock or pin
-/// could not be activated correctly.
-pub fn init(sd: &mut Sd, gpio: &mut Gpio, rcc: &mut Rcc) -> Result<(), Error> {
+pub fn init(sd: &mut Sd) -> Result<(), Error> {
     // Check for SD card
-    sd_card_present(gpio, rcc)?;
+    if !sd.card_present() {
+        return Err(Error::NoSdCard)
+    }
 
-    // Initialize clock and pins
-    init_hw(gpio, rcc)?;
+    // Card already initialized
+    if sd.card_info.is_some() {
+        return Ok(())
+    }
 
     // default clock configuration
     sd.sdmmc.clkcr.update(|clkcr| {
@@ -29,56 +25,38 @@ pub fn init(sd: &mut Sd, gpio: &mut Gpio, rcc: &mut Rcc) -> Result<(), Error> {
         clkcr.set_clkdiv(0x76);
     });
 
-    sd.card_info.card_type = power_on(sd.sdmmc)?;
+    let mut card_info = CardInfo::default();
+    card_info.card_type = power_on(sd.sdmmc)?;
 
     // Let the card send the CID and enter identification process
     sdmmc_cmd::send_cid(sd.sdmmc)?;
 
     // Get the RCA of the card
-    sd.card_info.rca = sdmmc_cmd::set_rel_add(sd.sdmmc)?;
+    card_info.rca = sdmmc_cmd::set_rel_add(sd.sdmmc)?;
 
-    sdmmc_cmd::send_csd(sd.sdmmc, (sd.card_info.rca as u32) << 16)?;
+    sdmmc_cmd::send_csd(sd.sdmmc, (card_info.rca as u32) << 16)?;
 
     let csd = [sd.sdmmc.resp1.read().cardstatus1(),
                sd.sdmmc.resp2.read().cardstatus2(),
                sd.sdmmc.resp3.read().cardstatus3(),
                sd.sdmmc.resp4.read().cardstatus4()];
 
-    get_card_csd(sd, csd);
+    get_card_csd(&mut card_info, csd);
 
-    sdmmc_cmd::sel_desel(sd.sdmmc, (sd.card_info.rca as u32) << 16)?;
+    sdmmc_cmd::sel_desel(sd.sdmmc, (card_info.rca as u32) << 16)?;
 
-    //TODO: needed?
-    sd.sdmmc.clkcr.update(|clkcr| {
-        clkcr.set_negedge(false);
-        clkcr.set_bypass(false);
-        clkcr.set_pwrsav(false);
-        clkcr.set_widbus(0);
-        clkcr.set_hwfc_en(false);
-        clkcr.set_clkdiv(0x76);
-    });
+    sd.card_info = Some(card_info);
 
     Ok(())
 }
 
-fn sd_card_present(gpio: &mut Gpio, rcc: &mut Rcc) -> Result<(), Error> {
-    use embedded::interfaces::gpio::Port::*;
-    use embedded::interfaces::gpio::Pin::*;
-    use embedded::interfaces::gpio::Resistor;
+pub fn de_init(sd: &mut Sd) {
+    sd.card_info = None;
 
-    rcc.ahb1enr.update(|r| r.set_gpiocen(true));
-    // wait for enabling
-    while !rcc.ahb1enr.read().gpiocen() {}
-
-    let sd_not_present = gpio.to_input((PortC, Pin13), Resistor::PullUp).unwrap();
-    if sd_not_present.get() {
-        return Err(Error::NoSdCard);
-    }
-
-    Ok(())
+    sd.sdmmc.power.update(|pwr| pwr.set_pwrctrl(0x00));
 }
 
-fn init_hw(gpio: &mut Gpio, rcc: &mut Rcc) -> Result<(), Error> {
+pub fn init_hw(gpio: &mut Gpio, rcc: &mut Rcc) {
     // Enable SDMMC1 clock
     rcc.apb2enr.update(|r| r.set_sdmmc1en(true));
     // Enable data and sdmmc_cmd port
@@ -94,8 +72,6 @@ fn init_hw(gpio: &mut Gpio, rcc: &mut Rcc) -> Result<(), Error> {
             // || !rcc.ahb1enr.read().gpioben() {}
 
     init_pins(gpio);
-
-    Ok(())
 }
 
 fn init_pins(gpio: &mut Gpio) {
@@ -199,18 +175,18 @@ fn power_on(sdmmc: &mut Sdmmc) -> Result<CardType, Error> {
     Ok(card_type)
 }
 
-fn get_card_csd(sd: &mut Sd, csd: [u32; 4]) {
-    if sd.card_info.card_type == CardType::SDv2HC {
+fn get_card_csd(card_info: &mut CardInfo, csd: [u32; 4]) {
+    if card_info.card_type == CardType::SDv2HC {
         let tmp = csd[1] & 0xFF;
         let mut device_size = (tmp & 0x3F) << 16;
 
         let tmp = (csd[2] & 0xFFFF_0000) >> 16;
         device_size |= tmp;
 
-        sd.card_info.blk_number = (device_size + 1) * 1024;
-        sd.card_info.log_blk_number = sd.card_info.blk_number;
-        sd.card_info.blk_size = 512;
-        sd.card_info.log_blk_size = sd.card_info.blk_size;
+        card_info.blk_number = (device_size + 1) * 1024;
+        card_info.log_blk_number = card_info.blk_number;
+        card_info.blk_size = 512;
+        card_info.log_blk_size = card_info.blk_size;
     } else {
         let tmp = csd[1] & 0x3FF;
         let mut device_size = tmp << 2;
@@ -222,9 +198,9 @@ fn get_card_csd(sd: &mut Sd, csd: [u32; 4]) {
 
         let rd_blk_len = (csd[1] & 0x000F_0000) >> 16;
 
-        sd.card_info.blk_number = (device_size + 1) * (1 << (device_size_mul + 2));
-        sd.card_info.blk_size = 1 << rd_blk_len;
-        sd.card_info.log_blk_number = sd.card_info.blk_number * (sd.card_info.blk_size / 512);
-        sd.card_info.log_blk_size = 512;
+        card_info.blk_number = (device_size + 1) * (1 << (device_size_mul + 2));
+        card_info.blk_size = 1 << rd_blk_len;
+        card_info.log_blk_number = card_info.blk_number * (card_info.blk_size / 512);
+        card_info.log_blk_size = 512;
     }
 }
