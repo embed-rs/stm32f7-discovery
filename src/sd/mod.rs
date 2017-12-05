@@ -47,8 +47,31 @@ impl Sd {
     pub fn card_initialized(&self) -> bool {
         self.card_info.is_some()
     }
-
     pub fn read_blocks(
+        &mut self,
+        block_add: u32,
+        number_of_blks: u16) -> Result<Vec<u32>, Error> {
+        let mut data = vec![];
+        for i in 0..(number_of_blks as u32) {
+            let mut block = self.read_blocks_h(block_add + i, 1, 5000)?;
+            data.append(&mut block);
+        }
+
+        Ok(data)
+    }
+    pub fn write_blocks(
+        &mut self,
+        data: &[u32],
+        block_add: u32,
+        number_of_blks: u16) -> Result<(), Error> {
+        for i in 0..(number_of_blks as u32) {
+            self.write_blocks_h(&data[min((i as usize)*128, data.len())..], block_add + i, 1, 5000)?;
+        }
+
+        Ok(())
+    }
+
+    fn read_blocks_h(
         &mut self,
         block_add: u32,
         number_of_blks: u16,
@@ -140,7 +163,7 @@ impl Sd {
         Ok(data)
     }
 
-    pub fn write_blocks(
+    fn write_blocks_h(
         &mut self,
         data: &[u32],
         block_add: u32,
