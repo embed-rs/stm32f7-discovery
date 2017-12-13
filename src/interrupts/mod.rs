@@ -236,8 +236,12 @@ impl<'a> Drop for InterruptTable<'a> {
 /// Creates a new scope, to guarantee that the `InterruptTable` constructor is called.
 ///
 /// # Examples
-/// ```rust
-/// fn main(hw: board::Hardware) -> ! {
+/// ```rust,no_run
+/// #[macro_use]
+/// extern crate stm32f7_discovery as stm32f7;
+/// use stm32f7::{board, system_clock, interrupts};
+///
+/// fn main() {
 ///     // Extract hardware
 ///     let board::Hardware {
 ///         rcc,
@@ -245,15 +249,16 @@ impl<'a> Drop for InterruptTable<'a> {
 ///         flash,
 ///         nvic,
 ///         ..
-///     } = hw;
+///     } = board::hw();
 ///
 ///     // Configure system clock
 ///     system_clock::init(rcc, pwr, flash);
 ///
-///     use stm32f7::interrupts::interrupt_request::InterruptRequest::Tim7;
+///     use interrupts::interrupt_request::InterruptRequest::Tim7;
 ///     use interrupts::Priority::P1;
 ///     // Open scope with interrupt support
-///     interrupts::scope(nvic, |irq| { hprintln!("Default handler: {}", irq) },
+///     interrupts::scope(nvic,
+///         |irq| {hprintln!("Default handler: {}", irq) },
 ///         |interrupt_table| {
 ///             let _ = interrupt_table.register(Tim7, P1, || {
 ///                 hprintln!("Interrupt handler for Tim7");
