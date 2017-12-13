@@ -2,6 +2,7 @@
 
 use core::fmt;
 
+#[cfg(target_arch = "arm")]
 unsafe fn call_svc(num: usize, addr: *const ()) -> usize {
     // allocate stack space for the possible result
     let result: usize;
@@ -38,6 +39,7 @@ const SYS_WRITE: usize = 0x05;
 /// on the host. Returns `0` on success or number of unwritten bytes
 /// otherwise.
 #[allow(unreachable_code, unused_variables)]
+#[cfg(target_arch = "arm")]
 fn svc_sys_write(fd: usize, data: &[u8]) -> usize {
     let args = SvcWriteCall {
         fd: fd,
@@ -47,6 +49,9 @@ fn svc_sys_write(fd: usize, data: &[u8]) -> usize {
 
     unsafe { call_svc(SYS_WRITE, &args as *const SvcWriteCall as *const ()) }
 }
+
+#[cfg(not(target_arch = "arm"))]
+fn svc_sys_write(_fd: usize, _data: &[u8]) -> usize { 0 }
 
 #[macro_export]
 macro_rules! hprintln {

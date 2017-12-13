@@ -27,6 +27,7 @@ use self::interrupt_request::InterruptRequest;
 pub mod interrupt_request;
 pub mod primask_mutex;
 
+#[cfg(target_arch = "arm")]
 unsafe extern "C" fn dispatcher() {
     let ipsr: u32;
     // Reads the Interrupt Program Status Register (IPSR)
@@ -49,6 +50,7 @@ unsafe extern "C" fn dispatcher() {
 #[no_mangle]
 #[used]
 #[allow(private_no_mangle_statics)]
+#[cfg(target_arch = "arm")]
 static INTERRUPTS: [unsafe extern "C" fn(); 98] = [dispatcher; 98];
 
 

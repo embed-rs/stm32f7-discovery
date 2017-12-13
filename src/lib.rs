@@ -48,6 +48,7 @@ pub mod exti;
 pub mod sd;
 
 #[cfg(not(test))]
+#[cfg(target_arch="arm")]
 #[lang = "panic_fmt"]
 #[no_mangle]
 pub extern "C" fn panic_fmt(fmt: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
