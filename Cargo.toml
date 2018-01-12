@@ -28,7 +28,7 @@ git = "https://github.com/embed-rs/embedded_stm32f7.git"
 [dependencies.smoltcp]
 git = "https://github.com/m-labs/smoltcp.git"
 default-features = false
-features = ["alloc", "socket-raw", "socket-udp", "socket-tcp", "socket-icmp"]
+features = ["alloc", "socket-raw", "socket-udp", "socket-tcp", "socket-icmp", "proto-ipv4"]
 
 [profile]
 
