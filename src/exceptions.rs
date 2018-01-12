@@ -44,3 +44,6 @@ type Handler = extern "C" fn();
 extern "C" fn fault() {
     panic!("EXCEPTION: hard fault");
 }
+
+// workaround for https://github.com/rust-lang/rust/issues/47384
+pub fn hello() {}
