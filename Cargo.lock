@@ -4,7 +4,7 @@ version = "0.2.2"
 source = "git+https://github.com/f-bro/alloc-cortex-m.git?branch=new-alloc-api#b30462a3d8f83300f972b9c7e7923ba15a6acdfa"
 dependencies = [
  "cortex-m 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "linked_list_allocator 0.4.2 (git+https://github.com/phil-opp/linked-list-allocator.git)",
+ "linked_list_allocator 0.4.3 (git+https://github.com/phil-opp/linked-list-allocator.git)",
 ]
 
 [[package]]
@@ -38,7 +38,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "byteorder"
-version = "1.1.0"
+version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -73,16 +73,16 @@ dependencies = [
 
 [[package]]
 name = "linked_list_allocator"
-version = "0.4.2"
-source = "git+https://github.com/phil-opp/linked-list-allocator.git#7979db9dcb30f7d1212edd16aef4241a0e0fcb40"
+version = "0.4.3"
+source = "git+https://github.com/phil-opp/linked-list-allocator.git#22693ba746ca76aa8894393588d1b4edfb252f14"
 dependencies = [
  "spin 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "managed"
-version = "0.4.0"
-source = "git+https://github.com/m-labs/rust-managed.git?rev=629a6786a1cf1692015f464ed16c04eafa5cb8d1#629a6786a1cf1692015f464ed16c04eafa5cb8d1"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "nodrop"
@@ -116,9 +116,10 @@ dependencies = [
 [[package]]
 name = "smoltcp"
 version = "0.4.0"
+source = "git+https://github.com/m-labs/smoltcp.git#3b4d6b5e097832a285f875f2f25696bfc93a9de0"
 dependencies = [
- "byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "managed 0.4.0 (git+https://github.com/m-labs/rust-managed.git?rev=629a6786a1cf1692015f464ed16c04eafa5cb8d1)",
+ "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "managed 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -131,7 +132,7 @@ name = "stb_truetype"
 version = "0.2.1"
 source = "git+https://github.com/phil-opp/stb_truetype-rs.git#6d546c1b9c6c880d8e0eeca6a8592c50f66b91e0"
 dependencies = [
- "byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -141,12 +142,12 @@ dependencies = [
  "alloc-cortex-m 0.2.2 (git+https://github.com/f-bro/alloc-cortex-m.git?branch=new-alloc-api)",
  "arrayvec 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)",
  "bit_field 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "embedded_stm32f7 0.1.0 (git+https://github.com/embed-rs/embedded_stm32f7.git)",
  "r0 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusttype 0.2.1 (git+https://github.com/phil-opp/rusttype.git?branch=no_std)",
- "smoltcp 0.4.0",
+ "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp.git)",
  "spin 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "volatile 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -168,17 +169,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum bit_field 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2f2608c2dbf1057804d86937a32731a17458a60b10e83ad91c1c35c36e522f5d"
 "checksum bit_field 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ff91a64014e1bc53bf643920f2c9ab5f0980d92a0948295f3ee550e9266849ad"
 "checksum bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "aad18937a628ec6abcd26d1489012cc0e18c21798210f491af69ded9b881106d"
-"checksum byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ff81738b726f5d099632ceaffe7fb65b90212e8dce59d518729e7e8634032d3d"
+"checksum byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "652805b7e73fada9d85e9a6682a4abd490cb52d96aeecc12e33a0de34dfd0d23"
 "checksum cortex-m 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "de9b334d0778b1ace2dfb63672594d0c0db093a3924617ad4e2f1669d32832dc"
 "checksum embedded 0.3.0 (git+https://github.com/embed-rs/embedded-rs.git)" = "<none>"
 "checksum embedded_stm32f7 0.1.0 (git+https://github.com/embed-rs/embedded_stm32f7.git)" = "<none>"
-"checksum linked_list_allocator 0.4.2 (git+https://github.com/phil-opp/linked-list-allocator.git)" = "<none>"
-"checksum managed 0.4.0 (git+https://github.com/m-labs/rust-managed.git?rev=629a6786a1cf1692015f464ed16c04eafa5cb8d1)" = "<none>"
+"checksum linked_list_allocator 0.4.3 (git+https://github.com/phil-opp/linked-list-allocator.git)" = "<none>"
+"checksum managed 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "786bd3519bdfb0e1a57146a74b7584555dd6c4f1b6e1137c70e177d60dde8186"
 "checksum nodrop 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)" = "9a2228dca57108069a5262f2ed8bd2e82496d2e074a06d1ccc7ce1687b6ae0a2"
 "checksum odds 0.2.26 (registry+https://github.com/rust-lang/crates.io-index)" = "4eae0151b9dacf24fcc170d9995e511669a082856a91f958a2fe380bfab3fb22"
 "checksum once 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "931fb7a4cf34610cf6cbe58d52a8ca5ef4c726d4e2e178abd0dc13a6551c6d73"
 "checksum r0 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1627d705506f5bf4c16126c4f85cd8c59d45c151f2aef890b45bdd4a91ca152f"
 "checksum rusttype 0.2.1 (git+https://github.com/phil-opp/rusttype.git?branch=no_std)" = "<none>"
+"checksum smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp.git)" = "<none>"
 "checksum spin 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)" = "7e4deb3c2455c73779e6d3eebceae9599fc70957e54c69fe88f93aa48e62f432"
 "checksum stb_truetype 0.2.1 (git+https://github.com/phil-opp/stb_truetype-rs.git)" = "<none>"
 "checksum volatile 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "6633c5250f16598f92b48272265ce9f8179447f702f0ba0cb640c5be6537b0c0"
