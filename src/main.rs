@@ -19,7 +19,10 @@ extern crate smoltcp;
 
 // hardware register structs with accessor methods
 use stm32f7::{audio, board, embedded, ethernet, lcd, sdram, system_clock, touch, i2c};
-use smoltcp::socket::{SocketSet, UdpSocket, TcpSocket};
+use stm32f7::ethernet::IP_ADDR;
+use smoltcp::socket::{Socket, SocketSet, UdpSocket, AnySocket, SocketRef};
+use smoltcp::wire::{IpEndpoint, IpAddress};
+use alloc::Vec;
 
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
@@ -186,7 +189,9 @@ fn main(hw: board::Hardware) -> ! {
 
         RingBuffer::new(packet_buffers)
     };
-    let example_udp_socket = UdpSocket::new(new_socket_buffer(), new_socket_buffer());
+    let mut example_udp_socket = UdpSocket::new(new_socket_buffer(), new_socket_buffer());
+    let endpoint = IpEndpoint::new(IpAddress::Ipv4(IP_ADDR), 15);
+    UdpSocket::downcast(SocketRef::new(&mut example_udp_socket)).unwrap().bind(endpoint);
 
     sockets.add(example_udp_socket);
 
@@ -242,20 +247,42 @@ fn main(hw: board::Hardware) -> ! {
 
                 // handle new ethernet packets
                 if let Ok(ref mut eth) = ethernet_interface {
-                    loop {
-                        match eth.poll(&mut sockets, system_clock::ticks() as u64) {
-                            Err(::smoltcp::Error::Exhausted) => break,
-                            Err(_) => { /* ignore */ },
-                            Ok(Some(deadline)) if deadline > 0 => {
-                                /* TODO sleep until deadline */
-                            },
-                            Ok(_) => { /* still packets waiting => continue */ }
-                        }
+                    match eth.poll(&mut sockets, system_clock::ticks() as u64) {
+                        Err(::smoltcp::Error::Exhausted) => continue,
+                        Err(_) => { /* ignore */ },
+                        Ok(socket_changed) => if socket_changed {
+                            for mut socket in sockets.iter_mut() {
+                                poll_socket(&mut socket).expect("socket poll failed");
+                            }
+                        },
                     }
                 }
             }
         },
     )
+}
+
+fn poll_socket(socket: &mut Socket) -> Result<(), smoltcp::Error> {
+    match socket {
+        &mut Socket::Udp(ref mut socket) => match socket.endpoint().port {
+            15 => loop {
+                let reply;
+                match socket.recv() {
+                    Ok((data, remote_endpoint)) => {
+                        let mut data = Vec::from(data);
+                        data.reverse();
+                        reply = (data, remote_endpoint);
+                    },
+                    Err(smoltcp::Error::Exhausted) => break,
+                    Err(err) => return Err(err),
+                }
+                socket.send_slice(&reply.0, reply.1)?;
+            }
+            _ => {}
+        }
+        _ => {}
+    }
+    Ok(())
 }
 
 /*

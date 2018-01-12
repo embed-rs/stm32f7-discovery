@@ -8,9 +8,9 @@ use board::ethernet_mac::{self, EthernetMac};
 use embedded::interfaces::gpio;
 use volatile::Volatile;
 
-use smoltcp::wire::{EthernetAddress, Ipv4Address};
+use smoltcp::wire::{EthernetAddress, IpAddress, Ipv4Address, IpCidr, Ipv4Cidr};
 use smoltcp::phy::{Device, DeviceCapabilities};
-use smoltcp::iface::EthernetInterface;
+use smoltcp::iface::{EthernetInterface, EthernetInterfaceBuilder};
 
 mod init;
 mod phy;
@@ -40,14 +40,15 @@ impl From<()> for Error {
 }
 
 pub const MTU: usize = 1536;
-const ETH_ADDR: EthernetAddress = EthernetAddress([0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef]);
+pub const ETH_ADDR: EthernetAddress = EthernetAddress([0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef]);
+pub const IP_ADDR: Ipv4Address = Ipv4Address([141, 52, 46, 198]);
 
 pub struct EthernetDevice {
     rx: RxDevice,
     tx: TxDevice,
     ethernet_dma: &'static mut EthernetDma,
-    ipv4_addr: Option<Ipv4Address>,
-    requested_ipv4_addr: Option<Ipv4Address>,
+    ipv4_addr: Option<IpAddress>,
+    requested_ipv4_addr: Option<IpAddress>,
     last_discover_at: usize,
 }
 
@@ -101,7 +102,12 @@ impl EthernetDevice {
         use alloc::BTreeMap;
 
         let neighbor_cache = NeighborCache::new(BTreeMap::new());
-        EthernetInterface::new(self, neighbor_cache, ETH_ADDR, [], None)
+        let interface_builder = EthernetInterfaceBuilder::new(self);
+        let interface_builder = interface_builder.ethernet_addr(ETH_ADDR);
+        let ip_cidr = IpCidr::Ipv4(Ipv4Cidr::new(IP_ADDR, 0));
+        let interface_builder = interface_builder.ip_addrs(vec![ip_cidr]);
+        let interface_builder = interface_builder.neighbor_cache(neighbor_cache);
+        interface_builder.finalize()
     }
 
     fn start_send(&mut self) {
