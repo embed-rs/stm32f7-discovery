@@ -56,8 +56,6 @@ fn main(hw: board::Hardware) -> ! {
     use embedded::interfaces::gpio::{self, Gpio};
     use alloc::Vec;
 
-    hprintln!("Entering main");
-
     let x = vec![1, 2, 3, 4, 5];
     assert_eq!(x.len(), 5);
     assert_eq!(x[3], 4);
