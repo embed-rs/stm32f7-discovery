@@ -109,27 +109,6 @@ impl EthernetDevice {
         let interface_builder = interface_builder.neighbor_cache(neighbor_cache);
         interface_builder.finalize()
     }
-
-    fn start_send(&mut self) {
-        match self.ethernet_dma.dmasr.read().tps() {
-            // transmit process state
-            0b000 => panic!("stopped"), // stopped
-            0b001 | 0b010 | 0b011 | 0b111 => {
-                println!("running");
-            }
-            // running
-            0b110 => {
-                // suspended
-                if !self.tx.queue_empty() {
-                    // write poll demand register
-                    let mut poll_demand = ethernet_dma::Dmatpdr::default();
-                    poll_demand.set_tpd(0); // any value
-                    self.ethernet_dma.dmatpdr.write(poll_demand);
-                }
-            }
-            _ => unreachable!(),
-        }
-    }
 }
 
 impl Drop for EthernetDevice {
@@ -144,12 +123,12 @@ impl<'a> Device<'a> for EthernetDevice {
 
     fn receive(&'a mut self) -> Option<(Self::RxToken, Self::TxToken)> {
         let rx = RxToken { rx: &mut self.rx, };
-        let tx = TxToken { tx: &mut self.tx, };
+        let tx = TxToken { tx: &mut self.tx, ethernet_dma: &mut self.ethernet_dma, };
         Some((rx, tx))
     }
 
     fn transmit(&'a mut self) -> Option<Self::TxToken> {
-        Some(TxToken { tx: &mut self.tx, })
+        Some(TxToken { tx: &mut self.tx, ethernet_dma: &mut self.ethernet_dma, })
     }
 
     fn capabilities(&self) -> DeviceCapabilities {
@@ -173,16 +152,38 @@ impl<'a> ::smoltcp::phy::RxToken for RxToken<'a> {
 
 pub struct TxToken<'a> {
     tx: &'a mut TxDevice,
+    ethernet_dma: &'a mut EthernetDma,
 }
 
 impl<'a> ::smoltcp::phy::TxToken for TxToken<'a> {
-    fn consume<R, F>(self, _timestamp: u64, len: usize, f: F) -> ::smoltcp::Result<R>
+    fn consume<R, F>(mut self, _timestamp: u64, len: usize, f: F) -> ::smoltcp::Result<R>
         where F: FnOnce(&mut [u8]) -> ::smoltcp::Result<R>
     {
         let mut data = vec![0; len].into_boxed_slice();
         let ret = f(&mut data)?;
         self.tx.insert(data);
+        self.start_send();
         Ok(ret)
+    }
+}
+
+impl<'a> TxToken<'a> {
+    fn start_send(&mut self) {
+        // read transmit process state
+        match self.ethernet_dma.dmasr.read().tps() {
+            // stopped
+            0b000 => panic!("stopped"),
+            // running
+            0b001 | 0b010 | 0b011 | 0b111 => {}
+            // suspended
+            0b110 => {
+                // write poll demand register
+                let mut poll_demand = ethernet_dma::Dmatpdr::default();
+                poll_demand.set_tpd(0); // any value
+                self.ethernet_dma.dmatpdr.write(poll_demand);
+            }
+            _ => unreachable!(),
+        }
     }
 }
 
