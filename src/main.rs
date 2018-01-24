@@ -247,7 +247,8 @@ fn main(hw: board::Hardware) -> ! {
                 if let Ok(ref mut eth) = ethernet_interface {
                     match eth.poll(&mut sockets, system_clock::ticks() as u64) {
                         Err(::smoltcp::Error::Exhausted) => continue,
-                        Err(_) => { /* ignore */ },
+                        Err(::smoltcp::Error::Unrecognized) => {},
+                        Err(e) => println!("Network error: {:?}", e),
                         Ok(socket_changed) => if socket_changed {
                             for mut socket in sockets.iter_mut() {
                                 poll_socket(&mut socket).expect("socket poll failed");
