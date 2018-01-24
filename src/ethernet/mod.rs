@@ -122,12 +122,14 @@ impl<'a> Device<'a> for EthernetDevice {
     type TxToken = TxToken<'a>;
 
     fn receive(&'a mut self) -> Option<(Self::RxToken, Self::TxToken)> {
+        if !self.rx.new_data_received() { return None }
         let rx = RxToken { rx: &mut self.rx, };
         let tx = TxToken { tx: &mut self.tx, ethernet_dma: &mut self.ethernet_dma, };
         Some((rx, tx))
     }
 
     fn transmit(&'a mut self) -> Option<Self::TxToken> {
+        if !self.tx.descriptor_available() { return None }
         Some(TxToken { tx: &mut self.tx, ethernet_dma: &mut self.ethernet_dma, })
     }
 
@@ -245,6 +247,11 @@ impl RxDevice {
         })
     }
 
+    fn new_data_received(&self) -> bool {
+        let descriptor = self.descriptors[self.next_descriptor].read();
+        !descriptor.own() && descriptor.is_first_descriptor()
+    }
+
     fn receive<T, F>(&mut self, f: F) -> ::smoltcp::Result<T>
     where
         F: FnOnce(&[u8]) -> ::smoltcp::Result<T>,
@@ -325,6 +332,10 @@ impl TxDevice {
             descriptors: descriptors.into_boxed_slice(),
             next_descriptor: 0,
         }
+    }
+
+    fn descriptor_available(&self) -> bool {
+        !self.descriptors[self.next_descriptor].read().own()
     }
 
     pub fn insert(&mut self, data: Box<[u8]>) {
