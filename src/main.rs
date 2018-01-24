@@ -269,7 +269,8 @@ fn poll_socket(socket: &mut Socket) -> Result<(), smoltcp::Error> {
                 match socket.recv() {
                     Ok((data, remote_endpoint)) => {
                         let mut data = Vec::from(data);
-                        data.reverse();
+                        let len = data.len()-1;
+                        data[..len].reverse();
                         reply = (data, remote_endpoint);
                     },
                     Err(smoltcp::Error::Exhausted) => break,
