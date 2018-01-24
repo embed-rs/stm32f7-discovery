@@ -8,7 +8,7 @@ use board::ethernet_mac::{self, EthernetMac};
 use embedded::interfaces::gpio;
 use volatile::Volatile;
 
-use smoltcp::wire::{EthernetAddress, IpAddress, Ipv4Address, IpCidr, Ipv4Cidr};
+use smoltcp::wire::{EthernetAddress, Ipv4Address, IpCidr, Ipv4Cidr};
 use smoltcp::phy::{Device, DeviceCapabilities};
 use smoltcp::iface::{EthernetInterface, EthernetInterfaceBuilder};
 
@@ -47,9 +47,6 @@ pub struct EthernetDevice {
     rx: RxDevice,
     tx: TxDevice,
     ethernet_dma: &'static mut EthernetDma,
-    ipv4_addr: Option<IpAddress>,
-    requested_ipv4_addr: Option<IpAddress>,
-    last_discover_at: usize,
 }
 
 impl EthernetDevice {
@@ -86,15 +83,11 @@ impl EthernetDevice {
         ethernet_mac.maca0hr.write(mac0_high);
 
         init::start(ethernet_mac, ethernet_dma);
-        let mut device = EthernetDevice {
+        Ok(EthernetDevice {
             rx: rx_device,
             tx: tx_device,
             ethernet_dma: ethernet_dma,
-            ipv4_addr: None,
-            requested_ipv4_addr: None,
-            last_discover_at: 0,
-        };
-        Ok(device)
+        })
     }
 
     pub fn into_interface<'a>(self) -> EthernetInterface<'a, 'a, Self> {
@@ -262,7 +255,7 @@ impl RxDevice {
         if descriptor.own() || !descriptor.is_first_descriptor() {
             return Err(::smoltcp::Error::Exhausted);
         }
-        if let rx::ChecksumResult::Error(header, payload) = descriptor.checksum_result() {
+        if let rx::ChecksumResult::Error(_, _) = descriptor.checksum_result() {
             return Err(::smoltcp::Error::Checksum);
         }
 
@@ -282,6 +275,7 @@ impl RxDevice {
             }
         }
 
+        // check for errors
         let mut error = None;
         if last_descriptor.error() {
             if last_descriptor.crc_error() {
@@ -376,10 +370,6 @@ impl TxDevice {
 
     pub fn front_of_queue(&self) -> &Volatile<tx::TxDescriptor> {
         self.descriptors.first().unwrap()
-    }
-
-    pub fn queue_empty(&self) -> bool {
-        self.descriptors.iter().all(|d| !d.read().own())
     }
 
     pub fn cleanup(&mut self) {
