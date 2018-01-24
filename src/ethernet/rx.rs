@@ -87,6 +87,34 @@ impl RxDescriptor {
         self.word_0.get_bit(15)
     }
 
+    pub fn crc_error(&self) -> bool {
+        self.word_0.get_bit(1)
+    }
+
+    pub fn receive_error(&self) -> bool {
+        self.word_0.get_bit(3)
+    }
+
+    pub fn watchdog_timeout_error(&self) -> bool {
+        self.word_0.get_bit(4)
+    }
+
+    pub fn late_collision_error(&self) -> bool {
+        self.word_0.get_bit(6)
+    }
+
+    pub fn giant_frame_error(&self) -> bool {
+        self.word_0.get_bit(7)
+    }
+
+    pub fn overflow_error(&self) -> bool {
+        self.word_0.get_bit(11)
+    }
+
+    pub fn descriptor_error(&self) -> bool {
+        self.word_0.get_bit(14)
+    }
+
     pub fn checksum_result(&self) -> ChecksumResult {
         let w = self.word_0;
         match (w.get_bit(5), w.get_bit(7), w.get_bit(0)) {

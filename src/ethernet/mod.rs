@@ -281,15 +281,43 @@ impl RxDevice {
                 return Err(::smoltcp::Error::Exhausted); // packet is not fully received
             }
         }
+
+        let mut error = None;
         if last_descriptor.error() {
-            return Err(::smoltcp::Error::Truncated);
+            if last_descriptor.crc_error() {
+                println!("crc_error");
+            }
+            if last_descriptor.receive_error() {
+                println!("receive_error");
+            }
+            if last_descriptor.watchdog_timeout_error() {
+                println!("watchdog_timeout_error");
+            }
+            if last_descriptor.late_collision_error() {
+                println!("late_collision_error");
+            }
+            if last_descriptor.giant_frame_error() {
+                println!("giant_frame_error");
+            }
+            if last_descriptor.overflow_error() {
+                println!("overflow_error");
+            }
+            if last_descriptor.descriptor_error() {
+                println!("descriptor_error");
+            }
+            error = Some(::smoltcp::Error::Truncated);
         }
 
-        // read data and pass it to processing function
-        let offset = self.config.descriptor_buffer_offset(descriptor_index);
-        let len = last_descriptor.frame_len();
-        let data = &self.buffer[offset..(offset + len)];
-        let ret = f(data);
+        let ret = match error {
+            Some(error) => Err(error),
+            None => {
+                // read data and pass it to processing function
+                let offset = self.config.descriptor_buffer_offset(descriptor_index);
+                let len = last_descriptor.frame_len();
+                let data = &self.buffer[offset..(offset + len)];
+                f(data)
+            }
+        };
 
         // reset descriptor(s) and update next_descriptor
         let mut next = (descriptor_index + 1) % self.descriptors.len();
