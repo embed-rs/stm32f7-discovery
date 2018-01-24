@@ -284,33 +284,3 @@ fn poll_socket(socket: &mut Socket) -> Result<(), smoltcp::Error> {
     }
     Ok(())
 }
-
-/*
-fn udp_reverse(udp: Udp) -> Option<Cow<[u8]>> {
-    for byte in udp.payload.iter().filter(|&&b| b != 0) {
-        print!("{}", char::from(*byte));
-    }
-    let mut reply = b"Reversed: ".to_vec();
-    let start = reply.len();
-    reply.extend_from_slice(udp.payload);
-    let end = reply.len() - 1;
-    reply[start..end].reverse();
-    Some(reply.into())
-}
-
-fn tcp_reverse<'a>(_connection: &TcpConnection, data: &'a [u8]) -> Option<Cow<'a, [u8]>> {
-    for byte in data.iter().filter(|&&b| b != 0) {
-        print!("{}", char::from(*byte));
-    }
-    if data.len() > 0 {
-        let mut reply = b"Reversed: ".to_vec();
-        let start = reply.len();
-        reply.extend_from_slice(data);
-        let end = reply.len() - 1;
-        reply[start..end].reverse();
-        Some(reply.into())
-    } else {
-        None
-    }
-}
-*/
