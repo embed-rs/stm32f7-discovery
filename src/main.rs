@@ -20,7 +20,7 @@ extern crate smoltcp;
 // hardware register structs with accessor methods
 use stm32f7::{audio, board, embedded, ethernet, lcd, sdram, system_clock, touch, i2c};
 use stm32f7::ethernet::IP_ADDR;
-use smoltcp::socket::{Socket, SocketSet, UdpSocket, AnySocket, SocketRef};
+use smoltcp::socket::{Socket, SocketSet, UdpSocket, TcpSocket, AnySocket, SocketRef};
 use smoltcp::wire::{IpEndpoint, IpAddress};
 use alloc::Vec;
 
@@ -172,7 +172,7 @@ fn main(hw: board::Hardware) -> ! {
     };
 
     let mut sockets = SocketSet::new(Vec::new());
-    let new_socket_buffer = || {
+    let new_udp_socket_buffer = || {
         use smoltcp::storage::RingBuffer;
         use smoltcp::socket::UdpPacketBuffer;
 
@@ -181,17 +181,25 @@ fn main(hw: board::Hardware) -> ! {
         };
 
         let mut packet_buffers = Vec::new();
-        for _ in 0..3 {
-            packet_buffers.push(new_packet_buffer());
-        }
+        packet_buffers.push(new_packet_buffer());
 
         RingBuffer::new(packet_buffers)
     };
-    let mut example_udp_socket = UdpSocket::new(new_socket_buffer(), new_socket_buffer());
+    let mut example_udp_socket = UdpSocket::new(new_udp_socket_buffer(), new_udp_socket_buffer());
     let endpoint = IpEndpoint::new(IpAddress::Ipv4(IP_ADDR), 15);
     UdpSocket::downcast(SocketRef::new(&mut example_udp_socket)).unwrap().bind(endpoint);
 
+    let new_tcp_socket_buffer = || {
+        use smoltcp::storage::RingBuffer;
+
+        RingBuffer::new(vec![0; ethernet::MTU*2])
+    };
+    let mut example_tcp_socket = TcpSocket::new(new_tcp_socket_buffer(), new_tcp_socket_buffer());
+    let endpoint = IpEndpoint::new(IpAddress::Ipv4(IP_ADDR), 15);
+    TcpSocket::downcast(SocketRef::new(&mut example_tcp_socket)).unwrap().listen(endpoint);
+
     sockets.add(example_udp_socket);
+    sockets.add(example_tcp_socket);
 
     touch::check_family_id(&mut i2c_3).unwrap();
 
@@ -277,6 +285,26 @@ fn poll_socket(socket: &mut Socket) -> Result<(), smoltcp::Error> {
                     Err(err) => return Err(err),
                 }
                 socket.send_slice(&reply.0, reply.1)?;
+            }
+            _ => {}
+        }
+        &mut Socket::Tcp(ref mut socket) => match socket.local_endpoint().port {
+            15 => {
+                if !socket.may_recv() { return Ok(()); }
+                let reply = socket.recv(|data| {
+                    if data.len() > 0 {
+                        let mut reply = Vec::from("tcp: ");
+                        let start_index = reply.len();
+                        reply.extend_from_slice(data);
+                        reply[start_index..(start_index + data.len() - 1)].reverse();
+                        (data.len(), Some(reply))
+                    } else {
+                        (data.len(), None)
+                    }
+                })?;
+                if let Some(reply) = reply {
+                    assert_eq!(socket.send_slice(&reply)?, reply.len());
+                }
             }
             _ => {}
         }
