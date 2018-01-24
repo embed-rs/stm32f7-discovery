@@ -314,16 +314,13 @@ impl RxDevice {
         };
 
         // reset descriptor(s) and update next_descriptor
-        let mut next = (descriptor_index + 1) % self.descriptors.len();
-        // handle subsequent descriptors if descriptor is not last_descriptor
-        let mut descriptor = self.descriptors[descriptor_index].read();
-        while !descriptor.is_last_descriptor() {
-            descriptor = self.descriptors[next].read();
+        let mut next = descriptor_index;
+        loop {
+            let descriptor = self.descriptors[next].read();
             self.descriptors[next].update(|d| d.reset());
             next = (next + 1) % self.descriptors.len();
+            if descriptor.is_last_descriptor() { break }
         }
-        // reset first descriptor last
-        self.descriptors[descriptor_index].update(|d| d.reset());
         self.next_descriptor = next;
 
         ret
