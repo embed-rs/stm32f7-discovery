@@ -245,61 +245,55 @@ impl RxDevice {
         })
     }
 
-    fn packet_data(&self, descriptor_index: usize) -> ::smoltcp::Result<&[u8]> {
+    fn receive<T, F>(&mut self, f: F) -> ::smoltcp::Result<T>
+    where
+        F: FnOnce(&[u8]) -> ::smoltcp::Result<T>,
+    {
+        let descriptor_index = self.next_descriptor;
         let descriptor = self.descriptors[descriptor_index].read();
-        if descriptor.own() {
+
+        if descriptor.own() || !descriptor.is_first_descriptor() {
             return Err(::smoltcp::Error::Exhausted);
         }
         if let rx::ChecksumResult::Error(header, payload) = descriptor.checksum_result() {
-            println!("checksum error {} {}", header, payload);
             return Err(::smoltcp::Error::Checksum);
         }
 
+        // find the last descriptor belonging to the received packet
         let mut last_descriptor = descriptor;
         let mut i = 0;
         while !last_descriptor.is_last_descriptor() {
             i += 1;
-            assert!(
-                descriptor_index + i < self.descriptors.len(),
-                "last descriptor buffer too small"
-            ); // no wrap around
+            // Descriptors wrap around, but we don't want packets to wrap around. So we require
+            // that the last descriptor in the list is large enough to hold all received packets.
+            // This assertion checks that no wraparound occurs.
+            assert!(descriptor_index + i < self.descriptors.len(), "buffer of last descriptor in \
+                list must be large enough to hold received packets without wrap-around");
             last_descriptor = self.descriptors[descriptor_index + i].read();
             if last_descriptor.own() {
                 return Err(::smoltcp::Error::Exhausted); // packet is not fully received
             }
         }
         if last_descriptor.error() {
-            Err(::smoltcp::Error::Truncated)
-        } else {
-            assert!(descriptor.is_first_descriptor());
-            let offset = self.config.descriptor_buffer_offset(descriptor_index);
-            let len = last_descriptor.frame_len();
-            Ok(&self.buffer[offset..(offset + len)])
+            return Err(::smoltcp::Error::Truncated);
         }
-    }
 
-    fn receive<T, F>(&mut self, f: F) -> ::smoltcp::Result<T>
-    where
-        F: FnOnce(&[u8]) -> ::smoltcp::Result<T>,
-    {
-        let descriptor_index = self.next_descriptor;
-        let ret = self.packet_data(descriptor_index).and_then(f);
-
-        if let Err(::smoltcp::Error::Exhausted) = ret {
-            return ret;
-        }
+        // read data and pass it to processing function
+        let offset = self.config.descriptor_buffer_offset(descriptor_index);
+        let len = last_descriptor.frame_len();
+        let data = &self.buffer[offset..(offset + len)];
+        let ret = f(data);
 
         // reset descriptor(s) and update next_descriptor
         let mut next = (descriptor_index + 1) % self.descriptors.len();
-        if ret.is_ok() {
-            // handle subsequent descriptors if descriptor is not last_descriptor
-            let mut descriptor = self.descriptors[descriptor_index].read();
-            while !descriptor.is_last_descriptor() {
-                descriptor = self.descriptors[next].read();
-                self.descriptors[next].update(|d| d.reset());
-                next = (next + 1) % self.descriptors.len();
-            }
+        // handle subsequent descriptors if descriptor is not last_descriptor
+        let mut descriptor = self.descriptors[descriptor_index].read();
+        while !descriptor.is_last_descriptor() {
+            descriptor = self.descriptors[next].read();
+            self.descriptors[next].update(|d| d.reset());
+            next = (next + 1) % self.descriptors.len();
         }
+        // reset first descriptor last
         self.descriptors[descriptor_index].update(|d| d.reset());
         self.next_descriptor = next;
 
