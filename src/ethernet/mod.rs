@@ -11,6 +11,7 @@ use volatile::Volatile;
 use smoltcp::wire::{EthernetAddress, Ipv4Address, IpCidr, Ipv4Cidr};
 use smoltcp::phy::{Device, DeviceCapabilities};
 use smoltcp::iface::{EthernetInterface, EthernetInterfaceBuilder};
+use smoltcp::time::Instant;
 
 mod init;
 mod phy;
@@ -138,7 +139,7 @@ pub struct RxToken<'a> {
 }
 
 impl<'a> ::smoltcp::phy::RxToken for RxToken<'a> {
-    fn consume<R, F>(self, _timestamp: u64, f: F) -> ::smoltcp::Result<R>
+    fn consume<R, F>(self, _timestamp: Instant, f: F) -> ::smoltcp::Result<R>
         where F: FnOnce(&[u8]) -> ::smoltcp::Result<R>
     {
         self.rx.receive(f)
@@ -151,7 +152,7 @@ pub struct TxToken<'a> {
 }
 
 impl<'a> ::smoltcp::phy::TxToken for TxToken<'a> {
-    fn consume<R, F>(mut self, _timestamp: u64, len: usize, f: F) -> ::smoltcp::Result<R>
+    fn consume<R, F>(mut self, _timestamp: Instant, len: usize, f: F) -> ::smoltcp::Result<R>
         where F: FnOnce(&mut [u8]) -> ::smoltcp::Result<R>
     {
         let mut data = vec![0; len].into_boxed_slice();

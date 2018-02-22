@@ -20,8 +20,10 @@ extern crate smoltcp;
 // hardware register structs with accessor methods
 use stm32f7::{audio, board, embedded, ethernet, lcd, sdram, system_clock, touch, i2c};
 use stm32f7::ethernet::IP_ADDR;
-use smoltcp::socket::{Socket, SocketSet, UdpSocket, TcpSocket, AnySocket, SocketRef};
+use smoltcp::socket::{Socket, SocketSet, TcpSocket, TcpSocketBuffer};
+use smoltcp::socket::{UdpSocket, UdpPacketMetadata, UdpSocketBuffer};
 use smoltcp::wire::{IpEndpoint, IpAddress};
+use smoltcp::time::Instant;
 use alloc::Vec;
 
 #[no_mangle]
@@ -172,33 +174,18 @@ fn main(hw: board::Hardware) -> ! {
     };
 
     let mut sockets = SocketSet::new(Vec::new());
-    let new_udp_socket_buffer = || {
-        use smoltcp::storage::RingBuffer;
-        use smoltcp::socket::UdpPacketBuffer;
-
-        let new_packet_buffer = || {
-            UdpPacketBuffer::new(vec![0; ethernet::MTU].into_boxed_slice())
-        };
-
-        let mut packet_buffers = Vec::new();
-        packet_buffers.push(new_packet_buffer());
-
-        RingBuffer::new(packet_buffers)
-    };
-    let mut example_udp_socket = UdpSocket::new(new_udp_socket_buffer(), new_udp_socket_buffer());
     let endpoint = IpEndpoint::new(IpAddress::Ipv4(IP_ADDR), 15);
-    UdpSocket::downcast(SocketRef::new(&mut example_udp_socket)).unwrap().bind(endpoint);
 
-    let new_tcp_socket_buffer = || {
-        use smoltcp::storage::RingBuffer;
-
-        RingBuffer::new(vec![0; ethernet::MTU*2])
-    };
-    let mut example_tcp_socket = TcpSocket::new(new_tcp_socket_buffer(), new_tcp_socket_buffer());
-    let endpoint = IpEndpoint::new(IpAddress::Ipv4(IP_ADDR), 15);
-    TcpSocket::downcast(SocketRef::new(&mut example_tcp_socket)).unwrap().listen(endpoint);
-
+    let udp_rx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::empty(); 3], vec![0u8; 256]);
+    let udp_tx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::empty(); 1], vec![0u8; 128]);
+    let mut example_udp_socket = UdpSocket::new(udp_rx_buffer, udp_tx_buffer);
+    example_udp_socket.bind(endpoint).unwrap();
     sockets.add(example_udp_socket);
+
+    let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
+    let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
+    let mut example_tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
+    example_tcp_socket.listen(endpoint).unwrap();
     sockets.add(example_tcp_socket);
 
     touch::check_family_id(&mut i2c_3).unwrap();
@@ -253,7 +240,7 @@ fn main(hw: board::Hardware) -> ! {
 
                 // handle new ethernet packets
                 if let Ok(ref mut eth) = ethernet_interface {
-                    match eth.poll(&mut sockets, system_clock::ticks() as u64) {
+                    match eth.poll(&mut sockets, Instant::from_millis(system_clock::ticks() as i64)) {
                         Err(::smoltcp::Error::Exhausted) => continue,
                         Err(::smoltcp::Error::Unrecognized) => {},
                         Err(e) => println!("Network error: {:?}", e),
