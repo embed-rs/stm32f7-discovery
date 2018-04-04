@@ -1,5 +1,4 @@
 use bit_field::BitField;
-use core::convert::TryInto;
 use volatile::Volatile;
 
 #[derive(Debug, Clone, Copy)]
@@ -36,7 +35,8 @@ impl RxDescriptor {
 
     #[allow(dead_code)]
     pub fn set_next(&mut self, next: *const Volatile<Self>) {
-        self.word_3 = (next as usize).try_into().unwrap();
+        assert_eq!(next as usize as u32 as usize as *const Volatile<Self>, next);
+        self.word_3 = next as usize as u32;
         self.word_1 |= 1 << 14; // RCH: Second address chained
     }
 
@@ -59,20 +59,25 @@ impl RxDescriptor {
     }
 
     fn buffer_1_address(&self) -> usize {
-        self.word_2.try_into().unwrap()
+        assert_eq!(self.word_2 as usize as u32, self.word_2);
+        self.word_2 as usize
     }
 
     fn set_buffer_1_address(&mut self, buffer_address: usize) {
-        self.word_2 = buffer_address.try_into().unwrap();
+        assert_eq!(self.word_2 as u32 as usize, buffer_address);
+        self.word_2 = buffer_address as u32;
     }
 
     fn set_buffer_1_size(&mut self, size: usize) {
-        let size = size.try_into().unwrap();
+        assert_eq!(size as u32 as usize, size);
+        let size = size as u32;
         self.word_1.set_bits(0..13, size);
     }
 
     pub fn frame_len(&self) -> usize {
-        self.word_0.get_bits(16..30).try_into().unwrap()
+        let val = self.word_0.get_bits(16..30);
+        assert_eq!(val as usize as u32, val);
+        val as usize
     }
 
     pub fn is_last_descriptor(&self) -> bool {
