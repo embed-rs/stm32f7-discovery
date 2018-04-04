@@ -13,9 +13,8 @@ script:
     set -e;
     pwd; ls;
     echo `pwd`;
-    RUST_TARGET_PATH=`pwd`;
-    xargo build;
+    RUST_TARGET_PATH=`pwd` xargo build;
     cd blinking_led;
-    RUST_TARGET_PATH=`pwd`;
-    xargo update && xargo build
+    RUST_TARGET_PATH=`pwd` xargo update;
+    RUST_TARGET_PATH=`pwd` xargo build;
   "
