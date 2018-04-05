@@ -46,4 +46,5 @@ extern "C" fn fault() {
 }
 
 // workaround for https://github.com/rust-lang/rust/issues/47384
+#[inline(never)]
 pub fn hello() {}
