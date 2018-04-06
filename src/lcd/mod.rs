@@ -3,11 +3,11 @@
 pub use self::color::Color;
 pub use self::init::init;
 pub use self::stdout::init as init_stdout;
+pub use self::font::FontRenderer;
 
 use board::ltdc::Ltdc;
 use embedded::interfaces::gpio::OutputPin;
 use core::{fmt, ptr};
-use self::font::FontRenderer;
 
 #[macro_use]
 pub mod stdout;
