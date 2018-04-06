@@ -13,7 +13,7 @@ use self::font::FontRenderer;
 pub mod stdout;
 mod init;
 mod color;
-mod font;
+pub mod font;
 
 const HEIGHT: usize = 272;
 const WIDTH: usize = 480;
