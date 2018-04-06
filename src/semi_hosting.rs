@@ -88,7 +88,7 @@ impl fmt::Write for Stdout {
 
 #[macro_export]
 macro_rules! hprintln_err {
-    ($fmt:expr) => (print_err!(concat!($fmt, "\n")));
+    ($fmt:expr) => (hprint_err!(concat!($fmt, "\n")));
     ($fmt:expr, $($arg:tt)*) => (hprint_err!(concat!($fmt, "\n"), $($arg)*));
 }
 
