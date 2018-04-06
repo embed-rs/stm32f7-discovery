@@ -64,7 +64,7 @@ impl RxDescriptor {
     }
 
     fn set_buffer_1_address(&mut self, buffer_address: usize) {
-        assert_eq!(self.word_2 as u32 as usize, buffer_address);
+        assert_eq!(buffer_address as u32 as usize, buffer_address);
         self.word_2 = buffer_address as u32;
     }
 
