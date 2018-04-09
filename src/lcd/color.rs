@@ -68,4 +68,45 @@ impl Color {
             blue: ((color << 3) & 0xf8) as u8,
         }
     }
+    
+    fn from_hsv(hue: i32, saturation: f32, value: f32) -> lcd::Color {
+        let mut h = hue % 360;
+        if h < 0 {
+            h += 360;
+        }
+
+        let c = value * saturation;
+        let x = c * (1f32 - abs((h % 120) as f32 / 60f32 - 1f32));
+        let m = value - c;
+
+        let mut rgb = (0f32, 0f32, 0f32);
+        if h < 60 {
+            rgb.0 = c;
+            rgb.1 = x;
+        } else if h < 120 {
+            rgb.0 = x;
+            rgb.1 = c;
+        } else if h < 180 {
+            rgb.1 = c;
+            rgb.2 = x;
+        } else if h < 240 {
+            rgb.1 = x;
+            rgb.2 = c;
+        } else if h < 300 {
+            rgb.0 = x;
+            rgb.2 = c;
+        } else {
+            rgb.0 = c;
+            rgb.2 = x;
+        }
+
+        rgb.0 += m;
+        rgb.1 += m;
+        rgb.2 += m;
+
+        lcd::Color::rgb(
+                (255f32 * rgb.0) as u8,
+                (255f32 * rgb.1) as u8,
+                (255f32 * rgb.2) as u8)
+    }
 }
