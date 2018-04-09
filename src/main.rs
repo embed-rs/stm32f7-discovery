@@ -19,12 +19,14 @@ extern crate smoltcp;
 
 // hardware register structs with accessor methods
 use stm32f7::{audio, board, embedded, ethernet, lcd, sdram, system_clock, touch, i2c};
-use stm32f7::ethernet::IP_ADDR;
 use smoltcp::socket::{Socket, SocketSet, TcpSocket, TcpSocketBuffer};
 use smoltcp::socket::{UdpSocket, UdpPacketMetadata, UdpSocketBuffer};
-use smoltcp::wire::{IpEndpoint, IpAddress};
+use smoltcp::wire::{IpEndpoint, IpAddress, EthernetAddress, Ipv4Address};
 use smoltcp::time::Instant;
 use alloc::Vec;
+
+pub const ETH_ADDR: EthernetAddress = EthernetAddress([0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef]);
+pub const IP_ADDR: Ipv4Address = Ipv4Address([141, 52, 46, 198]);
 
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
@@ -168,7 +170,8 @@ fn main(hw: board::Hardware) -> ! {
         &mut gpio,
         ethernet_mac,
         ethernet_dma,
-    ).map(|device| device.into_interface());
+        ETH_ADDR,
+    ).map(|device| device.into_interface(IP_ADDR));
     if let Err(e) = ethernet_interface {
         println!("ethernet init failed: {:?}", e);
     };
