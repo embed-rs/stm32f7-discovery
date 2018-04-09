@@ -41,13 +41,12 @@ impl From<()> for Error {
 }
 
 pub const MTU: usize = 1536;
-pub const ETH_ADDR: EthernetAddress = EthernetAddress([0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef]);
-pub const IP_ADDR: Ipv4Address = Ipv4Address([141, 52, 46, 198]);
 
 pub struct EthernetDevice {
     rx: RxDevice,
     tx: TxDevice,
     ethernet_dma: &'static mut EthernetDma,
+    ethernet_address: EthernetAddress,
 }
 
 impl EthernetDevice {
@@ -59,6 +58,7 @@ impl EthernetDevice {
         gpio: &mut gpio::Gpio,
         ethernet_mac: &'static mut EthernetMac,
         ethernet_dma: &'static mut EthernetDma,
+        ethernet_address: EthernetAddress,
     ) -> Result<EthernetDevice, Error> {
         use byteorder::{ByteOrder, LittleEndian};
 
@@ -75,7 +75,7 @@ impl EthernetDevice {
         stl.set_stl(tx_device.front_of_queue() as *const Volatile<_> as u32);
         ethernet_dma.dmatdlar.write(stl);
 
-        let eth_bytes = ETH_ADDR.as_bytes();
+        let eth_bytes = ethernet_address.as_bytes();
         let mut mac0_low = ethernet_mac::Maca0lr::default();
         mac0_low.set_maca0l(LittleEndian::read_u32(&eth_bytes[..4]));
         ethernet_mac.maca0lr.write(mac0_low);
@@ -88,17 +88,19 @@ impl EthernetDevice {
             rx: rx_device,
             tx: tx_device,
             ethernet_dma: ethernet_dma,
+            ethernet_address: ethernet_address,
         })
     }
 
-    pub fn into_interface<'a>(self) -> EthernetInterface<'a, 'a, Self> {
+    pub fn into_interface<'a>(self, ip_address: Ipv4Address) -> EthernetInterface<'a, 'a, Self> {
         use smoltcp::iface::NeighborCache;
         use alloc::BTreeMap;
 
         let neighbor_cache = NeighborCache::new(BTreeMap::new());
+        let ethernet_address = self.ethernet_address;
         let interface_builder = EthernetInterfaceBuilder::new(self);
-        let interface_builder = interface_builder.ethernet_addr(ETH_ADDR);
-        let ip_cidr = IpCidr::Ipv4(Ipv4Cidr::new(IP_ADDR, 0));
+        let interface_builder = interface_builder.ethernet_addr(ethernet_address);
+        let ip_cidr = IpCidr::Ipv4(Ipv4Cidr::new(ip_address, 0));
         let interface_builder = interface_builder.ip_addrs(vec![ip_cidr]);
         let interface_builder = interface_builder.neighbor_cache(neighbor_cache);
         interface_builder.finalize()
