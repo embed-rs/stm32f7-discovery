@@ -69,7 +69,7 @@ impl Color {
         }
     }
     
-    fn from_hsv(hue: i32, saturation: f32, value: f32) -> lcd::Color {
+    pub fn from_hsv(hue: i32, saturation: f32, value: f32) -> lcd::Color {
         let mut h = hue % 360;
         if h < 0 {
             h += 360;
