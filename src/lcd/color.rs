@@ -69,14 +69,15 @@ impl Color {
         }
     }
     
-    pub fn from_hsv(hue: i32, saturation: f32, value: f32) -> lcd::Color {
+    pub fn from_hsv(hue: i32, saturation: f32, value: f32) -> Color {
         let mut h = hue % 360;
         if h < 0 {
             h += 360;
         }
 
         let c = value * saturation;
-        let x = c * (1f32 - abs((h % 120) as f32 / 60f32 - 1f32));
+        let x = (h as i32 % 120) as f32 / 60f32 - 1f32;
+        let x = c * (1f32 - if x < 0f32 { -x } else { x });
         let m = value - c;
 
         let mut rgb = (0f32, 0f32, 0f32);
@@ -104,7 +105,7 @@ impl Color {
         rgb.1 += m;
         rgb.2 += m;
 
-        lcd::Color::rgb(
+        Color::rgb(
                 (255f32 * rgb.0) as u8,
                 (255f32 * rgb.1) as u8,
                 (255f32 * rgb.2) as u8)
