@@ -1,5 +1,6 @@
 [target.thumbv7em-none-eabihf]
 runner = 'sh gdb.sh'
+# runner='gdb.bat' 
 rustflags = [
   "-C", "link-arg=-Tstm32f7.ld",
   "-C", "linker=arm-none-eabi-ld",
