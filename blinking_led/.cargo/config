@@ -1,5 +1,14 @@
 # override the recursive dependency via git to use a path dependency instead
 paths = [".."]
 
+[target.thumbv7em-none-eabihf]
+runner = 'sh gdb.sh'
+# runner='gdb.bat' 
+rustflags = [
+  "-C", "link-arg=-Tstm32f7.ld",
+  "-C", "linker=arm-none-eabi-ld",
+  "-Z", "linker-flavor=ld",
+  "-Z", "thinlto=no",
+]
 [build]
-target = "stm32f7"
+target = "thumbv7em-none-eabihf"
