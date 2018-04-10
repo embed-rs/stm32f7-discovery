@@ -9,6 +9,6 @@ echo ""
 unameOut="$(uname -s)"
 case "${unameOut}" in
     # Linux*)     machine=Linux;;
-    Darwin*)    arm-none-eabi-gdb-py -iex 'add-auto-load-safe-path .' -ex "tar ext :4242" -ex "load-reset" target/stm32f7/debug/stm32f7_discovery;;
-    *)          arm-none-eabi-gdb -iex 'add-auto-load-safe-path .' -ex "tar ext :4242" -ex "load-reset" target/stm32f7/debug/stm32f7_discovery
+    Darwin*)    arm-none-eabi-gdb-py -iex 'add-auto-load-safe-path .' -ex "tar ext :4242" -ex "load-reset" target/thumbv7em-none-eabihf/debug/stm32f7_discovery;;
+    *)          arm-none-eabi-gdb -iex 'add-auto-load-safe-path .' -ex "tar ext :4242" -ex "load-reset" target/thumbv7em-none-eabihf/debug/stm32f7_discovery
 esac

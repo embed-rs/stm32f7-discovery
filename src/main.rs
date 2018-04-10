@@ -2,7 +2,6 @@
 #![feature(const_fn)]
 #![feature(alloc)]
 #![feature(asm)]
-#![feature(compiler_builtins_lib)]
 #![no_std]
 #![no_main]
 
@@ -13,7 +12,6 @@ extern crate stm32f7_discovery as stm32f7;
 
 #[macro_use]
 extern crate alloc;
-extern crate compiler_builtins;
 extern crate r0;
 extern crate smoltcp;
 
