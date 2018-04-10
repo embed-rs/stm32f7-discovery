@@ -13,8 +13,11 @@ script:
     set -e;
     pwd; ls;
     echo `pwd`;
-    RUST_TARGET_PATH=`pwd` xargo build;
+    cargo build;
     cd blinking_led;
-    RUST_TARGET_PATH=`pwd` xargo update;
-    RUST_TARGET_PATH=`pwd` xargo build;
+    cargo update;
+    cargo build;
+    cd ../blinking_led_with_interrupts;
+    cargo update;
+    cargo build;
   "
