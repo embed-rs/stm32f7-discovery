@@ -27,6 +27,8 @@ extern crate smoltcp;
 extern crate rusttype;
 extern crate spin;
 extern crate volatile;
+#[macro_use]
+extern crate bitflags;
 
 #[macro_use]
 pub mod semi_hosting;
@@ -43,6 +45,7 @@ pub mod ethernet;
 pub mod heap;
 pub mod random;
 pub mod exti;
+pub mod sd;
 
 #[cfg(not(test))]
 #[lang = "panic_fmt"]

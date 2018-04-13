@@ -17,6 +17,7 @@ spin = "0.4.5"
 volatile = "0.2.1"
 rusttype = {git = "https://github.com/phil-opp/rusttype.git", branch = "no_std"}
 alloc-cortex-m = {git = "https://github.com/embed-rs/alloc-cortex-m.git", branch = "master" }
+bitflags = "0.7.0"
 
 [dependencies.arrayvec]
 default-features = false

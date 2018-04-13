@@ -1,5 +1,7 @@
 // see http://embed.rs/articles/2016/semi-hosting-rust/
 
+#![allow(dead_code)]
+
 use core::fmt;
 
 unsafe fn call_svc(num: usize, addr: *const ()) -> usize {
@@ -61,9 +63,9 @@ macro_rules! hprint {
     });
 }
 
-pub fn print(args: fmt::Arguments) {
-    use core::fmt::Write;
-    Stdout.write_fmt(args).unwrap();
+pub fn print(_args: fmt::Arguments) {
+    //use core::fmt::Write;
+    //Stdout.write_fmt(args).unwrap();
 }
 
 static mut STDOUT_BUFFER: ([u8; 100], usize) = ([0; 100], 0);
@@ -99,9 +101,9 @@ macro_rules! hprint_err {
     });
 }
 
-pub fn print_err(args: fmt::Arguments) {
-    use core::fmt::Write;
-    Stderr.write_fmt(args).unwrap();
+pub fn print_err(_args: fmt::Arguments) {
+    //use core::fmt::Write;
+    //Stderr.write_fmt(args).unwrap();
 }
 
 struct Stderr;

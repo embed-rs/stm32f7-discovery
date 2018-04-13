@@ -121,7 +121,7 @@ dependencies = [
 [[package]]
 name = "smoltcp"
 version = "0.4.0"
-source = "git+https://github.com/m-labs/smoltcp.git#cd893e6ab60f094d684b37be7bc013bf79f0459d"
+source = "git+https://github.com/m-labs/smoltcp.git#4aeeac09d564378f217131f5adf46c9b72a1fae2"
 dependencies = [
  "bitflags 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -148,6 +148,7 @@ dependencies = [
  "alloc-cortex-m 0.3.2 (git+https://github.com/embed-rs/alloc-cortex-m.git)",
  "arrayvec 0.3.25 (registry+https://github.com/rust-lang/crates.io-index)",
  "bit_field 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "embedded_stm32f7 0.1.0 (git+https://github.com/embed-rs/embedded_stm32f7.git)",

@@ -16,7 +16,7 @@ extern crate r0;
 extern crate smoltcp;
 
 // hardware register structs with accessor methods
-use stm32f7::{audio, board, embedded, ethernet, lcd, sdram, system_clock, touch, i2c};
+use stm32f7::{audio, board, embedded, ethernet, lcd, sdram, system_clock, touch, i2c, sd};
 use smoltcp::socket::{Socket, SocketSet, TcpSocket, TcpSocketBuffer};
 use smoltcp::socket::{UdpSocket, UdpPacketMetadata, UdpSocketBuffer};
 use smoltcp::wire::{IpEndpoint, IpAddress, EthernetAddress, Ipv4Address};
@@ -86,6 +86,7 @@ fn main(hw: board::Hardware) -> ! {
         ethernet_dma,
         nvic,
         exti,
+        sdmmc,
         ..
     } = hw;
 
@@ -189,6 +190,9 @@ fn main(hw: board::Hardware) -> ! {
     example_tcp_socket.listen(endpoint).unwrap();
     sockets.add(example_tcp_socket);
 
+    // SD
+    let mut sd = sd::Sd::new(sdmmc, &mut gpio, rcc);
+
     touch::check_family_id(&mut i2c_3).unwrap();
 
     let mut audio_writer = layer_1.audio_writer();
@@ -251,6 +255,15 @@ fn main(hw: board::Hardware) -> ! {
                             }
                         },
                     }
+                }
+
+                // Initialize the SD Card on insert and deinitialize on extract.
+                if sd.card_present() && !sd.card_initialized() {
+                    if let Some(i_err) = sd::init(&mut sd).err() {
+                        hprintln!("{:?}", i_err);
+                    }
+                } else if !sd.card_present() && sd.card_initialized() {
+                    sd::de_init(&mut sd);
                 }
             }
         },
