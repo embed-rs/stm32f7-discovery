@@ -1,20 +1,17 @@
 use core::fmt;
 use alloc::boxed::Box;
-use alloc::{BTreeMap, Vec, VecDeque};
-use alloc::borrow::Cow;
+use alloc::Vec;
 
 use board::{rcc, syscfg};
 use board::ethernet_dma::{self, EthernetDma};
 use board::ethernet_mac::{self, EthernetMac};
 use embedded::interfaces::gpio;
 use volatile::Volatile;
-use net::{self, HeapTxPacket};
-use net::ipv4::{Ipv4Address, Ipv4Header};
-use net::udp::UdpHeader;
-use net::tcp::TcpHeader;
-use net::ethernet::{EthernetAddress, EthernetPacket};
 
-pub use net::tcp::TcpConnection;
+use smoltcp::wire::{EthernetAddress, Ipv4Address, IpCidr, Ipv4Cidr};
+use smoltcp::phy::{Device, DeviceCapabilities};
+use smoltcp::iface::{EthernetInterface, EthernetInterfaceBuilder};
+use smoltcp::time::Instant;
 
 mod init;
 mod phy;
@@ -28,14 +25,7 @@ pub enum Error {
     Truncated,
     NoIp,
     Unknown,
-    Parsing(net::ParseError),
     Initialization(init::Error),
-}
-
-impl From<net::ParseError> for Error {
-    fn from(err: net::ParseError) -> Error {
-        Error::Parsing(err)
-    }
 }
 
 impl From<init::Error> for Error {
@@ -50,64 +40,13 @@ impl From<()> for Error {
     }
 }
 
-const MTU: usize = 1536;
-const ETH_ADDR: EthernetAddress = EthernetAddress::new([0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef]);
-
-pub enum Packet<'a> {
-    Udp(Udp<'a>),
-    Tcp(Tcp<'a>),
-}
-
-impl<'a> Packet<'a> {
-    pub fn udp_port(&self, port: u16) -> Option<&Udp> {
-        if let &Packet::Udp(ref udp) = self {
-            if udp.udp_header.dst_port == port {
-                return Some(udp);
-            }
-        }
-        None
-    }
-
-    pub fn bind_udp<F>(&self, port: u16, f: F)
-    where
-        F: FnOnce(&Udp),
-    {
-        if let Some(udp) = self.udp_port(port) {
-            f(udp)
-        }
-    }
-}
-
-pub struct Udp<'a> {
-    pub ip_header: Ipv4Header,
-    pub udp_header: UdpHeader,
-    pub payload: &'a [u8],
-}
-
-pub struct Tcp<'a> {
-    pub ip_header: Ipv4Header,
-    pub tcp_header: TcpHeader,
-    pub payload: &'a [u8],
-}
+pub const MTU: usize = 1536;
 
 pub struct EthernetDevice {
     rx: RxDevice,
     tx: TxDevice,
     ethernet_dma: &'static mut EthernetDma,
-    ipv4_addr: Option<Ipv4Address>,
-    requested_ipv4_addr: Option<Ipv4Address>,
-    last_discover_at: usize,
-    arp_cache: BTreeMap<Ipv4Address, EthernetAddress>,
-    udp_functions: BTreeMap<u16, Box<FnMut(Udp) -> Option<Cow<[u8]>>>>,
-    tcp_connections: BTreeMap<(Ipv4Address, Ipv4Address, u16, u16), TcpConnection>,
-    tcp_functions: BTreeMap<
-        u16,
-        Box<
-            for<'d> FnMut(&TcpConnection, &'d [u8])
-                -> Option<Cow<'d, [u8]>>,
-        >,
-    >,
-    packet_queue: VecDeque<Box<[u8]>>,
+    ethernet_address: EthernetAddress,
 }
 
 impl EthernetDevice {
@@ -119,6 +58,7 @@ impl EthernetDevice {
         gpio: &mut gpio::Gpio,
         ethernet_mac: &'static mut EthernetMac,
         ethernet_dma: &'static mut EthernetDma,
+        ethernet_address: EthernetAddress,
     ) -> Result<EthernetDevice, Error> {
         use byteorder::{ByteOrder, LittleEndian};
 
@@ -135,7 +75,7 @@ impl EthernetDevice {
         stl.set_stl(tx_device.front_of_queue() as *const Volatile<_> as u32);
         ethernet_dma.dmatdlar.write(stl);
 
-        let eth_bytes = ETH_ADDR.as_bytes();
+        let eth_bytes = ethernet_address.as_bytes();
         let mut mac0_low = ethernet_mac::Maca0lr::default();
         mac0_low.set_maca0l(LittleEndian::read_u32(&eth_bytes[..4]));
         ethernet_mac.maca0lr.write(mac0_low);
@@ -144,343 +84,104 @@ impl EthernetDevice {
         ethernet_mac.maca0hr.write(mac0_high);
 
         init::start(ethernet_mac, ethernet_dma);
-        let mut device = EthernetDevice {
+        Ok(EthernetDevice {
             rx: rx_device,
             tx: tx_device,
             ethernet_dma: ethernet_dma,
-            ipv4_addr: None,
-            requested_ipv4_addr: None,
-            last_discover_at: 0,
-            arp_cache: BTreeMap::new(),
-            udp_functions: BTreeMap::new(),
-            tcp_connections: BTreeMap::new(),
-            tcp_functions: BTreeMap::new(),
-            packet_queue: VecDeque::new(),
-        };
-
-        device.send_dhcp_discover()?;
-
-        Ok(device)
+            ethernet_address: ethernet_address,
+        })
     }
 
-    fn start_send(&mut self) {
-        match self.ethernet_dma.dmasr.read().tps() {
-            // transmit process state
-            0b000 => panic!("stopped"), // stopped
-            0b001 | 0b010 | 0b011 | 0b111 => {
-                println!("running");
-            }
-            // running
-            0b110 => {
-                // suspended
-                if !self.tx.queue_empty() {
-                    // write poll demand register
-                    let mut poll_demand = ethernet_dma::Dmatpdr::default();
-                    poll_demand.set_tpd(0); // any value
-                    self.ethernet_dma.dmatpdr.write(poll_demand);
-                }
-            }
-            _ => unreachable!(),
-        }
-    }
+    pub fn into_interface<'a>(self, ip_address: Ipv4Address) -> EthernetInterface<'a, 'a, Self> {
+        use smoltcp::iface::NeighborCache;
+        use alloc::BTreeMap;
 
-    pub fn send_dhcp_discover(&mut self) -> Result<(), Error> {
-        use net::{dhcp, WriteOut};
-        use system_clock;
-
-        if system_clock::ticks() - self.last_discover_at < 5000 {
-            return Ok(());
-        }
-
-        let packet = dhcp::new_discover_msg(ETH_ADDR);
-        let mut tx_packet = HeapTxPacket::new(packet.len());
-        packet.write_out(&mut tx_packet)?;
-
-        self.tx.insert(tx_packet.into_boxed_slice());
-        self.start_send();
-
-        self.last_discover_at = system_clock::ticks();
-
-        Ok(())
-    }
-
-    pub fn listen_on_udp_port<F>(&mut self, port: u16, f: Box<F>) -> Result<(), PortInUse<Box<F>>>
-    where
-        F: FnMut(Udp) -> Option<Cow<[u8]>> + 'static,
-    {
-        use alloc::btree_map::Entry;
-        match self.udp_functions.entry(port) {
-            Entry::Vacant(entry) => {
-                entry.insert(f);
-                Ok(())
-            }
-            Entry::Occupied(_) => Err(PortInUse::new(false, port, f)),
-        }
-    }
-
-    pub fn register_tcp_port<F>(&mut self, port: u16, f: Box<F>) -> Result<(), PortInUse<Box<F>>>
-    where
-        for<'d> F: FnMut(&TcpConnection, &'d [u8]) -> Option<Cow<'d, [u8]>> + 'static,
-    {
-        use alloc::btree_map::Entry;
-        match self.tcp_functions.entry(port) {
-            Entry::Vacant(entry) => {
-                entry.insert(f);
-                Ok(())
-            }
-            Entry::Occupied(_) => Err(PortInUse::new(true, port, f)),
-        }
-    }
-
-    pub fn handle_next_packet(&mut self) -> Result<(), Error> {
-        let missed_packets = self.ethernet_dma.dmamfbocr.read().mfc();
-        if missed_packets > 20 {
-            println!("missed packets: {}", missed_packets);
-        }
-
-        if self.ipv4_addr.is_none() && self.requested_ipv4_addr.is_none() {
-            self.send_dhcp_discover()?;
-        }
-
-        self.process_next_packet()?;
-
-        // TODO move somewhere else
-        {
-            use net::arp;
-            use net::ipv4::Ipv4Packet;
-
-            for (id, connection) in self.tcp_connections.iter_mut() {
-                for packet in connection.packets() {
-                    if let Some(&dst_mac) = self.arp_cache.get(&id.0) {
-                        let packet = EthernetPacket::new_ipv4(
-                            ETH_ADDR,
-                            dst_mac,
-                            Ipv4Packet::new_tcp(id.1, id.0, packet),
-                        );
-                        let packet = HeapTxPacket::write_out(packet)?.into_boxed_slice();
-                        self.packet_queue.push_back(packet);
-                    } else {
-                        let arp_request = arp::new_request_packet(ETH_ADDR, id.1, id.0);
-                        let arp_request_packet =
-                            HeapTxPacket::write_out(arp_request)?.into_boxed_slice();
-                        self.packet_queue.push_back(arp_request_packet);
-                    }
-                }
-            }
-        }
-
-        let packets_inserted = {
-            let packets = self.packet_queue.drain(..);
-            let packets_inserted = packets.len();
-            for packet in packets {
-                self.tx.insert(packet);
-            }
-            packets_inserted
-        };
-
-        if packets_inserted > 0 {
-            self.start_send();
-        }
-
-        Ok(())
-    }
-
-    fn process_next_packet(&mut self) -> Result<(), Error> {
-        let &mut EthernetDevice {
-            ref mut rx,
-            ref mut ipv4_addr,
-            ref mut requested_ipv4_addr,
-            ref mut arp_cache,
-            ref mut udp_functions,
-            ref mut tcp_connections,
-            ref mut tcp_functions,
-            ref mut packet_queue,
-            ..
-        } = self;
-
-        rx.receive(|data| -> Result<_, Error> {
-            use net;
-            use net::ethernet::EthernetKind;
-            use net::arp;
-            use net::ipv4::{Ipv4Kind, Ipv4Packet};
-            use net::udp::{UdpKind, UdpPacket};
-            use net::tcp::{TcpKind, TcpPacket};
-            use net::dhcp::{self, DhcpPacket, DhcpType};
-            use net::icmp::IcmpType;
-
-            let EthernetPacket { header: _, payload } = net::parse(data)?;
-
-            match payload {
-                    // DHCP offer or ack for us
-                    EthernetKind::Ipv4(Ipv4Packet {
-                                           header: _,
-                                           payload: Ipv4Kind::Udp(UdpPacket {
-                                                             header: _,
-                                                             payload: UdpKind::Dhcp(DhcpPacket {
-                                                                               mac,
-                                                                               operation,
-                                                                               ..
-                                                                           }),
-                                                         }),
-                                       }) if mac == ETH_ADDR => {
-                        match operation {
-                            DhcpType::Offer { ip, dhcp_server_ip } => {
-                                println!("DHCP offer: {:?}", ip);
-                                if requested_ipv4_addr.is_none() {
-                                    *requested_ipv4_addr = Some(ip);
-                                    let reply = dhcp::new_request_msg(ETH_ADDR, ip, dhcp_server_ip);
-                                    let reply_packet = HeapTxPacket::write_out(reply)?
-                                        .into_boxed_slice();
-                                    packet_queue.push_back(reply_packet);
-                                }
-                            }
-                            DhcpType::Ack { ip } => {
-                                assert_eq!(Some(ip), *requested_ipv4_addr);
-                                println!("DHCP ack: {:?}", ip);
-                                *ipv4_addr = Some(ip);
-                            }
-                            op => panic!("Unknown dhcp operation {:?}", op),
-                        }
-                    }
-
-                    // Arp for our ip
-                    EthernetKind::Arp(arp) if Some(arp.dst_ip) == *ipv4_addr => {
-                        use net::arp::ArpOperation;
-
-                        arp_cache.insert(arp.src_ip, arp.src_mac);
-
-                        match arp.operation {
-                            ArpOperation::Request => {
-                                println!("arp request for our ip from {:?} ({:?})",
-                                         arp.src_ip,
-                                         arp.src_mac);
-                                let reply = arp.response_packet(ETH_ADDR);
-                                let reply_packet = HeapTxPacket::write_out(reply)?
-                                    .into_boxed_slice();
-                                packet_queue.push_back(reply_packet);
-                            }
-                            ArpOperation::Response => {
-                                println!("arp response from {:?} for ip {:?}",
-                                         arp.src_mac,
-                                         arp.src_ip);
-                            }
-                        }
-                    }
-
-                    // ICMP echo request
-                    EthernetKind::Ipv4(Ipv4Packet {
-                                           header: ip_header,
-                                           payload: Ipv4Kind::Icmp(icmp),
-                                       }) if Some(ip_header.dst_addr) == *ipv4_addr => {
-                        match icmp.type_ {
-                            IcmpType::EchoRequest { .. } => {
-                                let src_ip = ip_header.dst_addr;
-                                let dst_ip = ip_header.src_addr;
-                                if let Some(&dst_mac) = arp_cache.get(&dst_ip) {
-                                    let reply =
-                                        icmp.echo_reply_packet(ETH_ADDR, dst_mac, src_ip, dst_ip);
-                                    let reply_packet = HeapTxPacket::write_out(reply)?
-                                        .into_boxed_slice();
-                                    packet_queue.push_back(reply_packet);
-                                } else {
-                                    let arp_request =
-                                        arp::new_request_packet(ETH_ADDR, src_ip, dst_ip);
-                                    let arp_request_packet = HeapTxPacket::write_out(arp_request)?
-                                        .into_boxed_slice();
-                                    packet_queue.push_back(arp_request_packet);
-                                }
-                            }
-                            IcmpType::EchoReply {
-                                id,
-                                sequence_number,
-                            } => {
-                                println!("icmp echo reply {{id: {}, sequence_number: {}}}",
-                                         id,
-                                         sequence_number);
-                            }
-                        }
-                    }
-
-                    // other Udp packet
-                    EthernetKind::Ipv4(Ipv4Packet {
-                                           header: ip_header,
-                                           payload: Ipv4Kind::Udp(UdpPacket {
-                                                             header: udp_header,
-                                                             payload: UdpKind::Unknown(payload),
-                                                         }),
-                                       }) if Some(ip_header.dst_addr) == *ipv4_addr => {
-
-                        let udp_packet = Udp {
-                                              ip_header,
-                                              udp_header,
-                                              payload,
-                                          };
-                        let reply = udp_functions.get_mut(&udp_header.dst_port)
-                            .and_then(|f| f(udp_packet));
-                        if let Some(reply_payload) = reply {
-                            let src_ip = ip_header.dst_addr;
-                            let dst_ip = ip_header.src_addr;
-                            if let Some(&dst_mac) = arp_cache.get(&dst_ip) {
-                                let packet = net::udp::new_udp_packet(ETH_ADDR,
-                                                                      dst_mac,
-                                                                      src_ip,
-                                                                      dst_ip,
-                                                                      udp_header.dst_port,
-                                                                      udp_header.src_port,
-                                                                      reply_payload);
-                                let packet = HeapTxPacket::write_out(packet)?.into_boxed_slice();
-                                packet_queue.push_back(packet);
-                            } else {
-                                let arp_request = arp::new_request_packet(ETH_ADDR, src_ip, dst_ip);
-                                let packet = HeapTxPacket::write_out(arp_request)?
-                                    .into_boxed_slice();
-                                packet_queue.push_back(packet);
-                            }
-                        };
-                    }
-
-                    // Tcp packet
-                    EthernetKind::Ipv4(Ipv4Packet {
-                                           header: ip_header,
-                                           payload: Ipv4Kind::Tcp(TcpPacket {
-                                                             header: tcp_header,
-                                                             payload: TcpKind::Unknown(payload),
-                                                         }),
-                                       }) if Some(ip_header.dst_addr) == *ipv4_addr => {
-
-                        if let Some(function) = tcp_functions.get_mut(&tcp_header.dst_port) {
-                            let connection_id = (
-                                ip_header.src_addr,
-                                ip_header.dst_addr,
-                                tcp_header.src_port,
-                                tcp_header.dst_port,
-                            );
-                            let connection = tcp_connections
-                                .entry(connection_id)
-                                .or_insert_with(|| { TcpConnection::new(connection_id) });
-
-                            let tcp_packet = TcpPacket {
-                                header: tcp_header,
-                                payload: payload,
-                            };
-
-                            connection.handle_packet(&tcp_packet, &mut **function);
-
-                        }
-
-                    }
-
-                    _ => {} //{println!("{:?}", other)},
-                }
-
-            Ok(())
-        })?
+        let neighbor_cache = NeighborCache::new(BTreeMap::new());
+        let ethernet_address = self.ethernet_address;
+        let interface_builder = EthernetInterfaceBuilder::new(self);
+        let interface_builder = interface_builder.ethernet_addr(ethernet_address);
+        let ip_cidr = IpCidr::Ipv4(Ipv4Cidr::new(ip_address, 0));
+        let interface_builder = interface_builder.ip_addrs(vec![ip_cidr]);
+        let interface_builder = interface_builder.neighbor_cache(neighbor_cache);
+        interface_builder.finalize()
     }
 }
 
 impl Drop for EthernetDevice {
     fn drop(&mut self) {
         // TODO stop ethernet device and wait for idle
+    }
+}
+
+impl<'a> Device<'a> for EthernetDevice {
+    type RxToken = RxToken<'a>;
+    type TxToken = TxToken<'a>;
+
+    fn receive(&'a mut self) -> Option<(Self::RxToken, Self::TxToken)> {
+        if !self.rx.new_data_received() { return None }
+        let rx = RxToken { rx: &mut self.rx, };
+        let tx = TxToken { tx: &mut self.tx, ethernet_dma: &mut self.ethernet_dma, };
+        Some((rx, tx))
+    }
+
+    fn transmit(&'a mut self) -> Option<Self::TxToken> {
+        if !self.tx.descriptor_available() { return None }
+        Some(TxToken { tx: &mut self.tx, ethernet_dma: &mut self.ethernet_dma, })
+    }
+
+    fn capabilities(&self) -> DeviceCapabilities {
+        let mut capabilities = DeviceCapabilities::default();
+        capabilities.max_transmission_unit = MTU;
+        capabilities
+    }
+}
+
+pub struct RxToken<'a> {
+    rx: &'a mut RxDevice,
+}
+
+impl<'a> ::smoltcp::phy::RxToken for RxToken<'a> {
+    fn consume<R, F>(self, _timestamp: Instant, f: F) -> ::smoltcp::Result<R>
+        where F: FnOnce(&[u8]) -> ::smoltcp::Result<R>
+    {
+        self.rx.receive(f)
+    }
+}
+
+pub struct TxToken<'a> {
+    tx: &'a mut TxDevice,
+    ethernet_dma: &'a mut EthernetDma,
+}
+
+impl<'a> ::smoltcp::phy::TxToken for TxToken<'a> {
+    fn consume<R, F>(mut self, _timestamp: Instant, len: usize, f: F) -> ::smoltcp::Result<R>
+        where F: FnOnce(&mut [u8]) -> ::smoltcp::Result<R>
+    {
+        let mut data = vec![0; len].into_boxed_slice();
+        let ret = f(&mut data)?;
+        self.tx.insert(data);
+        self.start_send();
+        Ok(ret)
+    }
+}
+
+impl<'a> TxToken<'a> {
+    fn start_send(&mut self) {
+        // read transmit process state
+        match self.ethernet_dma.dmasr.read().tps() {
+            // stopped
+            0b000 => panic!("stopped"),
+            // running
+            0b001 | 0b010 | 0b011 | 0b111 => {}
+            // suspended
+            0b110 => {
+                // write poll demand register
+                let mut poll_demand = ethernet_dma::Dmatpdr::default();
+                poll_demand.set_tpd(0); // any value
+                self.ethernet_dma.dmatpdr.write(poll_demand);
+            }
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -542,62 +243,87 @@ impl RxDevice {
         })
     }
 
-    fn packet_data(&self, descriptor_index: usize) -> Result<&[u8], Error> {
+    fn new_data_received(&self) -> bool {
+        let descriptor = self.descriptors[self.next_descriptor].read();
+        !descriptor.own() && descriptor.is_first_descriptor()
+    }
+
+    fn receive<T, F>(&mut self, f: F) -> ::smoltcp::Result<T>
+    where
+        F: FnOnce(&[u8]) -> ::smoltcp::Result<T>,
+    {
+        let descriptor_index = self.next_descriptor;
         let descriptor = self.descriptors[descriptor_index].read();
-        if descriptor.own() {
-            return Err(Error::Exhausted);
+
+        if descriptor.own() || !descriptor.is_first_descriptor() {
+            return Err(::smoltcp::Error::Exhausted);
         }
-        if let rx::ChecksumResult::Error(header, payload) = descriptor.checksum_result() {
-            println!("checksum error {} {}", header, payload);
-            return Err(Error::Checksum);
+        if let rx::ChecksumResult::Error(_, _) = descriptor.checksum_result() {
+            return Err(::smoltcp::Error::Checksum);
         }
 
+        // find the last descriptor belonging to the received packet
         let mut last_descriptor = descriptor;
         let mut i = 0;
         while !last_descriptor.is_last_descriptor() {
             i += 1;
-            assert!(
-                descriptor_index + i < self.descriptors.len(),
-                "last descriptor buffer too small"
-            ); // no wrap around
+            // Descriptors wrap around, but we don't want packets to wrap around. So we require
+            // that the last descriptor in the list is large enough to hold all received packets.
+            // This assertion checks that no wraparound occurs.
+            assert!(descriptor_index + i < self.descriptors.len(), "buffer of last descriptor in \
+                list must be large enough to hold received packets without wrap-around");
             last_descriptor = self.descriptors[descriptor_index + i].read();
             if last_descriptor.own() {
-                return Err(Error::Exhausted); // packet is not fully received
+                return Err(::smoltcp::Error::Exhausted); // packet is not fully received
             }
         }
+
+        // check for errors
+        let mut error = None;
         if last_descriptor.error() {
-            Err(Error::Truncated)
-        } else {
-            assert!(descriptor.is_first_descriptor());
-            let offset = self.config.descriptor_buffer_offset(descriptor_index);
-            let len = last_descriptor.frame_len();
-            Ok(&self.buffer[offset..(offset + len)])
+            if last_descriptor.crc_error() {
+                println!("crc_error");
+            }
+            if last_descriptor.receive_error() {
+                println!("receive_error");
+            }
+            if last_descriptor.watchdog_timeout_error() {
+                println!("watchdog_timeout_error");
+            }
+            if last_descriptor.late_collision_error() {
+                println!("late_collision_error");
+            }
+            if last_descriptor.giant_frame_error() {
+                println!("giant_frame_error");
+            }
+            if last_descriptor.overflow_error() {
+                println!("overflow_error");
+            }
+            if last_descriptor.descriptor_error() {
+                println!("descriptor_error");
+            }
+            error = Some(::smoltcp::Error::Truncated);
         }
-    }
 
-    fn receive<T, F>(&mut self, f: F) -> Result<T, Error>
-    where
-        F: FnOnce(&[u8]) -> T,
-    {
-        let descriptor_index = self.next_descriptor;
-        let ret = self.packet_data(descriptor_index).map(f);
-
-        if let Err(Error::Exhausted) = ret {
-            return ret;
-        }
+        let ret = match error {
+            Some(error) => Err(error),
+            None => {
+                // read data and pass it to processing function
+                let offset = self.config.descriptor_buffer_offset(descriptor_index);
+                let len = last_descriptor.frame_len();
+                let data = &self.buffer[offset..(offset + len)];
+                f(data)
+            }
+        };
 
         // reset descriptor(s) and update next_descriptor
-        let mut next = (descriptor_index + 1) % self.descriptors.len();
-        if ret.is_ok() {
-            // handle subsequent descriptors if descriptor is not last_descriptor
-            let mut descriptor = self.descriptors[descriptor_index].read();
-            while !descriptor.is_last_descriptor() {
-                descriptor = self.descriptors[next].read();
-                self.descriptors[next].update(|d| d.reset());
-                next = (next + 1) % self.descriptors.len();
-            }
+        let mut next = descriptor_index;
+        loop {
+            let descriptor = self.descriptors[next].read();
+            self.descriptors[next].update(|d| d.reset());
+            next = (next + 1) % self.descriptors.len();
+            if descriptor.is_last_descriptor() { break }
         }
-        self.descriptors[descriptor_index].update(|d| d.reset());
         self.next_descriptor = next;
 
         ret
@@ -630,6 +356,10 @@ impl TxDevice {
         }
     }
 
+    fn descriptor_available(&self) -> bool {
+        !self.descriptors[self.next_descriptor].read().own()
+    }
+
     pub fn insert(&mut self, data: Box<[u8]>) {
         while self.descriptors[self.next_descriptor].read().own() {}
         self.descriptors[self.next_descriptor].update(|d| d.set_data(data));
@@ -640,10 +370,6 @@ impl TxDevice {
 
     pub fn front_of_queue(&self) -> &Volatile<tx::TxDescriptor> {
         self.descriptors.first().unwrap()
-    }
-
-    pub fn queue_empty(&self) -> bool {
-        self.descriptors.iter().all(|d| !d.read().own())
     }
 
     pub fn cleanup(&mut self) {

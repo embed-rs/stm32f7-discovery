@@ -1,5 +1,4 @@
 use bit_field::BitField;
-use core::convert::TryInto;
 use core::{mem, slice};
 use alloc::boxed::Box;
 
@@ -77,19 +76,24 @@ impl TxDescriptor {
     }
 
     fn buffer_1_address(&self) -> usize {
-        self.word_2.try_into().unwrap()
+        assert_eq!(self.word_2 as usize as u32, self.word_2);
+        self.word_2 as usize
     }
 
     fn set_buffer_1_address(&mut self, buffer_address: usize) {
-        self.word_2 = buffer_address.try_into().unwrap();
+        assert_eq!(buffer_address as u32 as usize, buffer_address);
+        self.word_2 = buffer_address as u32;
     }
 
     fn buffer_1_size(&self) -> usize {
-        self.word_1.get_bits(0..13).try_into().unwrap()
+        let val = self.word_1.get_bits(0..13);
+        assert_eq!(val as usize as u32, val);
+        val as usize
     }
 
     fn set_buffer_1_size(&mut self, size: usize) {
+        assert_eq!(size as u32 as usize, size);
         self.word_1
-            .set_bits(0..13, size.try_into().expect("buffer too large"));
+            .set_bits(0..13, size as u32);
     }
 }

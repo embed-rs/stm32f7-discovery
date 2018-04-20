@@ -1,5 +1,0 @@
-{
-    "rust.sysroot": "/home/oliver/.xargo",
-    //"rust-client.revealOutputChannelOn": "info",
-    //"rust-client.logToFile": true
-}

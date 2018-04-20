@@ -1,9 +1,8 @@
 #![no_std]
 #![no_main]
-#![feature(compiler_builtins_lib, asm)]
+#![feature(asm)]
 
 extern crate stm32f7_discovery as stm32f7;
-extern crate compiler_builtins;
 extern crate r0;
 
 use stm32f7::{system_clock, board, embedded};

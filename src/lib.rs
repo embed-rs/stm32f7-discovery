@@ -23,7 +23,7 @@ extern crate alloc_cortex_m;
 extern crate arrayvec;
 extern crate bit_field;
 extern crate byteorder;
-extern crate net;
+extern crate smoltcp;
 extern crate rusttype;
 extern crate spin;
 extern crate volatile;
@@ -53,6 +53,9 @@ pub mod sd;
 pub extern "C" fn panic_fmt(fmt: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
     use core::fmt::Write;
     use interrupts::primask_mutex::PrimaskMutex;
+
+    // workaround for https://github.com/rust-lang/rust/issues/47384
+    exceptions::hello();
 
     // Disable all interrupts after panic
     let mutex: PrimaskMutex<()> = PrimaskMutex::new(());

@@ -12,6 +12,7 @@ RUN set -ex; \
     apt-get clean -q -y; \
     rm -rf /var/lib/apt/lists/*; \
     cd ..; \
-    cargo install xargo; \
-    cd myapp; \
-    rustup component add rust-src;
+    rustup default nightly-2018-04-10; \
+    rustup target add thumbv7em-none-eabihf; \
+    cd myapp;
+    

@@ -35,8 +35,8 @@ pub fn init_pins_and_clocks(rcc: &mut Rcc, gpio: &mut Gpio) {
         r.set_i2c4en(true);
     });
 
-    let i2c1_scl = (PortB, Pin8);
-    let i2c1_sda = (PortB, Pin9);
+    let i2c1_scl = (PortB, Pin6);
+    let i2c1_sda = (PortB, Pin7);
     let i2c2_scl = (PortB, Pin10);
     let i2c2_sda = (PortB, Pin11);
     let i2c3_scl = (PortH, Pin7);

@@ -2,7 +2,6 @@
 #![feature(const_fn)]
 #![feature(alloc)]
 #![feature(asm)]
-#![feature(compiler_builtins_lib)]
 #![no_std]
 #![no_main]
 
@@ -13,13 +12,20 @@ extern crate stm32f7_discovery as stm32f7;
 
 #[macro_use]
 extern crate alloc;
-extern crate compiler_builtins;
 extern crate r0;
+extern crate smoltcp;
 
 // hardware register structs with accessor methods
 use stm32f7::{audio, board, embedded, ethernet, lcd, sdram, system_clock, touch, i2c, sd};
-use stm32f7::ethernet::{TcpConnection, Udp};
-use alloc::borrow::Cow;
+use smoltcp::socket::{Socket, SocketSet, TcpSocket, TcpSocketBuffer};
+use smoltcp::socket::{UdpSocket, UdpPacketMetadata, UdpSocketBuffer};
+use smoltcp::wire::{IpEndpoint, IpAddress, EthernetAddress, Ipv4Address};
+use smoltcp::time::Instant;
+use alloc::Vec;
+
+pub const ETH_ADDR: EthernetAddress = EthernetAddress([0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef]);
+pub const IP_ADDR: Ipv4Address = Ipv4Address([141, 52, 46, 198]);
+
 #[no_mangle]
 pub unsafe extern "C" fn reset() -> ! {
     extern "C" {
@@ -50,9 +56,7 @@ pub unsafe extern "C" fn reset() -> ! {
 #[inline(never)] //             reset() before the FPU is initialized
 fn main(hw: board::Hardware) -> ! {
     use embedded::interfaces::gpio::{self, Gpio};
-    use alloc::boxed::Box;
-
-    hprintln!("Entering main");
+    use alloc::Vec;
 
     let x = vec![1, 2, 3, 4, 5];
     assert_eq!(x.len(), 5);
@@ -157,7 +161,7 @@ fn main(hw: board::Hardware) -> ! {
     assert!(audio::init_wm8994(&mut i2c_3).is_ok());
 
     // ethernet
-    let mut eth_device = ethernet::EthernetDevice::new(
+    let mut ethernet_interface = ethernet::EthernetDevice::new(
         Default::default(),
         Default::default(),
         rcc,
@@ -165,18 +169,26 @@ fn main(hw: board::Hardware) -> ! {
         &mut gpio,
         ethernet_mac,
         ethernet_dma,
-    );
-    match eth_device {
-        Ok(ref mut eth_device) => {
-            eth_device
-                .listen_on_udp_port(15, Box::new(udp_reverse))
-                .unwrap();
-            eth_device
-                .register_tcp_port(15, Box::new(tcp_reverse))
-                .unwrap();
-        }
-        Err(e) => println!("ethernet init failed: {:?}", e),
-    }
+        ETH_ADDR,
+    ).map(|device| device.into_interface(IP_ADDR));
+    if let Err(e) = ethernet_interface {
+        println!("ethernet init failed: {:?}", e);
+    };
+
+    let mut sockets = SocketSet::new(Vec::new());
+    let endpoint = IpEndpoint::new(IpAddress::Ipv4(IP_ADDR), 15);
+
+    let udp_rx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 3], vec![0u8; 256]);
+    let udp_tx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 1], vec![0u8; 128]);
+    let mut example_udp_socket = UdpSocket::new(udp_rx_buffer, udp_tx_buffer);
+    example_udp_socket.bind(endpoint).unwrap();
+    sockets.add(example_udp_socket);
+
+    let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
+    let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
+    let mut example_tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
+    example_tcp_socket.listen(endpoint).unwrap();
+    sockets.add(example_tcp_socket);
 
     // SD
     let mut sd = sd::Sd::new(sdmmc, &mut gpio, rcc);
@@ -232,16 +244,16 @@ fn main(hw: board::Hardware) -> ! {
 
 
                 // handle new ethernet packets
-                if let Ok(ref mut eth_device) = eth_device {
-                    loop {
-                        let result = eth_device.handle_next_packet();
-                        if let Err(err) = result {
-                            match err {
-                                stm32f7::ethernet::Error::Exhausted => {}
-                                _ => {} // println!("err {:?}", e),
+                if let Ok(ref mut eth) = ethernet_interface {
+                    match eth.poll(&mut sockets, Instant::from_millis(system_clock::ticks() as i64)) {
+                        Err(::smoltcp::Error::Exhausted) => continue,
+                        Err(::smoltcp::Error::Unrecognized) => {},
+                        Err(e) => println!("Network error: {:?}", e),
+                        Ok(socket_changed) => if socket_changed {
+                            for mut socket in sockets.iter_mut() {
+                                poll_socket(&mut socket).expect("socket poll failed");
                             }
-                            break;
-                        }
+                        },
                     }
                 }
 
@@ -258,30 +270,46 @@ fn main(hw: board::Hardware) -> ! {
     )
 }
 
-fn udp_reverse(udp: Udp) -> Option<Cow<[u8]>> {
-    for byte in udp.payload.iter().filter(|&&b| b != 0) {
-        print!("{}", char::from(*byte));
+fn poll_socket(socket: &mut Socket) -> Result<(), smoltcp::Error> {
+    match socket {
+        &mut Socket::Udp(ref mut socket) => match socket.endpoint().port {
+            15 => loop {
+                let reply;
+                match socket.recv() {
+                    Ok((data, remote_endpoint)) => {
+                        let mut data = Vec::from(data);
+                        let len = data.len()-1;
+                        data[..len].reverse();
+                        reply = (data, remote_endpoint);
+                    },
+                    Err(smoltcp::Error::Exhausted) => break,
+                    Err(err) => return Err(err),
+                }
+                socket.send_slice(&reply.0, reply.1)?;
+            }
+            _ => {}
+        }
+        &mut Socket::Tcp(ref mut socket) => match socket.local_endpoint().port {
+            15 => {
+                if !socket.may_recv() { return Ok(()); }
+                let reply = socket.recv(|data| {
+                    if data.len() > 0 {
+                        let mut reply = Vec::from("tcp: ");
+                        let start_index = reply.len();
+                        reply.extend_from_slice(data);
+                        reply[start_index..(start_index + data.len() - 1)].reverse();
+                        (data.len(), Some(reply))
+                    } else {
+                        (data.len(), None)
+                    }
+                })?;
+                if let Some(reply) = reply {
+                    assert_eq!(socket.send_slice(&reply)?, reply.len());
+                }
+            }
+            _ => {}
+        }
+        _ => {}
     }
-    let mut reply = b"Reversed: ".to_vec();
-    let start = reply.len();
-    reply.extend_from_slice(udp.payload);
-    let end = reply.len() - 1;
-    reply[start..end].reverse();
-    Some(reply.into())
-}
-
-fn tcp_reverse<'a>(_connection: &TcpConnection, data: &'a [u8]) -> Option<Cow<'a, [u8]>> {
-    for byte in data.iter().filter(|&&b| b != 0) {
-        print!("{}", char::from(*byte));
-    }
-    if data.len() > 0 {
-        let mut reply = b"Reversed: ".to_vec();
-        let start = reply.len();
-        reply.extend_from_slice(data);
-        let end = reply.len() - 1;
-        reply[start..end].reverse();
-        Some(reply.into())
-    } else {
-        None
-    }
+    Ok(())
 }
