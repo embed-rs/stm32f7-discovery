@@ -16,12 +16,12 @@ extern crate r0;
 extern crate smoltcp;
 
 // hardware register structs with accessor methods
-use stm32f7::{audio, board, embedded, ethernet, lcd, sdram, system_clock, touch, i2c, sd};
-use smoltcp::socket::{Socket, SocketSet, TcpSocket, TcpSocketBuffer};
-use smoltcp::socket::{UdpSocket, UdpPacketMetadata, UdpSocketBuffer};
-use smoltcp::wire::{IpEndpoint, IpAddress, EthernetAddress, Ipv4Address};
-use smoltcp::time::Instant;
 use alloc::Vec;
+use smoltcp::socket::{Socket, SocketSet, TcpSocket, TcpSocketBuffer};
+use smoltcp::socket::{UdpPacketMetadata, UdpSocket, UdpSocketBuffer};
+use smoltcp::time::Instant;
+use smoltcp::wire::{EthernetAddress, IpAddress, IpEndpoint, Ipv4Address};
+use stm32f7::{audio, board, embedded, ethernet, i2c, lcd, sd, sdram, system_clock, touch};
 
 pub const ETH_ADDR: EthernetAddress = EthernetAddress([0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef]);
 pub const IP_ADDR: Ipv4Address = Ipv4Address([141, 52, 46, 198]);
@@ -55,8 +55,8 @@ pub unsafe extern "C" fn reset() -> ! {
 // WORKAROUND: rust compiler will inline & reorder fp instructions into
 #[inline(never)] //             reset() before the FPU is initialized
 fn main(hw: board::Hardware) -> ! {
-    use embedded::interfaces::gpio::{self, Gpio};
     use alloc::Vec;
+    use embedded::interfaces::gpio::{self, Gpio};
 
     let x = vec![1, 2, 3, 4, 5];
     assert_eq!(x.len(), 5);
@@ -91,17 +91,7 @@ fn main(hw: board::Hardware) -> ! {
     } = hw;
 
     let mut gpio = Gpio::new(
-        gpio_a,
-        gpio_b,
-        gpio_c,
-        gpio_d,
-        gpio_e,
-        gpio_f,
-        gpio_g,
-        gpio_h,
-        gpio_i,
-        gpio_j,
-        gpio_k,
+        gpio_a, gpio_b, gpio_c, gpio_d, gpio_e, gpio_f, gpio_g, gpio_h, gpio_i, gpio_j, gpio_k,
     );
 
     system_clock::init(rcc, pwr, flash);
@@ -198,8 +188,8 @@ fn main(hw: board::Hardware) -> ! {
     let mut audio_writer = layer_1.audio_writer();
     let mut last_led_toggle = system_clock::ticks();
 
-    use stm32f7::board::embedded::interfaces::gpio::Port;
     use stm32f7::board::embedded::components::gpio::stm32f7::Pin;
+    use stm32f7::board::embedded::interfaces::gpio::Port;
     use stm32f7::exti::{EdgeDetection, Exti, ExtiLine};
 
     let mut exti = Exti::new(exti);
@@ -209,19 +199,21 @@ fn main(hw: board::Hardware) -> ! {
         syscfg,
     ).unwrap();
 
-    use stm32f7::interrupts::{scope, Priority};
     use stm32f7::interrupts::interrupt_request::InterruptRequest;
+    use stm32f7::interrupts::{scope, Priority};
 
     scope(
         nvic,
         |_| {},
         |interrupt_table| {
-            let _ = interrupt_table.register(InterruptRequest::Exti10to15, Priority::P1, move || {
-                exti_handle.clear_pending_state();
-                // choose a new background color
-                let new_color = ((system_clock::ticks() as u32).wrapping_mul(19801)) % 0x1000000;
-                lcd.set_background_color(lcd::Color::from_hex(new_color));
-            });
+            let _ =
+                interrupt_table.register(InterruptRequest::Exti10to15, Priority::P1, move || {
+                    exti_handle.clear_pending_state();
+                    // choose a new background color
+                    let new_color =
+                        ((system_clock::ticks() as u32).wrapping_mul(19801)) % 0x1000000;
+                    lcd.set_background_color(lcd::Color::from_hex(new_color));
+                });
 
             loop {
                 let ticks = system_clock::ticks();
@@ -234,7 +226,6 @@ fn main(hw: board::Hardware) -> ! {
                     last_led_toggle = ticks;
                 }
 
-
                 // poll for new touch data
                 for touch in &touch::touches(&mut i2c_3).unwrap() {
                     audio_writer
@@ -242,12 +233,14 @@ fn main(hw: board::Hardware) -> ! {
                         .print_point_at(touch.x as usize, touch.y as usize);
                 }
 
-
                 // handle new ethernet packets
                 if let Ok(ref mut eth) = ethernet_interface {
-                    match eth.poll(&mut sockets, Instant::from_millis(system_clock::ticks() as i64)) {
+                    match eth.poll(
+                        &mut sockets,
+                        Instant::from_millis(system_clock::ticks() as i64),
+                    ) {
                         Err(::smoltcp::Error::Exhausted) => continue,
-                        Err(::smoltcp::Error::Unrecognized) => {},
+                        Err(::smoltcp::Error::Unrecognized) => {}
                         Err(e) => println!("Network error: {:?}", e),
                         Ok(socket_changed) => if socket_changed {
                             for mut socket in sockets.iter_mut() {
@@ -278,20 +271,22 @@ fn poll_socket(socket: &mut Socket) -> Result<(), smoltcp::Error> {
                 match socket.recv() {
                     Ok((data, remote_endpoint)) => {
                         let mut data = Vec::from(data);
-                        let len = data.len()-1;
+                        let len = data.len() - 1;
                         data[..len].reverse();
                         reply = (data, remote_endpoint);
-                    },
+                    }
                     Err(smoltcp::Error::Exhausted) => break,
                     Err(err) => return Err(err),
                 }
                 socket.send_slice(&reply.0, reply.1)?;
-            }
+            },
             _ => {}
-        }
+        },
         &mut Socket::Tcp(ref mut socket) => match socket.local_endpoint().port {
             15 => {
-                if !socket.may_recv() { return Ok(()); }
+                if !socket.may_recv() {
+                    return Ok(());
+                }
                 let reply = socket.recv(|data| {
                     if data.len() > 0 {
                         let mut reply = Vec::from("tcp: ");
@@ -308,7 +303,7 @@ fn poll_socket(socket: &mut Socket) -> Result<(), smoltcp::Error> {
                 }
             }
             _ => {}
-        }
+        },
         _ => {}
     }
     Ok(())

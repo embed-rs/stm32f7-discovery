@@ -7,8 +7,7 @@ pub fn idle(sdmmc: &mut Sdmmc, timeout: u32) -> Result<(), Error> {
     send_cmd(sdmmc, 0, 0x00, true, false, 0x00);
 
     let timeout = ::system_clock::ticks() as u32 + timeout;
-    while (::system_clock::ticks() as u32) < timeout
-        && !sdmmc.sta.read().cmdsent() {}
+    while (::system_clock::ticks() as u32) < timeout && !sdmmc.sta.read().cmdsent() {}
 
     if (::system_clock::ticks() as u32) >= timeout {
         return Err(Error::Timeout);
@@ -130,11 +129,14 @@ pub fn stop_transfer(sdmmc: &mut Sdmmc) -> Result<(), Error> {
 }
 
 /// Send a command to the card.
-pub fn send_cmd(sdmmc: &mut Sdmmc,
-                argument: u32, cmdidx: u8,
-                cpsmen: bool,
-                waitint: bool,
-                waitresp: u8) {
+pub fn send_cmd(
+    sdmmc: &mut Sdmmc,
+    argument: u32,
+    cmdidx: u8,
+    cpsmen: bool,
+    waitint: bool,
+    waitresp: u8,
+) {
     sdmmc.arg.update(|arg| arg.set_cmdarg(argument));
     sdmmc.cmd.update(|cmd| {
         cmd.set_cpsmen(cpsmen);
@@ -150,7 +152,7 @@ fn get_cmd_resp1(sdmmc: &mut Sdmmc, cmd_idx: u8, timeout: u32) -> Result<(), Err
 
     if sdmmc.respcmd.read().respcmd() != cmd_idx {
         return Err(Error::SdmmcError {
-            t: SdmmcErrorType::CmdCrcFailed
+            t: SdmmcErrorType::CmdCrcFailed,
         });
     }
 
@@ -185,7 +187,7 @@ fn get_cmd_resp6(sdmmc: &mut Sdmmc, cmd_idx: u8, timeout: u32) -> Result<u16, Er
 
     if sdmmc.respcmd.read().respcmd() != cmd_idx {
         return Err(Error::SdmmcError {
-            t: SdmmcErrorType::CmdCrcFailed
+            t: SdmmcErrorType::CmdCrcFailed,
         });
     }
 
@@ -199,19 +201,22 @@ fn get_cmd_resp6(sdmmc: &mut Sdmmc, cmd_idx: u8, timeout: u32) -> Result<u16, Er
     } else if card_status & R6_CRC_FAILED.bits() != 0 {
         Err(Error::CardError { t: R6_CRC_FAILED })
     } else if card_status & R6_ILLEGAL_COMMAND.bits() != 0 {
-        Err(Error::CardError { t: R6_ILLEGAL_COMMAND })
+        Err(Error::CardError {
+            t: R6_ILLEGAL_COMMAND,
+        })
     } else {
-        Err(Error::CardError { t: R6_GENERAL_UNKNOWN_ERROR })
+        Err(Error::CardError {
+            t: R6_GENERAL_UNKNOWN_ERROR,
+        })
     }
 }
 
 // Wait for the Controller to respond to a command.
 fn wait_resp(sdmmc: &mut Sdmmc, timeout: u32) -> Result<(), Error> {
     let timeout = ::system_clock::ticks() as u32 + timeout;
-    while (::system_clock::ticks() as u32) < timeout
-        && !sdmmc.sta.read().cmdrend()
-        && !sdmmc.sta.read().ccrcfail()
-        && !sdmmc.sta.read().ctimeout() {}
+    while (::system_clock::ticks() as u32) < timeout && !sdmmc.sta.read().cmdrend()
+        && !sdmmc.sta.read().ccrcfail() && !sdmmc.sta.read().ctimeout()
+    {}
 
     if (::system_clock::ticks() as u32) >= timeout {
         return Err(Error::Timeout);
@@ -220,7 +225,7 @@ fn wait_resp(sdmmc: &mut Sdmmc, timeout: u32) -> Result<(), Error> {
     if sdmmc.sta.read().ctimeout() {
         sdmmc.icr.update(|icr| icr.set_ctimeoutc(true));
         return Err(Error::SdmmcError {
-            t: SdmmcErrorType::CmdRespTimeout
+            t: SdmmcErrorType::CmdRespTimeout,
         });
     }
 
@@ -233,7 +238,7 @@ fn wait_resp_crc(sdmmc: &mut Sdmmc, timeout: u32) -> Result<(), Error> {
     if sdmmc.sta.read().ccrcfail() {
         sdmmc.icr.update(|icr| icr.set_ccrcfailc(true));
         return Err(Error::SdmmcError {
-            t: SdmmcErrorType::CmdCrcFailed
+            t: SdmmcErrorType::CmdCrcFailed,
         });
     }
 
@@ -263,11 +268,15 @@ fn check_for_errors(card_status: u32) -> Result<(), Error> {
     } else if card_status & ERASE_RESET.bits() != 0 {
         Err(Error::CardError { t: ERASE_RESET })
     } else if card_status & CARD_ECC_DISABLED.bits() != 0 {
-        Err(Error::CardError { t: CARD_ECC_DISABLED })
+        Err(Error::CardError {
+            t: CARD_ECC_DISABLED,
+        })
     } else if card_status & WP_ERASE_SKIP.bits() != 0 {
         Err(Error::CardError { t: WP_ERASE_SKIP })
     } else if card_status & CID_CSD_OVERWRITE.bits() != 0 {
-        Err(Error::CardError { t: CID_CSD_OVERWRITE })
+        Err(Error::CardError {
+            t: CID_CSD_OVERWRITE,
+        })
     } else if card_status & CC_ERROR.bits() != 0 {
         Err(Error::CardError { t: CC_ERROR })
     } else if card_status & CARD_ECC_FAILED.bits() != 0 {
@@ -277,7 +286,9 @@ fn check_for_errors(card_status: u32) -> Result<(), Error> {
     } else if card_status & COM_CRC_ERROR.bits() != 0 {
         Err(Error::CardError { t: COM_CRC_ERROR })
     } else if card_status & LOCK_UNLOCK_FAILED.bits() != 0 {
-        Err(Error::CardError { t: LOCK_UNLOCK_FAILED })
+        Err(Error::CardError {
+            t: LOCK_UNLOCK_FAILED,
+        })
     } else if card_status & WP_VIOLATION.bits() != 0 {
         Err(Error::CardError { t: WP_VIOLATION })
     } else if card_status & ERASE_PARAM.bits() != 0 {
@@ -287,9 +298,13 @@ fn check_for_errors(card_status: u32) -> Result<(), Error> {
     } else if card_status & BLOCK_LEN_ERROR.bits() != 0 {
         Err(Error::CardError { t: BLOCK_LEN_ERROR })
     } else if card_status & ADDRESS_MISALIGNED.bits() != 0 {
-        Err(Error::CardError { t: ADDRESS_MISALIGNED })
+        Err(Error::CardError {
+            t: ADDRESS_MISALIGNED,
+        })
     } else if card_status & ADDRESS_OUT_OF_RANGE.bits() != 0 {
-        Err(Error::CardError { t: ADDRESS_OUT_OF_RANGE })
+        Err(Error::CardError {
+            t: ADDRESS_OUT_OF_RANGE,
+        })
     } else {
         Err(Error::CardError { t: ERROR })
     }

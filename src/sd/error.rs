@@ -1,12 +1,12 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
-    Error,                              // Unknown Error
-    NoSdCard,                           // No SD Card
-    Timeout,                            // Timeout while waiting for a response
-    InvalidVoltrange,                   // Voltage Trial failed
-    CardError { t: CardStatusFlags },   // Card Error, see CardStatusFlags
-    SdmmcError { t: SdmmcErrorType },   // Response to a failed command
-    RWError { t: RWErrorType },         // Error during reading from/writing to the card
+    Error,                            // Unknown Error
+    NoSdCard,                         // No SD Card
+    Timeout,                          // Timeout while waiting for a response
+    InvalidVoltrange,                 // Voltage Trial failed
+    CardError { t: CardStatusFlags }, // Card Error, see CardStatusFlags
+    SdmmcError { t: SdmmcErrorType }, // Response to a failed command
+    RWError { t: RWErrorType },       // Error during reading from/writing to the card
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,8 +20,8 @@ pub enum RWErrorType {
     AddressOutOfRange,
     DataTimeout,
     DataCrcFailed,
-    TxUnderrun,         // FIFO underrun
-    RxOverrun,          // FIFO overrun
+    TxUnderrun, // FIFO underrun
+    RxOverrun,  // FIFO overrun
 }
 
 // See Documentation Table 207 and Table 228

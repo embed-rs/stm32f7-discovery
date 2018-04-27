@@ -1,10 +1,10 @@
 #![allow(dead_code)]
 
-use board::rcc::Rcc;
 use board::i2c;
-use embedded::interfaces::gpio::Gpio;
-use core::marker::PhantomData;
+use board::rcc::Rcc;
 use core::iter::TrustedLen;
+use core::marker::PhantomData;
+use embedded::interfaces::gpio::Gpio;
 
 pub struct I2C(&'static mut i2c::I2c);
 
@@ -23,9 +23,9 @@ impl Address {
 }
 
 pub fn init_pins_and_clocks(rcc: &mut Rcc, gpio: &mut Gpio) {
-    use embedded::interfaces::gpio::{AlternateFunction, OutputSpeed, OutputType, Resistor};
-    use embedded::interfaces::gpio::Port::*;
     use embedded::interfaces::gpio::Pin::*;
+    use embedded::interfaces::gpio::Port::*;
+    use embedded::interfaces::gpio::{AlternateFunction, OutputSpeed, OutputType, Resistor};
 
     // enable clocks
     rcc.apb1enr.update(|r| {
@@ -45,14 +45,7 @@ pub fn init_pins_and_clocks(rcc: &mut Rcc, gpio: &mut Gpio) {
     let i2c4_sda = (PortD, Pin13);
 
     let pins = [
-        i2c1_scl,
-        i2c1_sda,
-        i2c2_scl,
-        i2c2_sda,
-        i2c3_scl,
-        i2c3_sda,
-        i2c4_scl,
-        i2c4_sda,
+        i2c1_scl, i2c1_sda, i2c2_scl, i2c2_sda, i2c3_scl, i2c3_sda, i2c4_scl, i2c4_sda,
     ];
     gpio.to_alternate_function_all(
         &pins,
@@ -290,7 +283,6 @@ impl I2C {
         }
         self.stop()
     }
-
 
     pub fn stop(&mut self) -> Result<(), Error> {
         self.0.cr2.update(|r| r.set_stop(true));

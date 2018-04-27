@@ -1,7 +1,7 @@
-use board::rcc::Rcc;
 use board::fmc::Fmc;
-use system_clock;
+use board::rcc::Rcc;
 use embedded::interfaces::gpio::Gpio;
+use system_clock;
 
 pub fn init(rcc: &mut Rcc, fmc: &mut Fmc, gpio: &mut Gpio) {
     config_pins(gpio);
@@ -79,9 +79,9 @@ pub fn init(rcc: &mut Rcc, fmc: &mut Fmc, gpio: &mut Gpio) {
 }
 
 fn config_pins(gpio: &mut Gpio) {
-    use embedded::interfaces::gpio::{AlternateFunction, OutputSpeed, OutputType, Resistor};
-    use embedded::interfaces::gpio::Port::*;
     use embedded::interfaces::gpio::Pin::*;
+    use embedded::interfaces::gpio::Port::*;
+    use embedded::interfaces::gpio::{AlternateFunction, OutputSpeed, OutputType, Resistor};
 
     let sdclk = (PortG, Pin8);
     let sdcke0 = (PortC, Pin3);
@@ -124,44 +124,8 @@ fn config_pins(gpio: &mut Gpio) {
     let sdnwe = (PortH, Pin5);
 
     let pins = [
-        sdclk,
-        sdcke0,
-        sdcke1,
-        sdne0,
-        sdne1,
-        a0,
-        a1,
-        a2,
-        a3,
-        a4,
-        a5,
-        a6,
-        a7,
-        a8,
-        a9,
-        a10,
-        a11,
-        a12,
-        d0,
-        d1,
-        d2,
-        d3,
-        d4,
-        d5,
-        d6,
-        d7,
-        d8,
-        d9,
-        d10,
-        d11,
-        d12,
-        d13,
-        d14,
-        d15,
-        ba0,
-        ba1,
-        nras,
-        ncas,
+        sdclk, sdcke0, sdcke1, sdne0, sdne1, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12,
+        d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d15, ba0, ba1, nras, ncas,
         sdnwe,
     ];
     gpio.to_alternate_function_all(

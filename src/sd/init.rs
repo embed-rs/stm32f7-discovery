@@ -1,5 +1,5 @@
-use super::{Sd, CardType, sdmmc_cmd, CardInfo};
 use super::error::Error;
+use super::{sdmmc_cmd, CardInfo, CardType, Sd};
 use board::rcc::Rcc;
 use board::sdmmc::Sdmmc;
 use embedded::interfaces::gpio::Gpio;
@@ -49,12 +49,12 @@ use embedded::interfaces::gpio::Gpio;
 pub fn init(sd: &mut Sd) -> Result<(), Error> {
     // Check for SD card
     if !sd.card_present() {
-        return Err(Error::NoSdCard)
+        return Err(Error::NoSdCard);
     }
 
     // Card already initialized
     if sd.card_initialized() {
-        return Ok(())
+        return Ok(());
     }
 
     // default clock configuration
@@ -78,10 +78,12 @@ pub fn init(sd: &mut Sd) -> Result<(), Error> {
 
     sdmmc_cmd::send_csd(sd.sdmmc, u32::from(card_info.rca) << 16)?;
 
-    let csd = [sd.sdmmc.resp1.read().cardstatus1(),
-               sd.sdmmc.resp2.read().cardstatus2(),
-               sd.sdmmc.resp3.read().cardstatus3(),
-               sd.sdmmc.resp4.read().cardstatus4()];
+    let csd = [
+        sd.sdmmc.resp1.read().cardstatus1(),
+        sd.sdmmc.resp2.read().cardstatus2(),
+        sd.sdmmc.resp3.read().cardstatus3(),
+        sd.sdmmc.resp4.read().cardstatus4(),
+    ];
 
     get_card_csd(&mut card_info, csd);
 
@@ -107,21 +109,21 @@ pub fn init_hw(gpio: &mut Gpio, rcc: &mut Rcc) {
     rcc.ahb1enr.update(|r| {
         r.set_gpiocen(true); // Data and clock port
         r.set_gpioden(true); // CMD port
-        // r.set_gpioben(true); // only needed in mmc 8bit mode
+                             // r.set_gpioben(true); // only needed in mmc 8bit mode
     });
     // wait for enabling
-    while !rcc.apb2enr.read().sdmmc1en()
-            || !rcc.ahb1enr.read().gpiocen()
-            || !rcc.ahb1enr.read().gpioden() {}
-            // || !rcc.ahb1enr.read().gpioben() {}
+    while !rcc.apb2enr.read().sdmmc1en() || !rcc.ahb1enr.read().gpiocen()
+        || !rcc.ahb1enr.read().gpioden()
+    {}
+    // || !rcc.ahb1enr.read().gpioben() {}
 
     init_pins(gpio);
 }
 
 fn init_pins(gpio: &mut Gpio) {
-    use embedded::interfaces::gpio::Port::*;
     use embedded::interfaces::gpio::Pin::*;
-    use embedded::interfaces::gpio::{AlternateFunction, OutputType, OutputSpeed, Resistor};
+    use embedded::interfaces::gpio::Port::*;
+    use embedded::interfaces::gpio::{AlternateFunction, OutputSpeed, OutputType, Resistor};
 
     // Data ports. For Default Bus mode only d0 is needed.
     let d0 = (PortC, Pin8);
@@ -139,22 +141,15 @@ fn init_pins(gpio: &mut Gpio) {
     // sdmmc_cmd
     let cmd = (PortD, Pin2);
 
-    let pins = [d0,
-                d1,
-                d2,
-                d3,
-                d4,
-                d5,
-                d6,
-                d7,
-                ck,
-                cmd];
+    let pins = [d0, d1, d2, d3, d4, d5, d6, d7, ck, cmd];
 
-    gpio.to_alternate_function_all(&pins,
-                                   AlternateFunction::AF12,
-                                   OutputType::PushPull,
-                                   OutputSpeed::High,
-                                   Resistor::PullUp).unwrap();
+    gpio.to_alternate_function_all(
+        &pins,
+        AlternateFunction::AF12,
+        OutputType::PushPull,
+        OutputSpeed::High,
+        Resistor::PullUp,
+    ).unwrap();
 }
 
 fn power_on(sdmmc: &mut Sdmmc) -> Result<CardType, Error> {
@@ -177,7 +172,7 @@ fn power_on(sdmmc: &mut Sdmmc) -> Result<CardType, Error> {
         // voltage trial for card V2
         while !valid_voltage {
             if count == max_volt_trial {
-                return Err(Error::InvalidVoltrange)
+                return Err(Error::InvalidVoltrange);
             }
             count += 1;
 
@@ -200,7 +195,7 @@ fn power_on(sdmmc: &mut Sdmmc) -> Result<CardType, Error> {
     } else {
         while !valid_voltage {
             if count == max_volt_trial {
-                return Err(Error::InvalidVoltrange)
+                return Err(Error::InvalidVoltrange);
             }
             count += 1;
 

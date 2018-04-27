@@ -1,5 +1,5 @@
-use board::ethernet_mac::{self, EthernetMac};
 use bit_field::BitField;
+use board::ethernet_mac::{self, EthernetMac};
 use system_clock;
 
 const LAN8742A_PHY_ADDRESS: u8 = 0;

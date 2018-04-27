@@ -1,10 +1,9 @@
-use board::embedded::interfaces::gpio::Port;
-use board::embedded::components::gpio::stm32f7::Pin;
-use board::syscfg::Syscfg;
-use board::exti;
-use volatile::ReadWrite;
 use bit_field::BitField;
-
+use board::embedded::components::gpio::stm32f7::Pin;
+use board::embedded::interfaces::gpio::Port;
+use board::exti;
+use board::syscfg::Syscfg;
+use volatile::ReadWrite;
 
 pub struct Exti {
     exti: &'static mut exti::Exti,
@@ -33,7 +32,6 @@ impl Exti {
 
                 self.lines_used.set_bit($number, true);
 
-
                 syscfg.$resyscfg.update(|r| r.$multi($port as u8));
 
                 self.exti.imr.update(|r| r.$imr(true));
@@ -44,15 +42,15 @@ impl Exti {
                     RisingEdge => {
                         self.exti.rtsr.update(|r| r.$tr(true));
                         self.exti.ftsr.update(|r| r.$tr(false));
-                    },
+                    }
                     FallingEdge => {
                         self.exti.ftsr.update(|r| r.$tr(true));
                         self.exti.rtsr.update(|r| r.$tr(false));
-                    },
+                    }
                     BothEdges => {
                         self.exti.rtsr.update(|r| r.$tr(true));
                         self.exti.ftsr.update(|r| r.$tr(true));
-                    },
+                    }
                 }
             }};
             ($number:expr, $imr:ident, $tr:ident) => {{
@@ -70,15 +68,15 @@ impl Exti {
                     RisingEdge => {
                         self.exti.rtsr.update(|r| r.$tr(true));
                         self.exti.ftsr.update(|r| r.$tr(false));
-                    },
+                    }
                     FallingEdge => {
                         self.exti.ftsr.update(|r| r.$tr(true));
                         self.exti.rtsr.update(|r| r.$tr(false));
-                    },
+                    }
                     BothEdges => {
                         self.exti.rtsr.update(|r| r.$tr(true));
                         self.exti.ftsr.update(|r| r.$tr(true));
-                    },
+                    }
                 }
             }};
         }

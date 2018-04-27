@@ -1,17 +1,17 @@
-use core::fmt;
 use alloc::boxed::Box;
 use alloc::Vec;
+use core::fmt;
 
-use board::{rcc, syscfg};
 use board::ethernet_dma::{self, EthernetDma};
 use board::ethernet_mac::{self, EthernetMac};
+use board::{rcc, syscfg};
 use embedded::interfaces::gpio;
 use volatile::Volatile;
 
-use smoltcp::wire::{EthernetAddress, Ipv4Address, IpCidr, Ipv4Cidr};
-use smoltcp::phy::{Device, DeviceCapabilities};
 use smoltcp::iface::{EthernetInterface, EthernetInterfaceBuilder};
+use smoltcp::phy::{Device, DeviceCapabilities};
 use smoltcp::time::Instant;
+use smoltcp::wire::{EthernetAddress, IpCidr, Ipv4Address, Ipv4Cidr};
 
 mod init;
 mod phy;
@@ -93,8 +93,8 @@ impl EthernetDevice {
     }
 
     pub fn into_interface<'a>(self, ip_address: Ipv4Address) -> EthernetInterface<'a, 'a, Self> {
-        use smoltcp::iface::NeighborCache;
         use alloc::BTreeMap;
+        use smoltcp::iface::NeighborCache;
 
         let neighbor_cache = NeighborCache::new(BTreeMap::new());
         let ethernet_address = self.ethernet_address;
@@ -118,15 +118,25 @@ impl<'a> Device<'a> for EthernetDevice {
     type TxToken = TxToken<'a>;
 
     fn receive(&'a mut self) -> Option<(Self::RxToken, Self::TxToken)> {
-        if !self.rx.new_data_received() { return None }
-        let rx = RxToken { rx: &mut self.rx, };
-        let tx = TxToken { tx: &mut self.tx, ethernet_dma: &mut self.ethernet_dma, };
+        if !self.rx.new_data_received() {
+            return None;
+        }
+        let rx = RxToken { rx: &mut self.rx };
+        let tx = TxToken {
+            tx: &mut self.tx,
+            ethernet_dma: &mut self.ethernet_dma,
+        };
         Some((rx, tx))
     }
 
     fn transmit(&'a mut self) -> Option<Self::TxToken> {
-        if !self.tx.descriptor_available() { return None }
-        Some(TxToken { tx: &mut self.tx, ethernet_dma: &mut self.ethernet_dma, })
+        if !self.tx.descriptor_available() {
+            return None;
+        }
+        Some(TxToken {
+            tx: &mut self.tx,
+            ethernet_dma: &mut self.ethernet_dma,
+        })
     }
 
     fn capabilities(&self) -> DeviceCapabilities {
@@ -142,7 +152,8 @@ pub struct RxToken<'a> {
 
 impl<'a> ::smoltcp::phy::RxToken for RxToken<'a> {
     fn consume<R, F>(self, _timestamp: Instant, f: F) -> ::smoltcp::Result<R>
-        where F: FnOnce(&[u8]) -> ::smoltcp::Result<R>
+    where
+        F: FnOnce(&[u8]) -> ::smoltcp::Result<R>,
     {
         self.rx.receive(f)
     }
@@ -155,7 +166,8 @@ pub struct TxToken<'a> {
 
 impl<'a> ::smoltcp::phy::TxToken for TxToken<'a> {
     fn consume<R, F>(mut self, _timestamp: Instant, len: usize, f: F) -> ::smoltcp::Result<R>
-        where F: FnOnce(&mut [u8]) -> ::smoltcp::Result<R>
+    where
+        F: FnOnce(&mut [u8]) -> ::smoltcp::Result<R>,
     {
         let mut data = vec![0; len].into_boxed_slice();
         let ret = f(&mut data)?;
@@ -270,8 +282,11 @@ impl RxDevice {
             // Descriptors wrap around, but we don't want packets to wrap around. So we require
             // that the last descriptor in the list is large enough to hold all received packets.
             // This assertion checks that no wraparound occurs.
-            assert!(descriptor_index + i < self.descriptors.len(), "buffer of last descriptor in \
-                list must be large enough to hold received packets without wrap-around");
+            assert!(
+                descriptor_index + i < self.descriptors.len(),
+                "buffer of last descriptor in \
+                 list must be large enough to hold received packets without wrap-around"
+            );
             last_descriptor = self.descriptors[descriptor_index + i].read();
             if last_descriptor.own() {
                 return Err(::smoltcp::Error::Exhausted); // packet is not fully received
@@ -322,7 +337,9 @@ impl RxDevice {
             let descriptor = self.descriptors[next].read();
             self.descriptors[next].update(|d| d.reset());
             next = (next + 1) % self.descriptors.len();
-            if descriptor.is_last_descriptor() { break }
+            if descriptor.is_last_descriptor() {
+                break;
+            }
         }
         self.next_descriptor = next;
 
@@ -375,8 +392,10 @@ impl TxDevice {
     pub fn cleanup(&mut self) {
         let mut c = 0;
         for descriptor in self.descriptors.iter_mut() {
-            descriptor.update(|d| if !d.own() && d.buffer().is_some() {
-                c += 1;
+            descriptor.update(|d| {
+                if !d.own() && d.buffer().is_some() {
+                    c += 1;
+                }
             });
         }
         if c > 0 {
