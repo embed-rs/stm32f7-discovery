@@ -7,6 +7,7 @@
 
 #[macro_use]
 extern crate stm32f7_discovery as stm32f7;
+extern crate stm32f746_hal as hal;
 
 // initialization routines for .data and .bss
 

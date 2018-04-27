@@ -18,6 +18,7 @@ volatile = "0.2.1"
 rusttype = {git = "https://github.com/phil-opp/rusttype.git", branch = "no_std"}
 alloc-cortex-m = "0.3.3"
 bitflags = "0.7.0"
+stm32f746-hal = {git = "https://github.com/embed-rs/stm32f746-hal.git", branch = "wip"}
 
 [dependencies.arrayvec]
 default-features = false
