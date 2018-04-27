@@ -23,6 +23,7 @@ use smoltcp::socket::{UdpPacketMetadata, UdpSocket, UdpSocketBuffer};
 use smoltcp::time::Instant;
 use smoltcp::wire::{EthernetAddress, IpAddress, IpEndpoint, Ipv4Address};
 use stm32f7::{audio, board, embedded, ethernet, i2c, lcd, sd, sdram, system_clock, touch};
+use hal::stm32f7::stm32f7x6::Peripherals;
 
 pub const ETH_ADDR: EthernetAddress = EthernetAddress([0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef]);
 pub const IP_ADDR: Ipv4Address = Ipv4Address([141, 52, 46, 198]);
@@ -50,12 +51,12 @@ pub unsafe extern "C" fn reset() -> ! {
     scb.cpacr.modify(|v| v | 0b1111 << 20);
     asm!("DSB; ISB;"::::"volatile"); // pipeline flush
 
-    main(board::hw());
+    main(board::hw(), hal::take_peripherals().unwrap());
 }
 
 // WORKAROUND: rust compiler will inline & reorder fp instructions into
 #[inline(never)] //             reset() before the FPU is initialized
-fn main(hw: board::Hardware) -> ! {
+fn main(hw: board::Hardware, peripherals: Peripherals) -> ! {
     use alloc::Vec;
     use embedded::interfaces::gpio::{self, Gpio};
 

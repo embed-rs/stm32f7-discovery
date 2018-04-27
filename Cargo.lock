@@ -210,7 +210,7 @@ dependencies = [
 [[package]]
 name = "stm32f746-hal"
 version = "0.1.0"
-source = "git+https://github.com/embed-rs/stm32f746-hal.git?branch=wip#7778f01c869bd481e592780c35a566dacce35501"
+source = "git+https://github.com/embed-rs/stm32f746-hal.git?branch=wip#ffdb8d9a729086619e5c507e22a647398bc0af6f"
 dependencies = [
  "cortex-m 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "embedded-hal 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
