@@ -1,6 +1,6 @@
-use spin::Mutex;
-use core::fmt;
 use super::{FramebufferAl88, Layer, TextWriter};
+use core::fmt;
+use spin::Mutex;
 
 static STDOUT: Mutex<Option<TextWriter<FramebufferAl88>>> = Mutex::new(None);
 

@@ -1,19 +1,19 @@
 #![allow(dead_code)]
 
 pub use self::color::Color;
+pub use self::font::FontRenderer;
 pub use self::init::init;
 pub use self::stdout::init as init_stdout;
-pub use self::font::FontRenderer;
 
 use board::ltdc::Ltdc;
-use embedded::interfaces::gpio::OutputPin;
 use core::{fmt, ptr};
+use embedded::interfaces::gpio::OutputPin;
 
 #[macro_use]
 pub mod stdout;
-mod init;
 mod color;
 pub mod font;
+mod init;
 
 const HEIGHT: usize = 272;
 const WIDTH: usize = 480;
@@ -89,7 +89,6 @@ pub struct FramebufferAl88 {
     base_addr: usize,
 }
 
-
 impl FramebufferAl88 {
     fn new(base_addr: usize) -> Self {
         Self { base_addr }
@@ -111,14 +110,7 @@ pub struct Layer<T> {
 impl<T: Framebuffer> Layer<T> {
     pub fn horizontal_stripes(&mut self) {
         let colors = [
-            0xffffff,
-            0xcccccc,
-            0x999999,
-            0x666666,
-            0x333333,
-            0x0,
-            0xff0000,
-            0x0000ff,
+            0xffffff, 0xcccccc, 0x999999, 0x666666, 0x333333, 0x0, 0xff0000, 0x0000ff,
         ];
 
         // horizontal stripes
@@ -135,14 +127,7 @@ impl<T: Framebuffer> Layer<T> {
 
     pub fn vertical_stripes(&mut self) {
         let colors = [
-            0xcccccc,
-            0x999999,
-            0x666666,
-            0x333333,
-            0x0,
-            0xff0000,
-            0x0000ff,
-            0xffffff,
+            0xcccccc, 0x999999, 0x666666, 0x333333, 0x0, 0xff0000, 0x0000ff, 0xffffff,
         ];
 
         // vertical stripes
@@ -248,7 +233,6 @@ impl<'a, T: Framebuffer + 'a> AudioWriter<'a, T> {
             let i = i as usize;
             self.layer.print_point_color_at(self.next_col, i, color);
         }
-
 
         self.next_col = (self.next_col + 1) % WIDTH;
         self.prev_value = (value0, value1);

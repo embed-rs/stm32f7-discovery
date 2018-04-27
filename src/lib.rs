@@ -23,8 +23,8 @@ extern crate alloc_cortex_m;
 extern crate arrayvec;
 extern crate bit_field;
 extern crate byteorder;
-extern crate smoltcp;
 extern crate rusttype;
+extern crate smoltcp;
 extern crate spin;
 extern crate volatile;
 #[macro_use]
@@ -34,18 +34,18 @@ extern crate bitflags;
 pub mod semi_hosting;
 #[macro_use]
 pub mod lcd;
-pub mod exceptions;
-pub mod interrupts;
-pub mod system_clock;
-pub mod sdram;
-pub mod i2c;
 pub mod audio;
-pub mod touch;
 pub mod ethernet;
-pub mod heap;
-pub mod random;
+pub mod exceptions;
 pub mod exti;
+pub mod heap;
+pub mod i2c;
+pub mod interrupts;
+pub mod random;
 pub mod sd;
+pub mod sdram;
+pub mod system_clock;
+pub mod touch;
 
 #[cfg(not(test))]
 #[lang = "panic_fmt"]
@@ -61,9 +61,11 @@ pub extern "C" fn panic_fmt(fmt: core::fmt::Arguments, file: &'static str, line:
         hprintln_err!("    {}", fmt);
 
         unsafe { lcd::stdout::force_unlock() }
-        lcd::stdout::with_stdout(|stdout| if let Some(ref mut stdout) = *stdout {
-            let _ = writeln!(stdout, "\nPANIC in {} at line {}:", file, line);
-            let _ = writeln!(stdout, "    {}", fmt);
+        lcd::stdout::with_stdout(|stdout| {
+            if let Some(ref mut stdout) = *stdout {
+                let _ = writeln!(stdout, "\nPANIC in {} at line {}:", file, line);
+                let _ = writeln!(stdout, "    {}", fmt);
+            }
         });
 
         loop {}
@@ -74,7 +76,6 @@ pub extern "C" fn panic_fmt(fmt: core::fmt::Arguments, file: &'static str, line:
 fn oom() -> ! {
     panic!("Out of memory!");
 }
-
 
 use alloc_cortex_m::CortexMHeap;
 

@@ -16,13 +16,13 @@
 //! unregistered at the end of the scope. Thus it is safe to access the parent stack in the
 //! interrupt service routine.
 
+use self::interrupt_request::InterruptRequest;
 use alloc::boxed::Box;
 use board::nvic::Nvic;
 use board::nvic::Stir;
-use core::marker::PhantomData;
 use core::intrinsics::transmute;
+use core::marker::PhantomData;
 use core::ptr;
-use self::interrupt_request::InterruptRequest;
 
 pub mod interrupt_request;
 pub mod primask_mutex;
@@ -51,106 +51,14 @@ unsafe extern "C" fn dispatcher() {
 #[allow(private_no_mangle_statics)]
 static INTERRUPTS: [unsafe extern "C" fn(); 98] = [dispatcher; 98];
 
-
 static mut ISRS: [Option<Box<FnMut()>>; 98] = [
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
+    None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+    None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+    None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+    None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+    None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+    None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+    None, None,
 ];
 
 /// Default interrupt handler
@@ -368,9 +276,9 @@ impl<'a> InterruptTable<'a> {
         // and alway only one isr can access the data (Send is not needed for closure)
         let isr = unsafe {
             let parameter = &mut *(self.data[irq as usize] as *mut T);
-            transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>>(
-                Box::new(move || { isr(parameter); }),
-            )
+            transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>>(Box::new(move || {
+                isr(parameter);
+            }))
         };
         let interrupt_handle = self.insert_boxed_isr(irq, isr)?;
         self.set_priority(&interrupt_handle, priority);
@@ -537,7 +445,6 @@ impl<'a> InterruptTable<'a> {
         }
     }
 
-
     /// Sets the priority of the interrupt corresponding to the `interrupt_handle`.
     pub fn set_priority<T>(&mut self, interrupt_handle: &InterruptHandle<T>, priority: Priority) {
         let irq = interrupt_handle.irq;
@@ -549,7 +456,6 @@ impl<'a> InterruptTable<'a> {
 
         self.nvic.ipr[irq as usize].update(|r| r.set(priority));
     }
-
 
     /// Returns the priority of the interrupt corresponding to the `interrupt_handle`.
     pub fn get_priority<T>(&self, interrupt_handle: &InterruptHandle<T>) -> Priority {

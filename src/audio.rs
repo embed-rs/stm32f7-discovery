@@ -120,7 +120,6 @@ pub fn init_sai_2(sai: &mut Sai, rcc: &mut Rcc) {
     // Flush the fifo
     sai.bcr2.update(|r| r.set_fflus(true)); // fifo_flush
 
-
     // PLL clock is set depending on the AudioFreq (44.1khz vs 48khz groups)
 
     // I2S clock config
@@ -150,7 +149,6 @@ pub fn init_sai_2(sai: &mut Sai, rcc: &mut Rcc) {
     // Enable the PLLI2S
     rcc.cr.update(|r| r.set_plli2son(true));
     while !rcc.cr.read().plli2srdy() {}
-
 
     // configure sai registers
 
@@ -281,9 +279,9 @@ pub fn init_sai_2(sai: &mut Sai, rcc: &mut Rcc) {
 }
 
 pub fn init_sai_2_pins(gpio: &mut Gpio) {
-    use embedded::interfaces::gpio::{AlternateFunction, OutputSpeed, OutputType, Resistor};
-    use embedded::interfaces::gpio::Port::*;
     use embedded::interfaces::gpio::Pin::*;
+    use embedded::interfaces::gpio::Port::*;
+    use embedded::interfaces::gpio::{AlternateFunction, OutputSpeed, OutputType, Resistor};
 
     // block A (master)
     let sai2_fs_a = (PortI, Pin7);

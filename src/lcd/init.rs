@@ -1,13 +1,12 @@
-use board::rcc::Rcc;
-use board::ltdc::Ltdc;
-use embedded::interfaces::gpio::{Gpio, OutputPin};
 use super::{LAYER_1_START, LAYER_2_START, Lcd};
+use board::ltdc::Ltdc;
+use board::rcc::Rcc;
+use embedded::interfaces::gpio::{Gpio, OutputPin};
 
 const HEIGHT: u16 = super::HEIGHT as u16;
 const WIDTH: u16 = super::WIDTH as u16;
 const LAYER_1_OCTETS_PER_PIXEL: u16 = super::LAYER_1_OCTETS_PER_PIXEL as u16;
 const LAYER_2_OCTETS_PER_PIXEL: u16 = super::LAYER_2_OCTETS_PER_PIXEL as u16;
-
 
 pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
     // init gpio pins
@@ -72,7 +71,6 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
 
     // set background color
     ltdc.bccr.update(|r| r.set_bc(0x0000ff)); // background_color blue
-
 
     // enable the transfer error interrupt and the FIFO underrun interrupt
     ltdc.ier.update(|r| {
@@ -164,8 +162,6 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
 
     // init DMA2D graphic
 
-
-
     // enable display and backlight
     display_enable.set(true);
     backlight_enable.set(true);
@@ -202,8 +198,8 @@ pub fn init(ltdc: &'static mut Ltdc, rcc: &mut Rcc, gpio: &mut Gpio) -> Lcd {
 }
 
 pub fn init_pins(gpio: &mut Gpio) -> (OutputPin, OutputPin) {
-    use embedded::interfaces::gpio::Port::*;
     use embedded::interfaces::gpio::Pin::*;
+    use embedded::interfaces::gpio::Port::*;
     use embedded::interfaces::gpio::{AlternateFunction, OutputSpeed, OutputType, Resistor};
 
     // Red

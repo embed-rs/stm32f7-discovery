@@ -1,15 +1,15 @@
-pub use self::init::{init, de_init};
+pub use self::init::{de_init, init};
 
 pub mod error;
 mod init;
 mod sdmmc_cmd;
 
-use board::sdmmc::Sdmmc;
-use board::rcc::Rcc;
-use embedded::interfaces::gpio::{Gpio, InputPin};
 use self::error::*;
-use core::cmp::min;
 use alloc::vec::Vec;
+use board::rcc::Rcc;
+use board::sdmmc::Sdmmc;
+use core::cmp::min;
+use embedded::interfaces::gpio::{Gpio, InputPin};
 
 /// SD handle.
 pub struct Sd {
@@ -39,8 +39,8 @@ impl Sd {
     /// }
     /// ```
     pub fn new(sdmmc: &'static mut Sdmmc, gpio: &mut Gpio, rcc: &mut Rcc) -> Sd {
-        use embedded::interfaces::gpio::Port::*;
         use embedded::interfaces::gpio::Pin::*;
+        use embedded::interfaces::gpio::Port::*;
         use embedded::interfaces::gpio::Resistor;
 
         rcc.ahb1enr.update(|r| r.set_gpiocen(true));
@@ -141,12 +141,22 @@ impl Sd {
     ///     loop {}
     /// }
     /// ```
-    pub fn write_blocks(&mut self, data: &[u32], block_add: u32, number_of_blks: u16) -> Result<(), Error> {
+    pub fn write_blocks(
+        &mut self,
+        data: &[u32],
+        block_add: u32,
+        number_of_blks: u16,
+    ) -> Result<(), Error> {
         // This is a wrapper function for the write_blocks_h() function. The write_blocks_h()
         // function can only write single blocks to the card, because the multi-block mode of the
         // SDMMC-Controller doesn't work.
         for i in 0..u32::from(number_of_blks) {
-            self.write_blocks_h(&data[min((i as usize)*128, data.len())..], block_add + i, 1, 5000)?;
+            self.write_blocks_h(
+                &data[min((i as usize) * 128, data.len())..],
+                block_add + i,
+                1,
+                5000,
+            )?;
         }
 
         Ok(())
@@ -157,21 +167,24 @@ impl Sd {
         &mut self,
         block_add: u32,
         number_of_blks: u16,
-        timeout: u32) -> Result<Vec<u32>, Error> {
+        timeout: u32,
+    ) -> Result<Vec<u32>, Error> {
         // No blocks to read -> return empty vector
         if number_of_blks == 0 {
-            return Ok(vec![])
+            return Ok(vec![]);
         }
         // Check if a SD Card is inserted.
         if !self.card_present() {
-            return Err(Error::NoSdCard)
+            return Err(Error::NoSdCard);
         }
         let mut block_add = block_add;
         let card_info = self.card_info.as_ref().unwrap();
 
         // Check if the blocks to read are in bounds.
         if block_add + u32::from(number_of_blks) > card_info.log_blk_number {
-            return Err( Error::RWError { t: RWErrorType::AddressOutOfRange } )
+            return Err(Error::RWError {
+                t: RWErrorType::AddressOutOfRange,
+            });
         }
 
         // On high capacity cards the block_add has to be in bytes and not the block number itself.
@@ -195,18 +208,16 @@ impl Sd {
         self.sdmmc.dtimer.update(|d| d.set_datatime(0xFFFF_FFFF));
         self.sdmmc.dctrl.update(|d| {
             d.set_dblocksize(0x09); // blocksize = 2^n => blocksize = 2^9 = 512
-            d.set_dtdir(true);      // direction: false -> write, true -> read
-            d.set_dtmode(false);    // mode: false -> block, true -> stream
-            d.set_dten(true);       // enable data transfer
+            d.set_dtdir(true); // direction: false -> write, true -> read
+            d.set_dtmode(false); // mode: false -> block, true -> stream
+            d.set_dten(true); // enable data transfer
         });
 
         // Read data from the SD Card, until dataend is reached or an error occurs
         let mut data = vec![];
         let timeout = ::system_clock::ticks() as u32 + timeout;
-        while (::system_clock::ticks() as u32) < timeout
-            && !self.sdmmc.sta.read().rxoverr()
-            && !self.sdmmc.sta.read().dcrcfail()
-            && !self.sdmmc.sta.read().dtimeout()
+        while (::system_clock::ticks() as u32) < timeout && !self.sdmmc.sta.read().rxoverr()
+            && !self.sdmmc.sta.read().dcrcfail() && !self.sdmmc.sta.read().dtimeout()
             && !self.sdmmc.sta.read().dataend()
         {
             if self.sdmmc.sta.read().rxfifohf() {
@@ -228,20 +239,25 @@ impl Sd {
         // Check for errors
         if self.sdmmc.sta.read().dtimeout() {
             sdmmc_cmd::clear_all_static_status_flags(self.sdmmc);
-            return Err(Error::RWError { t: RWErrorType::DataTimeout });
+            return Err(Error::RWError {
+                t: RWErrorType::DataTimeout,
+            });
         }
         if self.sdmmc.sta.read().dcrcfail() {
             sdmmc_cmd::clear_all_static_status_flags(self.sdmmc);
-            return Err(Error::RWError { t: RWErrorType::DataCrcFailed });
+            return Err(Error::RWError {
+                t: RWErrorType::DataCrcFailed,
+            });
         }
         if self.sdmmc.sta.read().rxoverr() {
             sdmmc_cmd::clear_all_static_status_flags(self.sdmmc);
-            return Err(Error::RWError { t: RWErrorType::RxOverrun });
+            return Err(Error::RWError {
+                t: RWErrorType::RxOverrun,
+            });
         }
 
         // If there is still valid data in the FIFO, empty the FIFO
-        while (::system_clock::ticks() as u32) < timeout
-            && self.sdmmc.sta.read().rxdavl() {
+        while (::system_clock::ticks() as u32) < timeout && self.sdmmc.sta.read().rxdavl() {
             data.push(self.sdmmc.fifo.read().fifodata());
         }
 
@@ -260,21 +276,24 @@ impl Sd {
         data: &[u32],
         block_add: u32,
         number_of_blks: u16,
-        timeout: u32) -> Result<(), Error> {
+        timeout: u32,
+    ) -> Result<(), Error> {
         // No blocks to read -> return empty vector
         if number_of_blks == 0 {
-            return Ok(())
+            return Ok(());
         }
         // Check if a SD Card is inserted.
         if !self.card_present() {
-            return Err(Error::NoSdCard)
+            return Err(Error::NoSdCard);
         }
         let mut block_add = block_add;
         let card_info = self.card_info.as_ref().unwrap();
 
         // Check if the blocks to read are in bounds.
         if block_add + u32::from(number_of_blks) > card_info.log_blk_number {
-            return Err( Error::RWError { t: RWErrorType::AddressOutOfRange } )
+            return Err(Error::RWError {
+                t: RWErrorType::AddressOutOfRange,
+            });
         }
 
         // On high capacity cards the block_add has to be in bytes and not the block number itself.
@@ -298,18 +317,16 @@ impl Sd {
         self.sdmmc.dtimer.update(|d| d.set_datatime(0xFFFF_FFFF));
         self.sdmmc.dctrl.update(|d| {
             d.set_dblocksize(0x09); // blocksize = 2^n => blocksize = 2^9 = 512
-            d.set_dtdir(false);     // direction: false -> write, true -> read
-            d.set_dtmode(false);    // mode: false -> block, true -> stream
-            d.set_dten(true);       // enable data transfer
+            d.set_dtdir(false); // direction: false -> write, true -> read
+            d.set_dtmode(false); // mode: false -> block, true -> stream
+            d.set_dten(true); // enable data transfer
         });
 
         // Write data to the SD Card, until dataend is reached or an error occurs
         let mut data_counter = 0;
         let timeout = ::system_clock::ticks() as u32 + timeout;
-        while (::system_clock::ticks() as u32) < timeout
-            && !self.sdmmc.sta.read().txunderr()
-            && !self.sdmmc.sta.read().dcrcfail()
-            && !self.sdmmc.sta.read().dtimeout()
+        while (::system_clock::ticks() as u32) < timeout && !self.sdmmc.sta.read().txunderr()
+            && !self.sdmmc.sta.read().dcrcfail() && !self.sdmmc.sta.read().dtimeout()
             && !self.sdmmc.sta.read().dataend()
         {
             if self.sdmmc.sta.read().txfifohe() {
@@ -342,15 +359,21 @@ impl Sd {
         // Check for errors
         if self.sdmmc.sta.read().dtimeout() {
             sdmmc_cmd::clear_all_static_status_flags(self.sdmmc);
-            return Err(Error::RWError { t: RWErrorType::DataTimeout });
+            return Err(Error::RWError {
+                t: RWErrorType::DataTimeout,
+            });
         }
         if self.sdmmc.sta.read().dcrcfail() {
             sdmmc_cmd::clear_all_static_status_flags(self.sdmmc);
-            return Err(Error::RWError { t: RWErrorType::DataCrcFailed });
+            return Err(Error::RWError {
+                t: RWErrorType::DataCrcFailed,
+            });
         }
         if self.sdmmc.sta.read().txunderr() {
             sdmmc_cmd::clear_all_static_status_flags(self.sdmmc);
-            return Err(Error::RWError { t: RWErrorType::TxUnderrun });
+            return Err(Error::RWError {
+                t: RWErrorType::TxUnderrun,
+            });
         }
 
         sdmmc_cmd::clear_all_static_status_flags(self.sdmmc);
@@ -369,11 +392,11 @@ pub enum CardType {
 #[derive(Debug)]
 pub struct CardInfo {
     card_type: CardType,
-    rca: u16,               // Relative Card Address
-    blk_number: u32,        // Number of physical blocks
-    blk_size: u32,          // Physical block size
-    log_blk_number: u32,    // Number of logical blocks
-    log_blk_size: u32,      // Logical block size
+    rca: u16,            // Relative Card Address
+    blk_number: u32,     // Number of physical blocks
+    blk_size: u32,       // Physical block size
+    log_blk_number: u32, // Number of logical blocks
+    log_blk_size: u32,   // Logical block size
 }
 
 impl Default for CardInfo {

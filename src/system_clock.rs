@@ -1,6 +1,6 @@
-use board::rcc::Rcc;
-use board::pwr::Pwr;
 use board::flash::Flash;
+use board::pwr::Pwr;
+use board::rcc::Rcc;
 use cortex_m::peripheral;
 
 use core::sync::atomic::{AtomicUsize, Ordering};
@@ -107,7 +107,6 @@ pub fn init(rcc: &mut Rcc, pwr: &mut Pwr, flash: &mut Flash) {
     // => APB high-speed clock frequency = AHB clock / 2 = 216 Mhz / 2 = 108 MHz
     // FIXME: Frequency should not exceed 90 MHz
     rcc.cfgr.update(|r| r.set_ppre2(DIVIDE_2));
-
 
     let systick = unsafe { peripheral::syst_mut() };
 

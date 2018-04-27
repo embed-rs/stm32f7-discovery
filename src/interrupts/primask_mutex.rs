@@ -7,7 +7,6 @@
 //! the current code in the critical section) the mutex implements `Send` and `Sync` when
 //! the synchronized data implements `Send`.
 
-
 use core::cell::UnsafeCell;
 
 /// Mutex that uses the `primask` core register from the cortem m processor to disable

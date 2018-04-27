@@ -25,11 +25,9 @@
 //!
 //! Iter is currently not implemented. Pull Requests welcome!
 
-
-use core::result::Result;
-use core::ops::Drop;
 use board;
-
+use core::ops::Drop;
+use core::result::Result;
 
 /// Contains state as well as the Rng Struct from embedded::board.
 pub struct Rng {
@@ -37,7 +35,6 @@ pub struct Rng {
     counter: u32,
     board_rng: &'static mut board::rng::Rng,
 }
-
 
 ///Any of the errors (except AlreadyEnabled) can usually be resolved by initializing this
 ///struct again.
@@ -50,7 +47,6 @@ pub enum ErrorType {
     AlreadyEnabled,
     NotReady,
 }
-
 
 impl Rng {
     ///! This will take semi-ownership (with &'static) for the rng struct
@@ -79,12 +75,10 @@ impl Rng {
         Ok(rng)
     }
 
-
     /// For Testing purposes. Do not use except for debugging!
     pub fn tick(&mut self) -> u32 {
         self.poll_and_get().unwrap_or(0)
     }
-
 
     /// Actually try to acquire some random number
     /// Returns Ok(number) or Err!
@@ -124,13 +118,11 @@ impl Rng {
         Err(ErrorType::NotReady)
     }
 
-
     pub fn reset(&mut self) {
         self.board_rng.cr.update(|r| r.set_rngen(false));
         self.board_rng.cr.update(|r| r.set_ie(false));
         self.board_rng.cr.update(|r| r.set_rngen(true));
     }
-
 
     fn disable_cr(&mut self, rcc: &mut board::rcc::Rcc) {
         self.board_rng.cr.update(|r| r.set_rngen(false));
@@ -138,14 +130,12 @@ impl Rng {
         rcc.ahb2enr.update(|r| r.set_rngen(false));
     }
 
-
     pub fn disable(mut self, rcc: &mut board::rcc::Rcc) {
         use core::mem;
         self.disable_cr(rcc);
         mem::forget(self);
     }
 }
-
 
 impl Drop for Rng {
     /// PANICS EVERYTIME! Use .disable(rcc) explicitly!

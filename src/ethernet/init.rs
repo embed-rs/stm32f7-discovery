@@ -1,10 +1,10 @@
-use board::rcc::Rcc;
-use board::syscfg::Syscfg;
+use super::phy;
 use board::ethernet_dma::EthernetDma;
 use board::ethernet_mac::EthernetMac;
+use board::rcc::Rcc;
+use board::syscfg::Syscfg;
 use embedded::interfaces::gpio::Gpio;
 use system_clock;
-use super::phy;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
@@ -195,8 +195,8 @@ pub fn start(ethernet_mac: &mut EthernetMac, ethernet_dma: &mut EthernetDma) {
 }
 
 pub fn init_pins(gpio: &mut Gpio) {
-    use embedded::interfaces::gpio::Port::*;
     use embedded::interfaces::gpio::Pin::*;
+    use embedded::interfaces::gpio::Port::*;
     use embedded::interfaces::gpio::{AlternateFunction, OutputSpeed, OutputType, Resistor};
 
     // RMII pins
