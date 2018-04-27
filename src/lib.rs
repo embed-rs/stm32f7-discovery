@@ -73,6 +73,11 @@ pub extern "C" fn panic_fmt(fmt: core::fmt::Arguments, file: &'static str, line:
     })
 }
 
+#[lang = "oom"]
+fn oom() -> ! {
+    panic!("Out of memory!");
+}
+
 
 use alloc_cortex_m::CortexMHeap;
 
