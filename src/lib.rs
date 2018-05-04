@@ -54,9 +54,6 @@ pub extern "C" fn panic_fmt(fmt: core::fmt::Arguments, file: &'static str, line:
     use core::fmt::Write;
     use interrupts::primask_mutex::PrimaskMutex;
 
-    // workaround for https://github.com/rust-lang/rust/issues/47384
-    exceptions::hello();
-
     // Disable all interrupts after panic
     let mutex: PrimaskMutex<()> = PrimaskMutex::new(());
     mutex.lock(|_| {
