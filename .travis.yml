@@ -2,27 +2,6 @@ language: rust
 
 matrix:
   include:
-    - env: TARGET=thumbv6m-none-eabi
-      rust: nightly
-      addons:
-        apt:
-          packages:
-            - gcc-arm-none-eabi
-
-    - env: TARGET=thumbv7m-none-eabi
-      rust: nightly
-      addons:
-        apt:
-          packages:
-            - gcc-arm-none-eabi
-
-    - env: TARGET=thumbv7em-none-eabi
-      rust: nightly
-      addons:
-        apt:
-          packages:
-            - gcc-arm-none-eabi
-
     - env: TARGET=thumbv7em-none-eabihf
       rust: nightly
       addons:
@@ -50,6 +29,7 @@ branches:
   only:
     - staging
     - trying
+    - master
 
 notifications:
   email:
