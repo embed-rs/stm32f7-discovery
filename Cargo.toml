@@ -6,21 +6,13 @@ name = "stm32f7-discovery"
 version = "0.1.0"
 
 [dependencies]
-cortex-m = "0.5.0"
 cortex-m-rt = "0.5.0"
 cortex-m-semihosting = "0.3.0"
-panic-semihosting = "0.2.0"
+alloc-cortex-m = "0.3.4"
 
-# Uncomment for the panic example.
-# panic-itm = "0.1.1"
-
-# Uncomment for the allocator example.
-# alloc-cortex-m = "0.3.4"
-
-# Uncomment for the device example.
-# [dependencies.stm32f103xx]
-# features = ["rt"]
-# version = "0.10.0"
+[dependencies.stm32f746-hal]
+git = "https://github.com/embed-rs/stm32f746-hal.git"
+branch = "wip"
 
 [profile.release]
 codegen-units = 1 # better optimizations
