@@ -5,17 +5,16 @@
 #![no_std]
 
 #[macro_use]
-extern crate cortex_m_rt as rt;
-#[macro_use]
 extern crate alloc;
 extern crate alloc_cortex_m;
 extern crate cortex_m_semihosting as sh;
+#[macro_use]
 extern crate stm32f746_hal as hal;
 
 use alloc_cortex_m::CortexMHeap;
 use core::fmt::{self, Write};
 use hal::cortex_m::{asm, interrupt, peripheral::syst::SystClkSource, Peripherals};
-use rt::ExceptionFrame;
+use hal::rt::{self, ExceptionFrame};
 use sh::hio::{self, HStdout};
 
 #[global_allocator]
