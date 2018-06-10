@@ -14,14 +14,16 @@ extern crate alloc_cortex_m;
 extern crate cortex_m_semihosting as sh;
 #[macro_use]
 extern crate stm32f7x6;
+extern crate stm32f7_discovery;
 
 use alloc_cortex_m::CortexMHeap;
 use core::fmt::Write;
 use core::panic::PanicInfo;
-use cortex_m::{asm, interrupt, peripheral::syst::SystClkSource};
+use cortex_m::{asm, interrupt};
 use rt::ExceptionFrame;
 use sh::hio::{self, HStdout};
-use stm32f7x6::{CorePeripherals, Interrupt};
+use stm32f7_discovery::init::{self, Hz};
+use stm32f7x6::{CorePeripherals, Interrupt, Peripherals};
 
 #[global_allocator]
 static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
@@ -34,20 +36,25 @@ fn main() -> ! {
     let mut stdout = hio::hstdout().unwrap();
     writeln!(stdout, "Hello, world!").unwrap();
 
-    // Initialize the allocator BEFORE you use it
-    unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }
-
-    let xs = vec![1, 2, 3];
-
     let core_peripherals = CorePeripherals::take().unwrap();
     let mut systick = core_peripherals.SYST;
     let mut nvic = core_peripherals.NVIC;
 
+    let peripherals = Peripherals::take().unwrap();
+    let mut rcc = peripherals.RCC;
+    let mut pwr = peripherals.PWR;
+    let mut flash = peripherals.FLASH;
+
+    init::init_system_clock_216mhz(&mut rcc, &mut pwr, &mut flash);
+
     // configures the system timer to trigger a SysTick exception every second
-    systick.set_clock_source(SystClkSource::Core);
-    systick.set_reload(8_000_000); // period = 1s
-    systick.enable_counter();
+    init::init_systick(Hz(1), &mut systick, &rcc);
     systick.enable_interrupt();
+
+    // Initialize the allocator BEFORE you use it
+    unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }
+
+    let xs = vec![1, 2, 3];
 
     nvic.enable(Interrupt::EXTI0);
 
