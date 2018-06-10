@@ -7,17 +7,21 @@
 
 #[macro_use]
 extern crate alloc;
+extern crate cortex_m;
+#[macro_use]
+extern crate cortex_m_rt as rt;
 extern crate alloc_cortex_m;
 extern crate cortex_m_semihosting as sh;
 #[macro_use]
-extern crate stm32f746_hal as hal;
+extern crate stm32f7x6;
 
 use alloc_cortex_m::CortexMHeap;
-use hal::cortex_m::{asm, interrupt, peripheral::syst::SystClkSource, Peripherals};
-use hal::rt::{self, ExceptionFrame};
 use core::fmt::Write;
 use core::panic::PanicInfo;
+use cortex_m::{asm, interrupt, peripheral::syst::SystClkSource};
+use rt::ExceptionFrame;
 use sh::hio::{self, HStdout};
+use stm32f7x6::{CorePeripherals, Interrupt};
 
 #[global_allocator]
 static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
@@ -35,8 +39,9 @@ fn main() -> ! {
 
     let xs = vec![1, 2, 3];
 
-    let p = Peripherals::take().unwrap();
-    let mut systick = p.SYST;
+    let core_peripherals = CorePeripherals::take().unwrap();
+    let mut systick = core_peripherals.SYST;
+    let mut nvic = core_peripherals.NVIC;
 
     // configures the system timer to trigger a SysTick exception every second
     systick.set_clock_source(SystClkSource::Core);
@@ -44,7 +49,27 @@ fn main() -> ! {
     systick.enable_counter();
     systick.enable_interrupt();
 
-    loop {}
+    nvic.enable(Interrupt::EXTI0);
+
+    loop {
+        // busy wait until the timer wraps around
+        while !systick.has_wrapped() {}
+
+        // trigger the `EXTI0` interrupt
+        nvic.set_pending(Interrupt::EXTI0);
+    }
+}
+
+interrupt!(EXTI0, exti0, state: Option<HStdout> = None);
+
+fn exti0(state: &mut Option<HStdout>) {
+    if state.is_none() {
+        *state = Some(hio::hstdout().unwrap());
+    }
+
+    if let Some(hstdout) = state.as_mut() {
+        hstdout.write_str("i").unwrap();
+    }
 }
 
 exception!(SysTick, sys_tick, state: Option<HStdout> = None);
