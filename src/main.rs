@@ -1,6 +1,7 @@
 #![feature(alloc)]
 #![feature(global_allocator)]
 #![feature(lang_items)]
+#![feature(panic_implementation)]
 #![no_main]
 #![no_std]
 
@@ -12,9 +13,10 @@ extern crate cortex_m_semihosting as sh;
 extern crate stm32f746_hal as hal;
 
 use alloc_cortex_m::CortexMHeap;
-use core::fmt::{self, Write};
 use hal::cortex_m::{asm, interrupt, peripheral::syst::SystClkSource, Peripherals};
 use hal::rt::{self, ExceptionFrame};
+use core::fmt::Write;
+use core::panic::PanicInfo;
 use sh::hio::{self, HStdout};
 
 #[global_allocator]
@@ -83,24 +85,13 @@ pub fn rust_oom() -> ! {
     loop {}
 }
 
-#[lang = "panic_fmt"]
+#[panic_implementation]
 #[no_mangle]
-pub unsafe extern "C" fn panic_fmt(
-    args: core::fmt::Arguments,
-    file: &'static str,
-    line: u32,
-    col: u32,
-) -> ! {
+pub fn panic(info: &PanicInfo) -> ! {
     interrupt::disable();
 
     if let Ok(mut hstdout) = hio::hstdout() {
-        (|| -> Result<(), fmt::Error> {
-            hstdout.write_str("panicked at '")?;
-            hstdout.write_fmt(args)?;
-            hstdout.write_str("', ")?;
-            hstdout.write_str(file)?;
-            writeln!(hstdout, ":{}:{}", line, col)
-        })().ok();
+        let _ = writeln!(hstdout, "{}", info);
     }
 
     // OK to fire a breakpoint here because we know the microcontroller is connected to a debugger
