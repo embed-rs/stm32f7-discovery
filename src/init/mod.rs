@@ -1,6 +1,10 @@
 use core::convert::TryFrom;
 use stm32f7::stm32f7x6::{FLASH, PWR, RCC, SYST};
 
+pub use self::pins::init as pins;
+
+mod pins;
+
 pub fn init_system_clock_216mhz(rcc: &mut RCC, pwr: &mut PWR, flash: &mut FLASH) {
     // enable power control clock
     rcc.apb1enr.modify(|_, w| w.pwren().enabled());

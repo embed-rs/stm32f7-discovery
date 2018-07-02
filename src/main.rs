@@ -23,7 +23,7 @@ use rt::ExceptionFrame;
 use sh::hio::{self, HStdout};
 use stm32f7::stm32f7x6::{CorePeripherals, Interrupt, Peripherals};
 use stm32f7_discovery::{
-    gpio::{self, GpioPort, InputPin, OutputPin}, init::{self, Hz},
+    gpio::{GpioPort, InputPin, OutputPin}, init::{self, Hz},
 };
 
 #[global_allocator]
@@ -49,18 +49,8 @@ fn main() -> ! {
     init::init_system_clock_216mhz(&mut rcc, &mut pwr, &mut flash);
     init::enable_gpio_ports(&mut rcc);
 
-    let mut gpio_i = GpioPort::new(&peripherals.GPIOI);
-    let mut led_pin = gpio_i
-        .to_output(
-            gpio::PinNumber::Pin1,
-            gpio::OutputType::PushPull,
-            gpio::OutputSpeed::Low,
-            gpio::Resistor::NoPull,
-        )
-        .expect("Pin I-1 already in use");
-    let button_pin = gpio_i
-        .to_input(gpio::PinNumber::Pin11, gpio::Resistor::NoPull)
-        .expect("Pin I-11 already in use");
+    let gpio_i = GpioPort::new(&peripherals.GPIOI);
+    let mut pins = init::pins(gpio_i);
 
     // configures the system timer to trigger a SysTick exception every second
     init::init_systick(Hz(1), &mut systick, &rcc);
@@ -73,12 +63,12 @@ fn main() -> ! {
 
     nvic.enable(Interrupt::EXTI0);
 
-    let mut previous_button_state = button_pin.get();
+    let mut previous_button_state = pins.button.get();
     loop {
-        let current_button_state = button_pin.get();
+        let current_button_state = pins.button.get();
         if current_button_state != previous_button_state {
             if current_button_state {
-                led_pin.toggle();
+                pins.led.toggle();
             }
 
             // trigger the `EXTI0` interrupt
