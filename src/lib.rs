@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(repr_transparent)]
 #![feature(try_from)]
 
 extern crate cortex_m;

@@ -1,5 +1,4 @@
 #![feature(alloc)]
-#![feature(global_allocator)]
 #![feature(lang_items)]
 #![feature(panic_implementation)]
 #![no_main]
