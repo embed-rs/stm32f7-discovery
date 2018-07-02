@@ -1,7 +1,4 @@
-use super::{
-    AlternateFunction, BsrrRef, Error, InputPin, Mode, OutputPin, OutputSpeed, OutputType,
-    PinNumber, Resistor,
-};
+use super::*;
 use core::marker::PhantomData;
 use stm32f7::stm32f7x6::{gpioa, gpiob, gpiod};
 
@@ -97,9 +94,9 @@ impl<'a> GpioPort<RegisterBlockD<'a>> {
 }
 
 pub trait RegisterBlockTrait<'a> {
-    type Idr: 'a;
-    type Odr: 'a;
-    type Bsrr: 'a;
+    type Idr: IdrTrait + 'a;
+    type Odr: OdrTrait + 'a;
+    type Bsrr: BsrrTrait + 'a;
 
     fn idr(&self) -> &'a Self::Idr;
     fn odr(&self) -> &'a Self::Odr;
@@ -109,6 +106,106 @@ pub trait RegisterBlockTrait<'a> {
     fn set_out_type(&mut self, pins: &[PinNumber], out_type: OutputType);
     fn set_out_speed(&mut self, pins: &[PinNumber], out_speed: OutputSpeed);
     fn set_alternate_fn(&mut self, pins: &[PinNumber], alternate_fn: AlternateFunction);
+}
+
+impl<'a, T: RegisterBlockTrait<'a>> GpioPort<T> {
+    pub fn to_input(
+        &mut self,
+        pin: PinNumber,
+        resistor: Resistor,
+    ) -> Result<InputPin<'a, T::Idr>, Error> {
+        self.use_pin(pin)?;
+
+        self.register_block.set_mode(&[pin], Mode::Input);
+        self.register_block.set_resistor(&[pin], resistor);
+
+        Ok(InputPin {
+            pin: pin,
+            input_data: self.register_block.idr(),
+        })
+    }
+
+    pub fn to_output(
+        &mut self,
+        pin: PinNumber,
+        out_type: OutputType,
+        out_speed: OutputSpeed,
+        resistor: Resistor,
+    ) -> Result<impl OutputPin + 'a, Error> {
+        self.use_pin(pin)?;
+
+        self.register_block.set_mode(&[pin], Mode::Output);
+        self.register_block.set_out_type(&[pin], out_type);
+        self.register_block.set_out_speed(&[pin], out_speed);
+        self.register_block.set_resistor(&[pin], resistor);
+
+        let output_pin: OutputPinImpl<T::Odr, T::Bsrr> = OutputPinImpl {
+            pin: pin,
+            output_data: self.register_block.odr(),
+            bit_set_reset: BsrrRef {
+                register: self.register_block.bsrr() as *const _ as *mut _,
+                phantom: PhantomData,
+            },
+        };
+        Ok(output_pin)
+    }
+
+    pub fn to_alternate_function(
+        &mut self,
+        pin: PinNumber,
+        alternate_fn: AlternateFunction,
+        typ: OutputType,
+        speed: OutputSpeed,
+        resistor: Resistor,
+    ) -> Result<(), Error> {
+        self.to_alternate_function_all(&[pin], alternate_fn, typ, speed, resistor)
+    }
+
+    pub fn to_alternate_function_all(
+        &mut self,
+        pins: &[PinNumber],
+        alternate_fn: AlternateFunction,
+        typ: OutputType,
+        speed: OutputSpeed,
+        resistor: Resistor,
+    ) -> Result<(), Error> {
+        self.use_pins(pins)?;
+
+        self.register_block.set_mode(pins, Mode::Alternate);
+        self.register_block.set_resistor(pins, resistor);
+        self.register_block.set_out_type(pins, typ);
+        self.register_block.set_out_speed(pins, speed);
+        self.register_block.set_alternate_fn(pins, alternate_fn);
+
+        Ok(())
+    }
+
+    fn use_pin(&mut self, pin: PinNumber) -> Result<(), Error> {
+        if self.pin_in_use[pin as usize] {
+            Err(Error::PinAlreadyInUse(pin))
+        } else {
+            self.pin_in_use[pin as usize] = true;
+            Ok(())
+        }
+    }
+
+    fn use_pins(&mut self, pins: &[PinNumber]) -> Result<(), Error> {
+        // create a copy of the pin_in_use array since we only want to modify it in case of success
+        let mut pin_in_use = self.pin_in_use;
+
+        for &pin in pins {
+            if pin_in_use[pin as usize] {
+                return Err(Error::PinAlreadyInUse(pin));
+            } else {
+                pin_in_use[pin as usize] = true;
+            }
+        }
+
+        // success => write back updated pin_in_use array
+        self.pin_in_use = pin_in_use;
+
+        Ok(())
+    }
 }
 
 macro_rules! impl_register_block_trait {
@@ -361,102 +458,3 @@ macro_rules! impl_register_block_trait {
 impl_register_block_trait!(RegisterBlockA, gpioa);
 impl_register_block_trait!(RegisterBlockB, gpiob);
 impl_register_block_trait!(RegisterBlockD, gpiod);
-
-impl<'a, T: RegisterBlockTrait<'a>> GpioPort<T> {
-    pub fn to_input(
-        &mut self,
-        pin: PinNumber,
-        resistor: Resistor,
-    ) -> Result<InputPin<'a, T::Idr>, Error> {
-        self.use_pin(pin)?;
-
-        self.register_block.set_mode(&[pin], Mode::Input);
-        self.register_block.set_resistor(&[pin], resistor);
-
-        Ok(InputPin {
-            pin: pin,
-            input_data: self.register_block.idr(),
-        })
-    }
-
-    pub fn to_output(
-        &mut self,
-        pin: PinNumber,
-        out_type: OutputType,
-        out_speed: OutputSpeed,
-        resistor: Resistor,
-    ) -> Result<OutputPin<'a, T::Odr, T::Bsrr>, Error> {
-        self.use_pin(pin)?;
-
-        self.register_block.set_mode(&[pin], Mode::Output);
-        self.register_block.set_out_type(&[pin], out_type);
-        self.register_block.set_out_speed(&[pin], out_speed);
-        self.register_block.set_resistor(&[pin], resistor);
-
-        Ok(OutputPin {
-            pin: pin,
-            output_data: self.register_block.odr(),
-            bit_set_reset: BsrrRef {
-                register: self.register_block.bsrr() as *const _ as *mut _,
-                phantom: PhantomData,
-            },
-        })
-    }
-
-    pub fn to_alternate_function(
-        &mut self,
-        pin: PinNumber,
-        alternate_fn: AlternateFunction,
-        typ: OutputType,
-        speed: OutputSpeed,
-        resistor: Resistor,
-    ) -> Result<(), Error> {
-        self.to_alternate_function_all(&[pin], alternate_fn, typ, speed, resistor)
-    }
-
-    pub fn to_alternate_function_all(
-        &mut self,
-        pins: &[PinNumber],
-        alternate_fn: AlternateFunction,
-        typ: OutputType,
-        speed: OutputSpeed,
-        resistor: Resistor,
-    ) -> Result<(), Error> {
-        self.use_pins(pins)?;
-
-        self.register_block.set_mode(pins, Mode::Alternate);
-        self.register_block.set_resistor(pins, resistor);
-        self.register_block.set_out_type(pins, typ);
-        self.register_block.set_out_speed(pins, speed);
-        self.register_block.set_alternate_fn(pins, alternate_fn);
-
-        Ok(())
-    }
-
-    fn use_pin(&mut self, pin: PinNumber) -> Result<(), Error> {
-        if self.pin_in_use[pin as usize] {
-            Err(Error::PinAlreadyInUse(pin))
-        } else {
-            self.pin_in_use[pin as usize] = true;
-            Ok(())
-        }
-    }
-
-    fn use_pins(&mut self, pins: &[PinNumber]) -> Result<(), Error> {
-        // create a copy of the pin_in_use array since we only want to modify it in case of success
-        let mut pin_in_use = self.pin_in_use;
-
-        for &pin in pins {
-            if pin_in_use[pin as usize] {
-                return Err(Error::PinAlreadyInUse(pin));
-            } else {
-                pin_in_use[pin as usize] = true;
-            }
-        }
-
-        // success => write back updated pin_in_use array
-        self.pin_in_use = pin_in_use;
-
-        Ok(())
-    }
-}
