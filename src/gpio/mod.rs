@@ -81,16 +81,20 @@ pub enum PinNumber {
     Pin15,
 }
 
-pub struct InputPin<'a, IDR: IdrTrait + 'a> {
+pub trait InputPin: Sized {
+    fn get(&self) -> bool;
+}
+
+pub struct InputPinImpl<'a, IDR: IdrTrait + 'a> {
     pin: PinNumber,
     input_data: &'a IDR,
 }
 
-impl<'a, IDR> InputPin<'a, IDR>
+impl<'a, IDR> InputPin for InputPinImpl<'a, IDR>
 where
     IDR: IdrTrait,
 {
-    pub fn get(&self) -> bool {
+    fn get(&self) -> bool {
         let value = self.input_data.read();
         value.get(self.pin)
     }

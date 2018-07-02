@@ -113,13 +113,13 @@ impl<'a, T: RegisterBlockTrait<'a>> GpioPort<T> {
         &mut self,
         pin: PinNumber,
         resistor: Resistor,
-    ) -> Result<InputPin<'a, T::Idr>, Error> {
+    ) -> Result<impl InputPin + 'a, Error> {
         self.use_pin(pin)?;
 
         self.register_block.set_mode(&[pin], Mode::Input);
         self.register_block.set_resistor(&[pin], resistor);
 
-        Ok(InputPin {
+        Ok(InputPinImpl {
             pin: pin,
             input_data: self.register_block.idr(),
         })
