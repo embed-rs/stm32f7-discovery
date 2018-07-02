@@ -58,6 +58,9 @@ fn main() -> ! {
             gpio::Resistor::NoPull,
         )
         .expect("Pin I-1 already in use");
+    let button_pin = gpio_i
+        .to_input(gpio::PinNumber::Pin11, gpio::Resistor::NoPull)
+        .expect("Pin I-11 already in use");
 
     // configures the system timer to trigger a SysTick exception every second
     init::init_systick(Hz(1), &mut systick, &rcc);
@@ -70,15 +73,19 @@ fn main() -> ! {
 
     nvic.enable(Interrupt::EXTI0);
 
+    let mut previous_button_state = button_pin.get();
     loop {
-        // busy wait until the timer wraps around
-        while !systick.has_wrapped() {}
+        let current_button_state = button_pin.get();
+        if current_button_state != previous_button_state {
+            if current_button_state {
+                led_pin.toggle();
+            }
 
-        // toggle the led
-        led_pin.toggle();
+            // trigger the `EXTI0` interrupt
+            nvic.set_pending(Interrupt::EXTI0);
 
-        // trigger the `EXTI0` interrupt
-        nvic.set_pending(Interrupt::EXTI0);
+            previous_button_state = current_button_state;
+        }
     }
 }
 
