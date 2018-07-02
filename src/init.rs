@@ -107,3 +107,20 @@ pub fn init_systick(Hz(frequency): Hz, systick: &mut SYST, rcc: &RCC) {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct Hz(pub u64);
+
+pub fn enable_gpio_ports(rcc: &mut RCC) {
+    rcc.ahb1enr.modify(|_, w| {
+        w.gpioaen().enabled();
+        w.gpioben().enabled();
+        w.gpiocen().enabled();
+        w.gpioden().enabled();
+        w.gpioeen().enabled();
+        w.gpiofen().enabled();
+        w.gpiogen().enabled();
+        w.gpiohen().enabled();
+        w.gpioien().enabled();
+        w.gpiojen().enabled();
+        w.gpioken().enabled();
+        w
+    });
+}

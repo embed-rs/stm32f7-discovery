@@ -22,7 +22,9 @@ use cortex_m::{asm, interrupt};
 use rt::ExceptionFrame;
 use sh::hio::{self, HStdout};
 use stm32f7::stm32f7x6::{CorePeripherals, Interrupt, Peripherals};
-use stm32f7_discovery::init::{self, Hz};
+use stm32f7_discovery::{
+    gpio::{self, GpioPort}, init::{self, Hz},
+};
 
 #[global_allocator]
 static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
@@ -45,6 +47,17 @@ fn main() -> ! {
     let mut flash = peripherals.FLASH;
 
     init::init_system_clock_216mhz(&mut rcc, &mut pwr, &mut flash);
+    init::enable_gpio_ports(&mut rcc);
+
+    let mut gpio_i = GpioPort::new(&peripherals.GPIOI);
+    let mut led_pin = gpio_i
+        .to_output(
+            gpio::PinNumber::Pin1,
+            gpio::OutputType::PushPull,
+            gpio::OutputSpeed::Low,
+            gpio::Resistor::NoPull,
+        )
+        .expect("Pin I-1 already in use");
 
     // configures the system timer to trigger a SysTick exception every second
     init::init_systick(Hz(1), &mut systick, &rcc);
@@ -60,6 +73,9 @@ fn main() -> ! {
     loop {
         // busy wait until the timer wraps around
         while !systick.has_wrapped() {}
+
+        // toggle the led
+        led_pin.toggle();
 
         // trigger the `EXTI0` interrupt
         nvic.set_pending(Interrupt::EXTI0);

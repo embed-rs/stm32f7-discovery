@@ -4,4 +4,5 @@
 extern crate cortex_m;
 extern crate stm32f7;
 
+pub mod gpio;
 pub mod init;
