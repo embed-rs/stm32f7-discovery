@@ -3,6 +3,6 @@
 #![feature(try_from)]
 
 extern crate cortex_m;
-extern crate stm32f7x6;
+extern crate stm32f7;
 
 pub mod init;

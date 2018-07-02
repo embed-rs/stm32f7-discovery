@@ -13,7 +13,7 @@ extern crate cortex_m_rt as rt;
 extern crate alloc_cortex_m;
 extern crate cortex_m_semihosting as sh;
 #[macro_use]
-extern crate stm32f7x6;
+extern crate stm32f7;
 extern crate stm32f7_discovery;
 
 use alloc_cortex_m::CortexMHeap;
@@ -22,8 +22,8 @@ use core::panic::PanicInfo;
 use cortex_m::{asm, interrupt};
 use rt::ExceptionFrame;
 use sh::hio::{self, HStdout};
+use stm32f7::stm32f7x6::{CorePeripherals, Interrupt, Peripherals};
 use stm32f7_discovery::init::{self, Hz};
-use stm32f7x6::{CorePeripherals, Interrupt, Peripherals};
 
 #[global_allocator]
 static ALLOCATOR: CortexMHeap = CortexMHeap::empty();

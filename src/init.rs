@@ -1,5 +1,5 @@
 use core::convert::TryFrom;
-use stm32f7x6::{FLASH, PWR, RCC, SYST};
+use stm32f7::stm32f7x6::{FLASH, PWR, RCC, SYST};
 
 pub fn init_system_clock_216mhz(rcc: &mut RCC, pwr: &mut PWR, flash: &mut FLASH) {
     // enable power control clock
@@ -81,7 +81,7 @@ pub fn init_system_clock_216mhz(rcc: &mut RCC, pwr: &mut PWR, flash: &mut FLASH)
 
 pub fn init_systick(Hz(frequency): Hz, systick: &mut SYST, rcc: &RCC) {
     use cortex_m::peripheral::syst::SystClkSource;
-    use stm32f7x6::rcc::pllcfgr::PLLPR;
+    use stm32f7::stm32f7x6::rcc::pllcfgr::PLLPR;
 
     let pll_cfgr = rcc.pllcfgr.read();
     let pllm = u64::from(pll_cfgr.pllm().bits());
