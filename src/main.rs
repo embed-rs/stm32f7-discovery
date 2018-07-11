@@ -89,8 +89,6 @@ fn main() -> ! {
 
     println!("Hello World");
 
-    layer_1.vertical_stripes();
-
     // Initialize the allocator BEFORE you use it
     unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }
 
