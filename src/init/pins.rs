@@ -4,9 +4,11 @@ use gpio::{
     RegisterBlockB, RegisterBlockD, Resistor,
 };
 
-pub struct Pins<LED: OutputPin, BUTTON: InputPin> {
+pub struct Pins<LED: OutputPin, BUTTON: InputPin, DISPLAY_ENABLE: OutputPin, BACKLIGHT: OutputPin> {
     pub led: LED,
     pub button: BUTTON,
+    pub display_enable: DISPLAY_ENABLE,
+    pub backlight: BACKLIGHT,
 }
 
 pub fn init<'a>(
@@ -21,7 +23,7 @@ pub fn init<'a>(
     mut gpio_i: GpioPort<RegisterBlockD<'a>>,
     mut gpio_j: GpioPort<RegisterBlockD<'a>>,
     mut gpio_k: GpioPort<RegisterBlockD<'a>>,
-) -> Pins<impl OutputPin + 'a, impl InputPin + 'a> {
+) -> Pins<impl OutputPin + 'a, impl InputPin + 'a, impl OutputPin + 'a, impl OutputPin + 'a> {
     let _gpio_a_pins = PortPins::new();
     let gpio_b_pins = PortPins::new();
     let gpio_c_pins = PortPins::new();
@@ -131,7 +133,7 @@ pub fn init<'a>(
     }
 
     // lcd pins
-    {
+    let (display_enable, backlight) = {
         let alt_fn = AlternateFunction::AF14;
         let speed = OutputSpeed::High;
         let typ = OutputType::PushPull;
@@ -191,9 +193,32 @@ pub fn init<'a>(
         gpio_k
             .to_alternate_function_all(k_pins, alt_fn, typ, speed, res)
             .expect("Failed to reserve LCD GPIO K pins");
-    }
 
-    Pins { led, button }
+        let display_enable = gpio_i
+            .to_output(
+                gpio_i_pins.pin_12.pin(),
+                OutputType::PushPull,
+                OutputSpeed::Low,
+                Resistor::PullDown,
+            )
+            .expect("Failed to reserve LCD display enable pin");
+        let backlight = gpio_k
+            .to_output(
+                gpio_k_pins.pin_3.pin(),
+                OutputType::PushPull,
+                OutputSpeed::Low,
+                Resistor::PullDown,
+            )
+            .expect("Failed to reserve LCD backlight pin");
+        (display_enable, backlight)
+    };
+
+    Pins {
+        led,
+        button,
+        display_enable,
+        backlight,
+    }
 }
 
 /// Helper structs for catching double uses of pins at compile time.
