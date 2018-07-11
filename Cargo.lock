@@ -59,6 +59,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "font8x8"
+version = "0.1.5"
+source = "git+https://github.com/phil-opp/font8x8-rs#03866ff66820a4b73f997409c33066b406ede522"
+
+[[package]]
 name = "linked_list_allocator"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -66,6 +71,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "r0"
 version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "spin"
+version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -87,6 +97,8 @@ dependencies = [
  "cortex-m 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m-rt 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m-semihosting 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "font8x8 0.1.5 (git+https://github.com/phil-opp/font8x8-rs)",
+ "spin 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "stm32f7 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -117,8 +129,10 @@ dependencies = [
 "checksum cortex-m 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)" = "93ceb454f8942689dae03a0b1d6b6e866f30acb5358ada9698e71f2728cd4924"
 "checksum cortex-m-rt 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "6d5c26952ec2bdfd3c66cddb22cb6432b042ca9ccda55762ebba68b73adbae5a"
 "checksum cortex-m-semihosting 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0b3d0df96d537c4f66dd9f4d1da21d83f9a5917990196925b3603be85e46071e"
+"checksum font8x8 0.1.5 (git+https://github.com/phil-opp/font8x8-rs)" = "<none>"
 "checksum linked_list_allocator 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)" = "655d57c71827fe0891ce72231b6aa5e14033dae3f604609e6a6f807267c1678d"
 "checksum r0 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e2a38df5b15c8d5c7e8654189744d8e396bddc18ad48041a500ce52d6948941f"
+"checksum spin 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)" = "14db77c5b914df6d6173dda9a3b3f5937bd802934fa5edaf934df06a3491e56f"
 "checksum stm32f7 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "58665d230c630965482e0faf5147636e84aa4831f907887d4e262ddcf7c96828"
 "checksum vcell 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "45c297f0afb6928cd08ab1ff9d95e99392595ea25ae1b5ecf822ff8764e57a0d"
 "checksum volatile-register 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a470889aa8f2d3ad893bd43cd90c824e63e8ac0ee5fe64c5d81a932d184fd549"

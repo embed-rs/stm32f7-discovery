@@ -13,6 +13,7 @@ extern crate alloc_cortex_m;
 extern crate cortex_m_semihosting as sh;
 #[macro_use]
 extern crate stm32f7;
+#[macro_use]
 extern crate stm32f7_discovery;
 
 use alloc_cortex_m::CortexMHeap;
@@ -26,7 +27,7 @@ use stm32f7::stm32f7x6::{CorePeripherals, Interrupt, Peripherals};
 use stm32f7_discovery::{
     gpio::{GpioPort, InputPin, OutputPin},
     init::{self, Hz},
-    system_clock,
+    lcd, system_clock,
 };
 
 #[global_allocator]
@@ -77,6 +78,18 @@ fn main() -> ! {
     init::init_lcd(&mut ltdc, &mut rcc);
     pins.display_enable.set(true);
     pins.backlight.set(true);
+
+    let mut lcd = lcd::Lcd::new(&mut ltdc);
+    let mut layer_1 = lcd.layer_1().unwrap();
+    let mut layer_2 = lcd.layer_2().unwrap();
+
+    layer_1.clear();
+    layer_2.clear();
+    lcd::init_stdout(layer_2);
+
+    println!("Hello World");
+
+    layer_1.vertical_stripes();
 
     // Initialize the allocator BEFORE you use it
     unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }
