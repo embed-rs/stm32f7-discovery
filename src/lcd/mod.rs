@@ -249,6 +249,7 @@ impl<'a, T: Framebuffer> TextWriter<'a, T> {
         self.x_pos = 0;
         if self.y_pos >= HEIGHT {
             self.y_pos = 0;
+            self.layer.clear();
         }
     }
 }
