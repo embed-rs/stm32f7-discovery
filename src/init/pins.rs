@@ -19,8 +19,8 @@ pub fn init<'a>(
     mut gpio_g: GpioPort<RegisterBlockD<'a>>,
     mut gpio_h: GpioPort<RegisterBlockD<'a>>,
     mut gpio_i: GpioPort<RegisterBlockD<'a>>,
-    _gpio_j: GpioPort<RegisterBlockD<'a>>,
-    _gpio_k: GpioPort<RegisterBlockD<'a>>,
+    mut gpio_j: GpioPort<RegisterBlockD<'a>>,
+    mut gpio_k: GpioPort<RegisterBlockD<'a>>,
 ) -> Pins<impl OutputPin + 'a, impl InputPin + 'a> {
     let _gpio_a_pins = PortPins::new();
     let gpio_b_pins = PortPins::new();
@@ -31,8 +31,8 @@ pub fn init<'a>(
     let gpio_g_pins = PortPins::new();
     let gpio_h_pins = PortPins::new();
     let gpio_i_pins = PortPins::new();
-    let _gpio_j_pins = PortPins::new();
-    let _gpio_k_pins = PortPins::new();
+    let gpio_j_pins = PortPins::new();
+    let gpio_k_pins = PortPins::new();
 
     let led = gpio_i
         .to_output(
@@ -128,6 +128,69 @@ pub fn init<'a>(
         gpio_h
             .to_alternate_function_all(h_pins, alt_fn, typ, speed, res)
             .expect("failed to reserve SDRAM GPIO H pins");
+    }
+
+    // lcd pins
+    {
+        let alt_fn = AlternateFunction::AF14;
+        let speed = OutputSpeed::High;
+        let typ = OutputType::PushPull;
+        let res = Resistor::NoPull;
+
+        let e_pins = &[
+            gpio_e_pins.pin_4.pin(), // b0
+        ];
+        let g_pins = &[
+            gpio_g_pins.pin_12.pin(), // b4
+        ];
+        let i_pins = &[
+            gpio_i_pins.pin_15.pin(), // r0
+            gpio_i_pins.pin_14.pin(), // clk
+            gpio_i_pins.pin_10.pin(), // hsync
+            gpio_i_pins.pin_9.pin(),  // vsync
+        ];
+        let j_pins = &[
+            gpio_j_pins.pin_0.pin(),  // r1
+            gpio_j_pins.pin_1.pin(),  // r2
+            gpio_j_pins.pin_2.pin(),  // r3
+            gpio_j_pins.pin_3.pin(),  // r4
+            gpio_j_pins.pin_4.pin(),  // r5
+            gpio_j_pins.pin_5.pin(),  // r6
+            gpio_j_pins.pin_6.pin(),  // r7
+            gpio_j_pins.pin_7.pin(),  // g0
+            gpio_j_pins.pin_8.pin(),  // g1
+            gpio_j_pins.pin_9.pin(),  // g2
+            gpio_j_pins.pin_10.pin(), // g3
+            gpio_j_pins.pin_11.pin(), // g4
+            gpio_j_pins.pin_13.pin(), // b1
+            gpio_j_pins.pin_14.pin(), // b2
+            gpio_j_pins.pin_15.pin(), // b3
+        ];
+        let k_pins = &[
+            gpio_k_pins.pin_0.pin(), // g5
+            gpio_k_pins.pin_1.pin(), // g6
+            gpio_k_pins.pin_2.pin(), // g7
+            gpio_k_pins.pin_4.pin(), // b5
+            gpio_k_pins.pin_5.pin(), // b6
+            gpio_k_pins.pin_6.pin(), // b7
+            gpio_k_pins.pin_7.pin(), // data_enable
+        ];
+
+        gpio_e
+            .to_alternate_function_all(e_pins, alt_fn, typ, speed, res)
+            .expect("Failed to reserve LCD GPIO E pins");
+        gpio_g
+            .to_alternate_function_all(g_pins, alt_fn, typ, speed, res)
+            .expect("Failed to reserve LCD GPIO G pins");
+        gpio_i
+            .to_alternate_function_all(i_pins, alt_fn, typ, speed, res)
+            .expect("Failed to reserve LCD GPIO I pins");
+        gpio_j
+            .to_alternate_function_all(j_pins, alt_fn, typ, speed, res)
+            .expect("Failed to reserve LCD GPIO J pins");
+        gpio_k
+            .to_alternate_function_all(k_pins, alt_fn, typ, speed, res)
+            .expect("Failed to reserve LCD GPIO K pins");
     }
 
     Pins { led, button }
