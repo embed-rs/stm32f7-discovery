@@ -26,6 +26,7 @@ use stm32f7::stm32f7x6::{CorePeripherals, Interrupt, Peripherals};
 use stm32f7_discovery::{
     gpio::{GpioPort, InputPin, OutputPin},
     init::{self, Hz},
+    system_clock,
 };
 
 #[global_allocator]
@@ -107,14 +108,8 @@ fn exti0(state: &mut Option<HStdout>) {
 
 exception!(SysTick, sys_tick, state: Option<HStdout> = None);
 
-fn sys_tick(state: &mut Option<HStdout>) {
-    if state.is_none() {
-        *state = Some(hio::hstdout().unwrap());
-    }
-
-    if let Some(hstdout) = state.as_mut() {
-        hstdout.write_str(".").unwrap();
-    }
+fn sys_tick(_state: &mut Option<HStdout>) {
+    system_clock::tick();
 }
 
 exception!(HardFault, hard_fault);
