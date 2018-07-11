@@ -4,11 +4,11 @@ use gpio::{
     RegisterBlockB, RegisterBlockD, Resistor,
 };
 
-pub struct Pins<LED: OutputPin, BUTTON: InputPin, DISPLAY_ENABLE: OutputPin, BACKLIGHT: OutputPin> {
-    pub led: LED,
-    pub button: BUTTON,
-    pub display_enable: DISPLAY_ENABLE,
-    pub backlight: BACKLIGHT,
+pub struct Pins<Led: OutputPin, Button: InputPin, DisplayEnable: OutputPin, Backlight: OutputPin> {
+    pub led: Led,
+    pub button: Button,
+    pub display_enable: DisplayEnable,
+    pub backlight: Backlight,
 }
 
 pub fn init<'a>(
