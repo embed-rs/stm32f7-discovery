@@ -58,7 +58,7 @@ pub fn init_system_clock_216mhz(rcc: &mut RCC, pwr: &mut PWR, flash: &mut FLASH)
     while pwr.csr1.read().odswrdy().bit_is_clear() {}
 
     // Program the new number of wait states to the LATENCY bits in the FLASH_ACR register
-    flash.acr.modify(|_, w| unsafe { w.latency().bits(5) });
+    flash.acr.modify(|_, w| w.latency().bits(5));
     // Check that the new number of wait states is taken into account to access the Flash
     // memory by reading the FLASH_ACR register
     assert_eq!(flash.acr.read().latency().bits(), 5);
