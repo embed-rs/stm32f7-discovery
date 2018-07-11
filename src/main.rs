@@ -48,6 +48,7 @@ fn main() -> ! {
     let mut rcc = peripherals.RCC;
     let mut pwr = peripherals.PWR;
     let mut flash = peripherals.FLASH;
+    let mut fmc = peripherals.FMC;
 
     init::init_system_clock_216mhz(&mut rcc, &mut pwr, &mut flash);
     init::enable_gpio_ports(&mut rcc);
@@ -70,6 +71,8 @@ fn main() -> ! {
     // configures the system timer to trigger a SysTick exception every second
     init::init_systick(Hz(1), &mut systick, &rcc);
     systick.enable_interrupt();
+
+    init::init_sdram(&mut rcc, &mut fmc);
 
     // Initialize the allocator BEFORE you use it
     unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }

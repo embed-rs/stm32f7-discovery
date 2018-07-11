@@ -1,5 +1,6 @@
 use core::convert::TryFrom;
-use stm32f7::stm32f7x6::{FLASH, PWR, RCC, SYST};
+use stm32f7::stm32f7x6::{FLASH, FMC, PWR, RCC, SYST};
+use system_clock;
 
 pub use self::pins::init as pins;
 
@@ -127,4 +128,144 @@ pub fn enable_gpio_ports(rcc: &mut RCC) {
         w.gpioken().enabled();
         w
     });
+}
+
+pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) {
+    #[allow(dead_code)]
+    #[derive(Debug, Clone, Copy)]
+    enum Bank {
+        One,
+        Two,
+        Both,
+    }
+
+    /// When a command is issued, at least one Command Target Bank bit ( CTB1 or CTB2) must be
+    /// set otherwise the command will be ignored.
+    ///
+    /// Note: If two SDRAM banks are used, the Auto-refresh and PALL command must be issued
+    /// simultaneously to the two devices with CTB1 and CTB2 bits set otherwise the command will
+    /// be ignored.
+    ///
+    /// Note: If only one SDRAM bank is used and a command is issued with it’s associated CTB bit
+    /// set, the other CTB bit of the the unused bank must be kept to 0.
+    #[allow(dead_code)]
+    #[repr(u8)]
+    enum Command {
+        Normal = 0b000,
+        ClockConfigurationEnable = 0b001,
+        PrechargeAllCommand = 0b010,
+        AutoRefreshCommand = 0b011,
+        LoadModeRegister = 0b100,
+        SelfRefreshCommand = 0b101,
+        PowerDownCommand = 0b110,
+    }
+
+    fn send_fmc_command(
+        fmc: &mut FMC,
+        bank: Bank,
+        command: Command,
+        auto_refresh: u8,
+        modereg: u16,
+    ) {
+        assert!(fmc.sdsr.read().busy().bit_is_clear());
+
+        fmc.sdcmr.modify(|_, w| {
+            match bank {
+                Bank::One => {
+                    w.ctb1().set_bit();
+                }
+                Bank::Two => {
+                    w.ctb2().set_bit();
+                }
+                Bank::Both => {
+                    w.ctb1().set_bit();
+                    w.ctb2().set_bit();
+                }
+            };
+            unsafe {
+                w.mode().bits(command as u8);
+                w.nrfs().bits(auto_refresh); // number_of_auto_refresh
+                w.mrd().bits(modereg); // mode_register_definition
+            }
+            w
+        });
+
+        while fmc.sdsr.read().busy().bit_is_set() {
+            // wait
+        }
+    }
+
+    // Enable FMC clock
+    rcc.ahb3enr.modify(|_, w| w.fmcen().enabled());
+
+    // Reset FMC module
+    rcc.ahb3rstr.modify(|_, w| w.fmcrst().reset());
+    rcc.ahb3rstr.modify(|_, w| w.fmcrst().clear_bit());
+
+    // SDRAM contol register
+    fmc.sdcr1.modify(|_, w| unsafe {
+        w.nc().bits(8 - 8); // number_of_column_address_bits
+        w.nr().bits(12 - 11); // number_of_row_address_bits
+        w.mwid().bits(0b01 /* = 16 */); // data_bus_width
+        w.nb().bit(true /* = 4 */); // number_of_internal_banks
+        w.cas().bits(2); // cas_latency
+        w.wp().bit(false); // write_protection
+        w.rburst().bit(false); // burst_read
+        w.sdclk().bits(2); // enable_sdram_clock
+        w
+    });
+
+    // SDRAM timings
+    fmc.sdtr1.modify(|_, w| unsafe {
+        w.tmrd().bits(2 - 1); // load_mode_register_to_active
+        w.txsr().bits(7 - 1); // exit_self_refresh_delay
+        w.tras().bits(4 - 1); // self_refresh_time
+        w.trc().bits(7 - 1); // row_cycle_delay
+        w.twr().bits(2 - 1); // recovery_delay
+        w.trp().bits(2 - 1); // row_precharge_delay
+        w.trcd().bits(2 - 1); // row_to_column_delay
+        w
+    });
+
+    let banks = Bank::One;
+
+    // enable clock config
+    send_fmc_command(fmc, banks, Command::ClockConfigurationEnable, 1, 0);
+    // wait at least 100μs while the sdram powers up
+    system_clock::wait(1);
+
+    // Precharge all Command
+    send_fmc_command(fmc, banks, Command::PrechargeAllCommand, 1, 0);
+
+    // Set auto refresh
+    send_fmc_command(fmc, banks, Command::AutoRefreshCommand, 8, 0);
+
+    // Load the external mode register
+    // BURST_LENGTH_1 | BURST_TYPE_SEQUENTIAL | CAS_LATENCY_2 | OPERATING_MODE_STANDARD
+    // | WRITEBURST_MODE_SINGLE;
+    let mrd = 0x0020 | 0x200;
+    send_fmc_command(fmc, banks, Command::LoadModeRegister, 1, mrd);
+
+    // set refresh counter
+    fmc.sdrtr.modify(|_, w| unsafe {
+        w.count().bits(0x301);
+        w.reie().bit(false);
+        w
+    });
+
+    // test sdram
+    use core::ptr;
+
+    let ptr1 = 0xC000_0000 as *mut u32;
+    let ptr2 = 0xC053_6170 as *mut u32;
+    let ptr3 = 0xC07F_FFFC as *mut u32;
+
+    unsafe {
+        ptr::write_volatile(ptr1, 0xcafebabe);
+        ptr::write_volatile(ptr2, 0xdeadbeaf);
+        ptr::write_volatile(ptr3, 0x0deafbee);
+        assert_eq!(ptr::read_volatile(ptr1), 0xcafebabe);
+        assert_eq!(ptr::read_volatile(ptr2), 0xdeadbeaf);
+        assert_eq!(ptr::read_volatile(ptr3), 0x0deafbee);
+    }
 }
