@@ -24,7 +24,8 @@ use rt::ExceptionFrame;
 use sh::hio::{self, HStdout};
 use stm32f7::stm32f7x6::{CorePeripherals, Interrupt, Peripherals};
 use stm32f7_discovery::{
-    gpio::{GpioPort, InputPin, OutputPin}, init::{self, Hz},
+    gpio::{GpioPort, InputPin, OutputPin},
+    init::{self, Hz},
 };
 
 #[global_allocator]
