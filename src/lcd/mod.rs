@@ -243,11 +243,25 @@ pub struct TextWriter<'a, T: Framebuffer + 'a> {
     y_pos: usize,
 }
 
+impl<'a, T: Framebuffer> TextWriter<'a, T> {
+    fn newline(&mut self) {
+        self.y_pos += 8;
+        self.x_pos = 0;
+        if self.y_pos >= HEIGHT {
+            self.y_pos = 0;
+        }
+    }
+}
+
 impl<'a, T: Framebuffer> fmt::Write for TextWriter<'a, T> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         use font8x8::{self, Utf16Fonts};
 
         for c in s.chars() {
+            if c == '\n' {
+                self.newline();
+                continue;
+            }
             let c = c as u16;
             match c {
                 0..=0x7f => {
@@ -272,11 +286,7 @@ impl<'a, T: Framebuffer> fmt::Write for TextWriter<'a, T> {
             }
             self.x_pos += 8;
             if self.x_pos >= WIDTH {
-                self.y_pos += 8;
-                self.x_pos = 0;
-            }
-            if self.y_pos >= HEIGHT {
-                self.y_pos = 0;
+                self.newline();
             }
         }
         Ok(())
