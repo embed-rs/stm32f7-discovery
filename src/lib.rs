@@ -6,4 +6,5 @@ extern crate stm32f7;
 
 pub mod gpio;
 pub mod init;
+pub mod lcd;
 pub mod system_clock;

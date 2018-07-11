@@ -49,6 +49,7 @@ fn main() -> ! {
     let mut pwr = peripherals.PWR;
     let mut flash = peripherals.FLASH;
     let mut fmc = peripherals.FMC;
+    let mut ltdc = peripherals.LTDC;
 
     init::init_system_clock_216mhz(&mut rcc, &mut pwr, &mut flash);
     init::enable_gpio_ports(&mut rcc);
@@ -73,6 +74,9 @@ fn main() -> ! {
     systick.enable_interrupt();
 
     init::init_sdram(&mut rcc, &mut fmc);
+    init::init_lcd(&mut ltdc, &mut rcc);
+    pins.display_enable.set(true);
+    pins.backlight.set(true);
 
     // Initialize the allocator BEFORE you use it
     unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }
