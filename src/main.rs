@@ -1,6 +1,6 @@
 #![feature(alloc)]
-#![feature(lang_items)]
 #![feature(panic_implementation)]
+#![feature(alloc_error_handler)]
 #![no_main]
 #![no_std]
 
@@ -16,6 +16,7 @@ extern crate stm32f7;
 extern crate stm32f7_discovery;
 
 use alloc_cortex_m::CortexMHeap;
+use core::alloc::Layout as AllocLayout;
 use core::fmt::Write;
 use core::panic::PanicInfo;
 use cortex_m::{asm, interrupt};
@@ -116,9 +117,9 @@ fn default_handler(irqn: i16) {
 }
 
 // define what happens in an Out Of Memory (OOM) condition
-#[lang = "oom"]
+#[alloc_error_handler]
 #[no_mangle]
-pub fn rust_oom() -> ! {
+pub fn rust_oom(_: AllocLayout) -> ! {
     if let Ok(mut hstdout) = hio::hstdout() {
         let _ = hstdout.write_str("out of memory");
     }
