@@ -102,10 +102,10 @@ fn main() -> ! {
         if current_button_state != previous_button_state {
             if current_button_state {
                 pins.led.toggle();
-            }
 
-            // trigger the `EXTI0` interrupt
-            nvic.set_pending(Interrupt::EXTI0);
+                // trigger the `EXTI0` interrupt
+                nvic.set_pending(Interrupt::EXTI0);
+            }
 
             previous_button_state = current_button_state;
         }
@@ -114,19 +114,16 @@ fn main() -> ! {
 
 interrupt!(EXTI0, exti0, state: Option<HStdout> = None);
 
-fn exti0(state: &mut Option<HStdout>) {
-    if state.is_none() {
-        *state = Some(hio::hstdout().unwrap());
-    }
-
-    if let Some(hstdout) = state.as_mut() {
-        hstdout.write_str("i").unwrap();
-    }
+fn exti0(_state: &mut Option<HStdout>) {
+    println!("Interrupt fired! This means that the button was pressed.");
 }
 
 exception!(SysTick, sys_tick, state: Option<HStdout> = None);
 
 fn sys_tick(_state: &mut Option<HStdout>) {
+    if lcd::stdout::is_initialized() {
+        print!(".");
+    }
     system_clock::tick();
 }
 
@@ -160,6 +157,10 @@ pub fn rust_oom(_: AllocLayout) -> ! {
 #[no_mangle]
 pub fn panic(info: &PanicInfo) -> ! {
     interrupt::disable();
+
+    if lcd::stdout::is_initialized() {
+        println!("{}", info);
+    }
 
     if let Ok(mut hstdout) = hio::hstdout() {
         let _ = writeln!(hstdout, "{}", info);
