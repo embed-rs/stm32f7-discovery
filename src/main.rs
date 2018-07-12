@@ -68,7 +68,7 @@ fn main() -> ! {
     );
 
     // configures the system timer to trigger a SysTick exception every second
-    init::init_systick(Hz(1), &mut systick, &rcc);
+    init::init_systick(Hz(100), &mut systick, &rcc);
     systick.enable_interrupt();
 
     init::init_sdram(&mut rcc, &mut fmc);
@@ -118,10 +118,11 @@ fn exti0(_state: &mut Option<HStdout>) {
 exception!(SysTick, sys_tick, state: Option<HStdout> = None);
 
 fn sys_tick(_state: &mut Option<HStdout>) {
-    if lcd::stdout::is_initialized() {
+    system_clock::tick();
+    // print a `.` every 500ms
+    if system_clock::ticks() % 50 == 0 && lcd::stdout::is_initialized() {
         print!(".");
     }
-    system_clock::tick();
 }
 
 exception!(HardFault, hard_fault);
