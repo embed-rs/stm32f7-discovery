@@ -9,8 +9,7 @@ struct Stdout<'a>(Mutex<Option<TextWriter<'a, FramebufferAl88>>>);
 
 impl<'a> Stdout<'a> {
     fn with(&self, f: impl FnOnce(&mut Option<TextWriter<'a, FramebufferAl88>>)) {
-        //interrupt::free(|_| f(&mut self.0.lock()))
-        f(&mut self.0.lock())
+        interrupt::free(|_| f(&mut self.0.lock()))
     }
 }
 
