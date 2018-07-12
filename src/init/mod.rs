@@ -24,6 +24,10 @@ pub fn init_system_clock_216mhz(rcc: &mut RCC, pwr: &mut PWR, flash: &mut FLASH)
     // wait until HSE is enabled
     while rcc.cr.read().hserdy().bit_is_clear() {}
 
+    // disable main PLL
+    rcc.cr.modify(|_, w| w.pllon().clear_bit());
+    while rcc.cr.read().pllrdy().bit_is_set() {}
+
     // Configure the main PLL clock source, multiplication and division factors.
     // HSE is used as clock source. HSE runs at 25 MHz.
     // PLLM = 25: Division factor for the main PLLs (PLL, PLLI2S and PLLSAI) input clock
@@ -103,7 +107,7 @@ pub fn init_systick(Hz(frequency): Hz, systick: &mut SYST, rcc: &RCC) {
 
     // SysTick Reload Value Register = ((25000/25) * 432) / 2 - 1 = 215_999
     // => SysTick interrupt tiggers every 1 ms
-    systick.set_clock_source(SystClkSource::External);
+    systick.set_clock_source(SystClkSource::Core);
     systick.set_reload(reload_ticks - 1);
     systick.clear_current();
     systick.enable_counter();
