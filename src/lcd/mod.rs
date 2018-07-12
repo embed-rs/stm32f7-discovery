@@ -1,4 +1,5 @@
 pub use self::color::Color;
+pub use self::init::init;
 pub use self::stdout::init as init_stdout;
 
 use core::{fmt, ptr};
@@ -7,6 +8,7 @@ use stm32f7::stm32f7x6::LTDC;
 #[macro_use]
 pub mod stdout;
 mod color;
+mod init;
 
 pub const HEIGHT: usize = 272;
 pub const WIDTH: usize = 480;
@@ -27,7 +29,7 @@ pub struct Lcd<'a> {
 }
 
 impl<'a> Lcd<'a> {
-    pub fn new(ltdc: &'a mut LTDC) -> Self {
+    fn new(ltdc: &'a mut LTDC) -> Self {
         Self {
             controller: ltdc,
             layer_1_in_use: false,

@@ -1,3 +1,4 @@
+use lcd::{self, Lcd};
 use stm32f7::stm32f7x6::{I2C3, FLASH, FMC, LTDC, PWR, RCC, SYST};
 use system_clock;
 
@@ -108,7 +109,11 @@ pub fn enable_gpio_ports(rcc: &mut RCC) {
     });
 }
 
-pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) {
+pub struct SdramInitToken {
+    _private: (),
+}
+
+pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) -> SdramInitToken {
     #[allow(dead_code)]
     #[derive(Debug, Clone, Copy)]
     enum Bank {
@@ -246,183 +251,61 @@ pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) {
         assert_eq!(ptr::read_volatile(ptr2), 0xdeadbeaf);
         assert_eq!(ptr::read_volatile(ptr3), 0x0deafbee);
     }
+
+    SdramInitToken { _private: () }
 }
 
-pub fn init_lcd(ltdc: &mut LTDC, rcc: &mut RCC) {
-    use lcd::{self, LAYER_1_START, LAYER_2_START};
-    const HEIGHT: u16 = lcd::HEIGHT as u16;
-    const WIDTH: u16 = lcd::WIDTH as u16;
-    const LAYER_1_OCTETS_PER_PIXEL: u16 = lcd::LAYER_1_OCTETS_PER_PIXEL as u16;
-    const LAYER_2_OCTETS_PER_PIXEL: u16 = lcd::LAYER_2_OCTETS_PER_PIXEL as u16;
+pub fn init_lcd<'a>(
+    sdram_init_token: SdramInitToken,
+    ltdc: &'a mut LTDC,
+    rcc: &mut RCC,
+) -> Lcd<'a> {
+    lcd::init(sdram_init_token, ltdc, rcc)
+}
 
-    // enable LTDC and DMA2D clocks
-    rcc.ahb1enr.modify(|_, w| w.dma2den().enabled());
-    rcc.apb2enr.modify(|_, w| w.ltdcen().enabled());
+pub fn init_i2c3(i2c3: &mut I2C3, rcc: &mut RCC) {
+    // enable clocks
+    rcc.apb1enr.modify(|_, w| w.i2c3en().enabled());
 
-    // disable LTDC
-    ltdc.gcr.modify(|_, w| w.ltdcen().clear_bit());
+    /*
+    // disable I2C peripheral
+    i2c.cr1.update(|r| r.set_pe(false)); // peripheral_enable
 
-    // disable PLLSAI clock
-    rcc.cr.modify(|_, w| w.pllsaion().clear_bit());
-    while rcc.cr.read().pllsairdy().bit_is_set() {}
-
-    rcc.pllsaicfgr.modify(|_, w| unsafe {
-        w.pllsain().bits(192);
-        w.pllsair().bits(5);
-        w
+    // configure timing register TODO: check/understand values
+    i2c.timingr.update(|r| {
+        r.set_presc(0x4); // timing_prescaler
+        r.set_scldel(0x9); // data_setup_time
+        r.set_sdadel(0x1); // data_hold_time
+        r.set_sclh(0x27); // scl_high_period
+        r.set_scll(0x32); // scl_low_period
     });
 
-    // set division factor for LCD_CLK
-    rcc.dkcfgr1.modify(|_, w| unsafe {
-        w.pllsaidivr().bits(0b01 /* = 4 */)
+    // configure oar1
+    i2c.oar1.update(|r| r.set_oa1en(false)); // own_address_1_enable
+    i2c.oar1.update(|r| {
+        r.set_oa1(0x00); // own_address_1
+        r.set_oa1mode(false); // 10 bit mode
+        r.set_oa1en(false); // TODO
     });
 
-    // enable PLLSAI clock
-    rcc.cr.modify(|_, w| w.pllsaion().set_bit());
-    while rcc.cr.read().pllsairdy().bit_is_clear() {}
-
-    // configure the HS, VS, DE and PC polarity
-    ltdc.gcr.modify(|_, w| {
-        w.pcpol().bit(false);
-        w.depol().bit(false);
-        w.hspol().bit(false);
-        w.vspol().bit(false);
-        w
+    // configure cr2
+    i2c.cr2.update(|r| {
+        r.set_add10(false); // 10_bit_addressing mode
+        r.set_autoend(false); // automatic_end_mode
     });
 
-    // set synchronization size
-    ltdc.sscr.modify(|_, w| unsafe {
-        w.hsw().bits(41 - 1); // horizontal_sync_width
-        w.vsh().bits(10 - 1); // vertical_sync_height
-        w
+    // configure oar2
+    i2c.oar2.update(|r| {
+        r.set_oa2en(false); // own_address_2_enable
     });
 
-    // set accumulated back porch
-    ltdc.bpcr.modify(|_, w| unsafe {
-        w.ahbp().bits(41 + 13 - 1); // accumulated_horizontal_back_porch
-        w.avbp().bits(10 + 2 - 1); // accumulated_vertical_back_porch
-        w
+    // configure cr1
+    i2c.cr1.update(|r| {
+        r.set_gcen(false); // general_call
+        r.set_nostretch(false); // clock_stretching_disable
+        r.set_pe(true); // peripheral_enable
     });
-
-    // set accumulated active width
-    ltdc.awcr.modify(|_, w| unsafe {
-        w.aav().bits(WIDTH + 41 + 13 - 1); // accumulated_active_width
-        w.aah().bits(HEIGHT + 10 + 2 - 1); // accumulated_active_height
-        w
-    });
-
-    // set total width
-    ltdc.twcr.modify(|_, w| unsafe {
-        w.totalw().bits(WIDTH + 41 + 13 + 32 - 1); // total_width
-        w.totalh().bits(HEIGHT + 10 + 2 + 2 - 1); // total_height
-        w
-    });
-
-    // set background color
-    ltdc.bccr.modify(|_, w| unsafe { w.bc().bits(0x0000ff) }); // background_color blue
-
-    // enable the transfer error interrupt and the FIFO underrun interrupt
-    ltdc.ier.modify(|_, w| {
-        w.terrie().bit(true); // TRANSFER_ERROR_INTERRUPT_ENABLE
-        w.fuie().bit(true); // FIFO_UNDERRUN_INTERRUPT_ENABLE
-        w
-    });
-
-    // enable LTDC
-    ltdc.gcr.modify(|_, w| w.ltdcen().bit(true));
-
-    // configure layers
-
-    // configure horizontal start and stop position
-    ltdc.l1whpcr.modify(|_, w| unsafe {
-        w.whstpos().bits(0 + 41 + 13); // window_horizontal_start_position
-        w.whsppos().bits(WIDTH + 41 + 13 - 1); // window_horizontal_stop_position
-        w
-    });
-    ltdc.l2whpcr.modify(|_, w| unsafe {
-        w.whstpos().bits(0 + 41 + 13); // window_horizontal_start_position
-        w.whsppos().bits(WIDTH + 41 + 13 - 1); // window_horizontal_stop_position
-        w
-    });
-
-    // configure vertical start and stop position
-    ltdc.l1wvpcr.modify(|_, w| unsafe {
-        w.wvstpos().bits(0 + 10 + 2); // window_vertical_start_position
-        w.wvsppos().bits(HEIGHT + 10 + 2 - 1); // window_vertical_stop_position
-        w
-    });
-    ltdc.l2wvpcr.modify(|_, w| unsafe {
-        w.wvstpos().bits(0 + 10 + 2); // window_vertical_start_position
-        w.wvsppos().bits(HEIGHT + 10 + 2 - 1); // window_vertical_stop_position
-        w
-    });
-
-    // specify pixed format
-    ltdc.l1pfcr.modify(|_, w| unsafe { w.pf().bits(0b000) }); // set_pixel_format to ARGB8888
-    ltdc.l2pfcr.modify(|_, w| unsafe { w.pf().bits(0b111) }); // set_pixel_format to AL88
-
-    // configure default color values
-    ltdc.l1dccr.modify(|_, w| unsafe {
-        w.dcalpha().bits(0);
-        w.dcred().bits(0);
-        w.dcgreen().bits(0);
-        w.dcblue().bits(0);
-        w
-    });
-    ltdc.l2dccr.modify(|_, w| unsafe {
-        w.dcalpha().bits(0);
-        w.dcred().bits(0);
-        w.dcgreen().bits(0);
-        w.dcblue().bits(0);
-        w
-    });
-
-    // specify constant alpha value
-    ltdc.l1cacr.modify(|_, w| unsafe { w.consta().bits(255) }); // constant_alpha
-    ltdc.l2cacr.modify(|_, w| unsafe { w.consta().bits(255) }); // constant_alpha
-
-    // specify blending factors
-    ltdc.l1bfcr.modify(|_, w| unsafe {
-        w.bf1().bits(0b110); // set_blending_factor_1 to PixelAlphaTimesConstantAlpha
-        w.bf2().bits(0b111); // set_blending_factor_2 to OneMinusPixelAlphaTimesConstantAlpha
-        w
-    });
-    ltdc.l2bfcr.modify(|_, w| unsafe {
-        w.bf1().bits(0b110); // set_blending_factor_1 to PixelAlphaTimesConstantAlpha
-        w.bf2().bits(0b111); // set_blending_factor_2 to OneMinusPixelAlphaTimesConstantAlpha
-        w
-    });
-
-    // configure color frame buffer start address
-    ltdc.l1cfbar
-        .modify(|_, w| unsafe { w.cfbadd().bits(LAYER_1_START as u32) });
-    ltdc.l2cfbar
-        .modify(|_, w| unsafe { w.cfbadd().bits(LAYER_2_START as u32) });
-
-    // configure color frame buffer line length and pitch
-    ltdc.l1cfblr.modify(|_, w| unsafe {
-        w.cfbp().bits(WIDTH * LAYER_1_OCTETS_PER_PIXEL); // pitch
-        w.cfbll().bits(WIDTH * LAYER_1_OCTETS_PER_PIXEL + 3); // line_length
-        w
-    });
-    ltdc.l2cfblr.modify(|_, w| unsafe {
-        w.cfbp().bits(WIDTH * LAYER_2_OCTETS_PER_PIXEL); // pitch
-        w.cfbll().bits(WIDTH * LAYER_2_OCTETS_PER_PIXEL + 3); // line_length
-        w
-    });
-
-    // configure frame buffer line number
-    ltdc.l1cfblnr
-        .modify(|_, w| unsafe { w.cfblnbr().bits(HEIGHT) }); // line_number
-    ltdc.l2cfblnr
-        .modify(|_, w| unsafe { w.cfblnbr().bits(HEIGHT) }); // line_number
-
-    // enable layers
-    ltdc.l1cr.modify(|_, w| w.len().set_bit());
-    ltdc.l2cr.modify(|_, w| w.len().set_bit());
-
-    // reload shadow registers
-    ltdc.srcr.modify(|_, w| w.imr().set_bit()); // IMMEDIATE_RELOAD
-
-    // init DMA2D graphic
+    // wait that init can finish
+    ::system_clock::wait(50);
+*/
 }

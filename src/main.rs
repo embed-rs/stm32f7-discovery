@@ -26,8 +26,8 @@ use sh::hio::{self, HStdout};
 use stm32f7::stm32f7x6::{CorePeripherals, Interrupt, Peripherals};
 use stm32f7_discovery::{
     gpio::{GpioPort, InputPin, OutputPin},
-    init::{self, Hz},
-    lcd, system_clock,
+    init, lcd,
+    system_clock::{self, Hz},
 };
 
 #[global_allocator]
@@ -71,12 +71,11 @@ fn main() -> ! {
     init::init_systick(Hz(100), &mut systick, &rcc);
     systick.enable_interrupt();
 
-    init::init_sdram(&mut rcc, &mut fmc);
-    init::init_lcd(&mut ltdc, &mut rcc);
+    let sdram_init_token = init::init_sdram(&mut rcc, &mut fmc);
+    let mut lcd = init::init_lcd(sdram_init_token, &mut ltdc, &mut rcc);
     pins.display_enable.set(true);
     pins.backlight.set(true);
 
-    let mut lcd = lcd::Lcd::new(&mut ltdc);
     let mut layer_1 = lcd.layer_1().unwrap();
     let mut layer_2 = lcd.layer_2().unwrap();
 
