@@ -1,5 +1,4 @@
-use core::convert::TryFrom;
-use stm32f7::stm32f7x6::{FLASH, FMC, LTDC, PWR, RCC, SYST};
+use stm32f7::stm32f7x6::{I2C3, FLASH, FMC, LTDC, PWR, RCC, SYST};
 use system_clock;
 
 pub use self::pins::init as pins;
@@ -88,34 +87,9 @@ pub fn init_system_clock_216mhz(rcc: &mut RCC, pwr: &mut PWR, flash: &mut FLASH)
     rcc.cfgr.modify(|_, w| w.ppre2().div2());
 }
 
-pub fn init_systick(Hz(frequency): Hz, systick: &mut SYST, rcc: &RCC) {
-    use cortex_m::peripheral::syst::SystClkSource;
-    use stm32f7::stm32f7x6::rcc::pllcfgr::PLLPR;
-
-    let pll_cfgr = rcc.pllcfgr.read();
-    let pllm = u64::from(pll_cfgr.pllm().bits());
-    let plln = u64::from(pll_cfgr.plln().bits());
-    let pllp = match pll_cfgr.pllp() {
-        PLLPR::DIV2 => 2,
-        PLLPR::DIV4 => 4,
-        PLLPR::DIV6 => 6,
-        PLLPR::DIV8 => 8,
-    };
-
-    let system_clock_speed = (((25 * 1000 * 1000) / pllm) * plln) / pllp; // HSE runs at 25 MHz
-    let reload_ticks = u32::try_from(system_clock_speed / frequency).unwrap();
-
-    // SysTick Reload Value Register = ((25000/25) * 432) / 2 - 1 = 215_999
-    // => SysTick interrupt tiggers every 1 ms
-    systick.set_clock_source(SystClkSource::Core);
-    systick.set_reload(reload_ticks - 1);
-    systick.clear_current();
-    systick.enable_counter();
+pub fn init_systick(frequency: system_clock::Hz, systick: &mut SYST, rcc: &RCC) {
+    system_clock::init(frequency, systick, rcc)
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[repr(transparent)]
-pub struct Hz(pub u64);
 
 pub fn enable_gpio_ports(rcc: &mut RCC) {
     rcc.ahb1enr.modify(|_, w| {
@@ -236,7 +210,7 @@ pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) {
     // enable clock config
     send_fmc_command(fmc, banks, Command::ClockConfigurationEnable, 1, 0);
     // wait at least 100μs while the sdram powers up
-    system_clock::wait(1);
+    system_clock::wait_ms(1);
 
     // Precharge all Command
     send_fmc_command(fmc, banks, Command::PrechargeAllCommand, 1, 0);
