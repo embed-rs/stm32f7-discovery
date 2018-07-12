@@ -10,18 +10,23 @@ pub fn tick() {
 }
 
 pub fn ticks() -> usize {
-    TICKS.load(Ordering::AcqRel)
+    TICKS.load(Ordering::Acquire)
 }
 
 pub fn wait_ticks(ticks: usize) {
-    let current = TICKS.load(Ordering::AcqRel);
+    let current = TICKS.load(Ordering::Acquire);
     let desired = current + ticks;
-    while TICKS.load(Ordering::AcqRel) != desired {}
+    while TICKS.load(Ordering::Acquire) != desired {}
 }
 
 pub fn wait_ms(ms: usize) {
-    let frequency = FREQUENCY.load(Ordering::AcqRel);
-    let ticks = (frequency * 1000) / ms;
+    let frequency = FREQUENCY.load(Ordering::Acquire);
+    let thousand_ticks = frequency / ms;
+    let ticks = if thousand_ticks % 1000 == 0 {
+        thousand_ticks / 1000
+    } else {
+        (thousand_ticks / 1000) + 1 // round up
+    };
     wait_ticks(ticks);
 }
 
@@ -42,7 +47,7 @@ pub fn init(Hz(frequency): Hz, systick: &mut SYST, rcc: &RCC) {
     let system_clock_speed = (((25 * 1000 * 1000) / pllm) * plln) / pllp; // HSE runs at 25 MHz
     let reload_ticks = u32::try_from(system_clock_speed / frequency as u64).unwrap();
 
-    FREQUENCY.store(frequency, Ordering::AcqRel);
+    FREQUENCY.store(frequency, Ordering::Release);
 
     // SysTick Reload Value Register = ((25000/25) * 432) / 2 - 1 = 215_999
     // => SysTick interrupt tiggers every 1 ms
