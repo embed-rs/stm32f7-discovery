@@ -38,9 +38,6 @@ const HEAP_SIZE: usize = 1024; // in bytes
 entry!(main);
 
 fn main() -> ! {
-    let mut stdout = hio::hstdout().unwrap();
-    writeln!(stdout, "Hello, world!").unwrap();
-
     let core_peripherals = CorePeripherals::take().unwrap();
     let mut systick = core_peripherals.SYST;
     let mut nvic = core_peripherals.NVIC;
