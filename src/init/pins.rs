@@ -213,6 +213,39 @@ pub fn init<'a>(
         (display_enable, backlight)
     };
 
+    // i2c pins
+    {
+        let alt_fn = AlternateFunction::AF4;
+        let speed = OutputSpeed::Medium;
+        let typ = OutputType::OpenDrain;
+        let res = Resistor::PullUp;
+
+        let b_pins = &[
+            gpio_b_pins.pin_6.pin(),  // i2c1_scl
+            gpio_b_pins.pin_7.pin(),  // i2c1_sda
+            gpio_b_pins.pin_10.pin(), // i2c2_scl
+            gpio_b_pins.pin_11.pin(), // i2c2_sda
+        ];
+        let d_pins = &[
+            gpio_d_pins.pin_13.pin(), // i2c4_sda
+        ];
+        let h_pins = &[
+            gpio_h_pins.pin_7.pin(),  // i2c3_scl
+            gpio_h_pins.pin_8.pin(),  // i2c3_sda
+            gpio_h_pins.pin_11.pin(), // i2c4_scl
+        ];
+
+        gpio_b
+            .to_alternate_function_all(b_pins, alt_fn, typ, speed, res)
+            .expect("Failed to reserve I2C GPIO B pins");
+        gpio_d
+            .to_alternate_function_all(d_pins, alt_fn, typ, speed, res)
+            .expect("Failed to reserve I2C GPIO D pins");
+        gpio_h
+            .to_alternate_function_all(h_pins, alt_fn, typ, speed, res)
+            .expect("Failed to reserve I2C GPIO H pins");
+    }
+
     Pins {
         led,
         button,
