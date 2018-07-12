@@ -285,13 +285,8 @@ pub fn init_lcd(ltdc: &mut LTDC, rcc: &mut RCC) {
     ltdc.gcr.modify(|_, w| w.ltdcen().clear_bit());
 
     // disable PLLSAI clock
-    /* TODO replace the lines below with the following when PLLSAI fields are added to the SVD file
-    rcc.cr.modify(|_, w| w.pllsaion().disabled());
-    while rcc.cr.read().pllsairdy() {}
-    */
-    rcc.cr
-        .modify(|r, w| unsafe { w.bits(r.bits() & !(1 << 28)) });
-    while rcc.cr.read().bits() & (1 << 29) != 0 {}
+    rcc.cr.modify(|_, w| w.pllsaion().clear_bit());
+    while rcc.cr.read().pllsairdy().bit_is_set() {}
 
     rcc.pllsaicfgr.modify(|_, w| unsafe {
         w.pllsain().bits(192);
@@ -305,13 +300,8 @@ pub fn init_lcd(ltdc: &mut LTDC, rcc: &mut RCC) {
     });
 
     // enable PLLSAI clock
-    /* TODO replace the lines below with the following when PLLSAI fields are added to the SVD file
     rcc.cr.modify(|_, w| w.pllsaion().set_bit());
-    while !rcc.cr.read().pllsairdy() {}
-    */
-    rcc.cr
-        .modify(|r, w| unsafe { w.bits(r.bits() | (1 << 28)) });
-    while rcc.cr.read().bits() & (1 << 29) == 0 {}
+    while rcc.cr.read().pllsairdy().bit_is_clear() {}
 
     // configure the HS, VS, DE and PC polarity
     ltdc.gcr.modify(|_, w| {
