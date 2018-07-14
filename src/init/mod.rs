@@ -109,11 +109,7 @@ pub fn enable_gpio_ports(rcc: &mut RCC) {
     });
 }
 
-pub struct SdramInitToken {
-    _private: (),
-}
-
-pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) -> SdramInitToken {
+pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) {
     #[allow(dead_code)]
     #[derive(Debug, Clone, Copy)]
     enum Bank {
@@ -251,16 +247,10 @@ pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) -> SdramInitToken {
         assert_eq!(ptr::read_volatile(ptr2), 0xdeadbeaf);
         assert_eq!(ptr::read_volatile(ptr3), 0x0deafbee);
     }
-
-    SdramInitToken { _private: () }
 }
 
-pub fn init_lcd<'a>(
-    sdram_init_token: SdramInitToken,
-    ltdc: &'a mut LTDC,
-    rcc: &mut RCC,
-) -> Lcd<'a> {
-    lcd::init(sdram_init_token, ltdc, rcc)
+pub fn init_lcd<'a>(ltdc: &'a mut LTDC, rcc: &mut RCC) -> Lcd<'a> {
+    lcd::init(ltdc, rcc)
 }
 
 pub fn init_i2c3(i2c3: &mut I2C3, rcc: &mut RCC) {

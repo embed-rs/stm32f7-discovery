@@ -1,8 +1,7 @@
 use super::Lcd;
-use init::SdramInitToken;
 use stm32f7::stm32f7x6::{LTDC, RCC};
 
-pub fn init<'a>(_sdram_init_token: SdramInitToken, ltdc: &'a mut LTDC, rcc: &mut RCC) -> Lcd<'a> {
+pub fn init<'a>(ltdc: &'a mut LTDC, rcc: &mut RCC) -> Lcd<'a> {
     use lcd::{self, LAYER_1_START, LAYER_2_START};
     const HEIGHT: u16 = lcd::HEIGHT as u16;
     const WIDTH: u16 = lcd::WIDTH as u16;
