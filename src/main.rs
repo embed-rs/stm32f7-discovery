@@ -48,7 +48,6 @@ fn main() -> ! {
     let mut flash = peripherals.FLASH;
     let mut fmc = peripherals.FMC;
     let mut ltdc = peripherals.LTDC;
-    let mut i2c_3 = peripherals.I2C3;
 
     init::init_system_clock_216mhz(&mut rcc, &mut pwr, &mut flash);
     init::enable_gpio_ports(&mut rcc);
@@ -86,7 +85,9 @@ fn main() -> ! {
 
     println!("Hello World");
 
-    init::init_i2c_3(&mut i2c_3, &mut rcc);
+    let mut i2c_3 = init::init_i2c_3(&peripherals.I2C3, &mut rcc);
+    i2c_3.test_1();
+    i2c_3.test_2();
 
     nvic.enable(Interrupt::EXTI0);
 

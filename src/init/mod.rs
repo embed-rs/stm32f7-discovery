@@ -1,5 +1,6 @@
+use i2c::{self, I2C};
 use lcd::{self, Lcd};
-use stm32f7::stm32f7x6::{I2C3, FLASH, FMC, LTDC, PWR, RCC, SYST};
+use stm32f7::stm32f7x6::{i2c1, FLASH, FMC, LTDC, PWR, RCC, SYST};
 use system_clock;
 
 pub use self::pins::init as pins;
@@ -253,51 +254,6 @@ pub fn init_lcd<'a>(ltdc: &'a mut LTDC, rcc: &mut RCC) -> Lcd<'a> {
     lcd::init(ltdc, rcc)
 }
 
-pub fn init_i2c_3(i2c: &mut I2C3, rcc: &mut RCC) {
-    // enable clocks
-    rcc.apb1enr.modify(|_, w| w.i2c3en().enabled());
-
-    // disable I2C peripheral
-    i2c.cr1.modify(|_, w| w.pe().clear_bit()); // peripheral_enable register
-
-    // configure timing register TODO: check/understand values
-    i2c.timingr.modify(|_, w| unsafe {
-        w.presc().bits(0x4); // timing_prescaler
-        w.scldel().bits(0x9); // data_setup_time
-        w.sdadel().bits(0x1); // data_hold_time
-        w.sclh().bits(0x27); // scl_high_period
-        w.scll().bits(0x32); // scl_low_period
-        w
-    });
-
-    // configure oar1
-    i2c.oar1.modify(|_, w| w.oa1en().clear_bit()); // own_address_1_enable register
-    i2c.oar1.modify(|_, w| {
-        unsafe { w.oa1().bits(0x00) }; // own_address_1
-        w.oa1mode().clear_bit(); // 10 bit mode
-        w.oa1en().clear_bit(); // TODO
-        w
-    });
-
-    // configure cr2
-    i2c.cr2.modify(|_, w| {
-        w.add10().clear_bit(); // 10_bit_addressing mode
-        w.autoend().clear_bit(); // automatic_end_mode
-        w
-    });
-
-    // configure oar2
-    i2c.oar2.modify(|_, w| {
-        w.oa2en().clear_bit() // own_address_2_enable
-    });
-
-    // configure cr1
-    i2c.cr1.modify(|_, w| {
-        w.gcen().clear_bit(); // general_call
-        w.nostretch().clear_bit(); // clock_stretching_disable
-        w.pe().set_bit(); // peripheral_enable
-        w
-    });
-    // wait that init can finish
-    ::system_clock::wait_ms(50);
+pub fn init_i2c_3<'a>(i2c: &'a i2c1::RegisterBlock, rcc: &mut RCC) -> I2C<'a> {
+    i2c::init(i2c, rcc)
 }
