@@ -26,8 +26,10 @@ use sh::hio::{self, HStdout};
 use stm32f7::stm32f7x6::{CorePeripherals, Interrupt, Peripherals};
 use stm32f7_discovery::{
     gpio::{GpioPort, InputPin, OutputPin},
-    init, lcd,
+    init,
+    lcd::{self, Color},
     system_clock::{self, Hz},
+    touch,
 };
 
 #[global_allocator]
@@ -91,6 +93,8 @@ fn main() -> ! {
 
     nvic.enable(Interrupt::EXTI0);
 
+    touch::check_family_id(&mut i2c_3).unwrap();
+
     // Initialize the allocator BEFORE you use it
     unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }
 
@@ -98,6 +102,7 @@ fn main() -> ! {
 
     let mut previous_button_state = pins.button.get();
     loop {
+        // poll button state
         let current_button_state = pins.button.get();
         if current_button_state != previous_button_state {
             if current_button_state {
@@ -108,6 +113,15 @@ fn main() -> ! {
             }
 
             previous_button_state = current_button_state;
+        }
+
+        // poll for new touch data
+        for touch in &touch::touches(&mut i2c_3).unwrap() {
+            layer_1.print_point_color_at(
+                touch.x as usize,
+                touch.y as usize,
+                Color::from_hex(0xffff00),
+            );
         }
     }
 }

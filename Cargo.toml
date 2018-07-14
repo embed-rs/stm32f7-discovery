@@ -17,6 +17,10 @@ font8x8 = { git = "https://github.com/phil-opp/font8x8-rs" }
 version = "0.2.2"
 features = ["stm32f7x6", "rt"]
 
+[dependencies.arrayvec]
+version = "0.4.7"
+default-features = false
+
 [profile.release]
 codegen-units = 1 # better optimizations
 debug = true
