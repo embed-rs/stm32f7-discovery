@@ -50,6 +50,7 @@ fn main() -> ! {
     let mut flash = peripherals.FLASH;
     let mut fmc = peripherals.FMC;
     let mut ltdc = peripherals.LTDC;
+    let mut sai_2 = peripherals.SAI2;
 
     init::init_system_clock_216mhz(&mut rcc, &mut pwr, &mut flash);
     init::enable_gpio_ports(&mut rcc);
@@ -82,6 +83,7 @@ fn main() -> ! {
     let mut layer_2 = lcd.layer_2().unwrap();
 
     layer_1.clear();
+    let mut audio_writer = layer_1.audio_writer();
     layer_2.clear();
     lcd::init_stdout(layer_2);
 
@@ -94,6 +96,9 @@ fn main() -> ! {
     nvic.enable(Interrupt::EXTI0);
 
     touch::check_family_id(&mut i2c_3).unwrap();
+
+    init::init_sai_2(&mut sai_2, &mut rcc);
+    assert!(init::init_wm8994(&mut i2c_3).is_ok(), "WM8994 init failed");
 
     // Initialize the allocator BEFORE you use it
     unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }
@@ -117,12 +122,20 @@ fn main() -> ! {
 
         // poll for new touch data
         for touch in &touch::touches(&mut i2c_3).unwrap() {
-            layer_1.print_point_color_at(
+            audio_writer.layer().print_point_color_at(
                 touch.x as usize,
                 touch.y as usize,
                 Color::from_hex(0xffff00),
             );
         }
+
+        // poll for new audio data
+        while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
+        let data0 = sai_2.bdr.read().data().bits();
+        while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
+        let data1 = sai_2.bdr.read().data().bits();
+
+        audio_writer.set_next_col(data0, data1);
     }
 }
 

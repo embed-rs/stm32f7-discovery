@@ -198,12 +198,12 @@ impl<'a, T: Framebuffer + 'a> AudioWriter<'a, T> {
         &mut self.layer
     }
 
-    pub fn set_next_col(&mut self, value0: usize, value1: usize) {
-        let value0 = value0 + 2usize.pow(15);
+    pub fn set_next_col(&mut self, value0: u32, value1: u32) {
+        let value0 = value0 + 2u32.pow(15);
         let value0 = value0 as u16 as usize;
         let value0 = value0 / 241;
 
-        let value1 = value1 + 2usize.pow(15);
+        let value1 = value1 + 2u32.pow(15);
         let value1 = value1 as u16 as usize;
         let value1 = value1 / 241;
 

@@ -246,6 +246,33 @@ pub fn init<'a>(
             .expect("Failed to reserve I2C GPIO H pins");
     }
 
+    // sai2 pins
+    {
+        let alt_fn = AlternateFunction::AF10;
+        let speed = OutputSpeed::High;
+        let typ = OutputType::PushPull;
+        let res = Resistor::NoPull;
+
+        // block A (master)
+        let i_pins = &[
+            gpio_i_pins.pin_7.pin(), // sai2_fs_a
+            gpio_i_pins.pin_5.pin(), // sai2_sck_a
+            gpio_i_pins.pin_6.pin(), // sai2_sd_a
+            gpio_i_pins.pin_4.pin(), // sai2_mclk_a
+        ];
+        // block B (synchronous slave)
+        let g_pins = &[
+            gpio_g_pins.pin_10.pin(), // sai2_sd_b
+        ];
+
+        gpio_i
+            .to_alternate_function_all(i_pins, alt_fn, typ, speed, res)
+            .expect("Failed to reserve SAI2 GPIO I pins");
+        gpio_g
+            .to_alternate_function_all(g_pins, alt_fn, typ, speed, res)
+            .expect("Failed to reserve SAI2 GPIO G pins");
+    }
+
     Pins {
         led,
         button,
