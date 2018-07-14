@@ -48,6 +48,7 @@ fn main() -> ! {
     let mut flash = peripherals.FLASH;
     let mut fmc = peripherals.FMC;
     let mut ltdc = peripherals.LTDC;
+    let mut i2c_3 = peripherals.I2C3;
 
     init::init_system_clock_216mhz(&mut rcc, &mut pwr, &mut flash);
     init::enable_gpio_ports(&mut rcc);
@@ -85,12 +86,14 @@ fn main() -> ! {
 
     println!("Hello World");
 
+    init::init_i2c_3(&mut i2c_3, &mut rcc);
+
+    nvic.enable(Interrupt::EXTI0);
+
     // Initialize the allocator BEFORE you use it
     unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }
 
     let xs = vec![1, 2, 3];
-
-    nvic.enable(Interrupt::EXTI0);
 
     let mut previous_button_state = pins.button.get();
     loop {

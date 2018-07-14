@@ -253,49 +253,51 @@ pub fn init_lcd<'a>(ltdc: &'a mut LTDC, rcc: &mut RCC) -> Lcd<'a> {
     lcd::init(ltdc, rcc)
 }
 
-pub fn init_i2c3(i2c3: &mut I2C3, rcc: &mut RCC) {
+pub fn init_i2c_3(i2c: &mut I2C3, rcc: &mut RCC) {
     // enable clocks
     rcc.apb1enr.modify(|_, w| w.i2c3en().enabled());
 
-    /*
     // disable I2C peripheral
-    i2c.cr1.update(|r| r.set_pe(false)); // peripheral_enable
+    i2c.cr1.modify(|_, w| w.pe().clear_bit()); // peripheral_enable register
 
     // configure timing register TODO: check/understand values
-    i2c.timingr.update(|r| {
-        r.set_presc(0x4); // timing_prescaler
-        r.set_scldel(0x9); // data_setup_time
-        r.set_sdadel(0x1); // data_hold_time
-        r.set_sclh(0x27); // scl_high_period
-        r.set_scll(0x32); // scl_low_period
+    i2c.timingr.modify(|_, w| unsafe {
+        w.presc().bits(0x4); // timing_prescaler
+        w.scldel().bits(0x9); // data_setup_time
+        w.sdadel().bits(0x1); // data_hold_time
+        w.sclh().bits(0x27); // scl_high_period
+        w.scll().bits(0x32); // scl_low_period
+        w
     });
 
     // configure oar1
-    i2c.oar1.update(|r| r.set_oa1en(false)); // own_address_1_enable
-    i2c.oar1.update(|r| {
-        r.set_oa1(0x00); // own_address_1
-        r.set_oa1mode(false); // 10 bit mode
-        r.set_oa1en(false); // TODO
+    i2c.oar1.modify(|_, w| w.oa1en().clear_bit()); // own_address_1_enable register
+    i2c.oar1.modify(|_, w| {
+        unsafe { w.oa1().bits(0x00) }; // own_address_1
+        w.oa1mode().clear_bit(); // 10 bit mode
+        w.oa1en().clear_bit(); // TODO
+        w
     });
 
     // configure cr2
-    i2c.cr2.update(|r| {
-        r.set_add10(false); // 10_bit_addressing mode
-        r.set_autoend(false); // automatic_end_mode
+    i2c.cr2.modify(|_, w| {
+        w.add10().clear_bit(); // 10_bit_addressing mode
+        w.autoend().clear_bit(); // automatic_end_mode
+        w
     });
 
     // configure oar2
-    i2c.oar2.update(|r| {
-        r.set_oa2en(false); // own_address_2_enable
+    i2c.oar2.modify(|_, w| {
+        w.oa2en().clear_bit() // own_address_2_enable
     });
 
     // configure cr1
-    i2c.cr1.update(|r| {
-        r.set_gcen(false); // general_call
-        r.set_nostretch(false); // clock_stretching_disable
-        r.set_pe(true); // peripheral_enable
+    i2c.cr1.modify(|_, w| {
+        w.gcen().clear_bit(); // general_call
+        w.nostretch().clear_bit(); // clock_stretching_disable
+        w.pe().set_bit(); // peripheral_enable
+        w
     });
     // wait that init can finish
-    ::system_clock::wait(50);
-*/
+    ::system_clock::wait_ms(50);
 }
