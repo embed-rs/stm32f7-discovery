@@ -13,5 +13,6 @@ pub mod gpio;
 pub mod i2c;
 pub mod init;
 pub mod lcd;
+pub mod random;
 pub mod system_clock;
 pub mod touch;

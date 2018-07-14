@@ -28,6 +28,7 @@ use stm32f7_discovery::{
     gpio::{GpioPort, InputPin, OutputPin},
     init,
     lcd::{self, Color},
+    random::Rng,
     system_clock::{self, Hz},
     touch,
 };
@@ -51,6 +52,7 @@ fn main() -> ! {
     let mut fmc = peripherals.FMC;
     let mut ltdc = peripherals.LTDC;
     let mut sai_2 = peripherals.SAI2;
+    let mut rng = peripherals.RNG;
 
     init::init_system_clock_216mhz(&mut rcc, &mut pwr, &mut flash);
     init::enable_gpio_ports(&mut rcc);
@@ -98,7 +100,18 @@ fn main() -> ! {
     touch::check_family_id(&mut i2c_3).unwrap();
 
     init::init_sai_2(&mut sai_2, &mut rcc);
-    assert!(init::init_wm8994(&mut i2c_3).is_ok(), "WM8994 init failed");
+    init::init_wm8994(&mut i2c_3).expect("WM8994 init failed");
+
+    let mut rng = Rng::init(&mut rng, &mut rcc).expect("RNG init failed");
+    print!("Random numbers: ");
+    for _ in 0..4 {
+        print!(
+            "{} ",
+            rng.poll_and_get()
+                .expect("Failed to generate random number")
+        );
+    }
+    println!("");
 
     // Initialize the allocator BEFORE you use it
     unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }
