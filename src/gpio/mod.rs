@@ -145,12 +145,6 @@ where
     BSRR: BsrrTrait,
 {
     fn set(&self, pin: PinNumber, value: bool) {
-        unsafe { (&mut *self.register) }.write(|w| {
-            if value {
-                w.set(pin)
-            } else {
-                w.reset(pin)
-            }
-        });
+        unsafe { (&mut *self.register) }.write(|w| if value { w.set(pin) } else { w.reset(pin) });
     }
 }

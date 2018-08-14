@@ -29,6 +29,7 @@ use stm32f7_discovery::{
     init,
     lcd::{self, Color},
     random::Rng,
+    sd,
     system_clock::{self, Hz},
     touch,
 };
@@ -53,6 +54,7 @@ fn main() -> ! {
     let mut ltdc = peripherals.LTDC;
     let mut sai_2 = peripherals.SAI2;
     let mut rng = peripherals.RNG;
+    let mut sdmmc = peripherals.SDMMC1;
 
     init::init_system_clock_216mhz(&mut rcc, &mut pwr, &mut flash);
     init::enable_gpio_ports(&mut rcc);
@@ -96,6 +98,9 @@ fn main() -> ! {
     i2c_3.test_2();
 
     nvic.enable(Interrupt::EXTI0);
+
+    // SD
+    let mut sd = sd::Sd::new(&mut sdmmc, &mut rcc, &pins.sdcard_present);
 
     touch::check_family_id(&mut i2c_3).unwrap();
 
@@ -149,6 +154,15 @@ fn main() -> ! {
         let data1 = sai_2.bdr.read().data().bits();
 
         audio_writer.set_next_col(data0, data1);
+
+        // Initialize the SD Card on insert and deinitialize on extract.
+        if sd.card_present() && !sd.card_initialized() {
+            if let Some(i_err) = sd::init(&mut sd).err() {
+                println!("{:?}", i_err);
+            }
+        } else if !sd.card_present() && sd.card_initialized() {
+            sd::de_init(&mut sd);
+        }
     }
 }
 

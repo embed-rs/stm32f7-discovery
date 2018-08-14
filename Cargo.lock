@@ -26,6 +26,11 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "bitflags"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "cc"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -108,6 +113,7 @@ version = "0.1.0"
 dependencies = [
  "alloc-cortex-m 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "arrayvec 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bitflags 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m-rt 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m-semihosting 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -139,6 +145,7 @@ dependencies = [
 "checksum alloc-cortex-m 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)" = "6d5f7d01bc93ce089de636f946f7f1fdc5e5d751732367e019c9755440e7aef4"
 "checksum arrayvec 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)" = "a1e964f9e24d588183fcb43503abda40d288c8657dfc27311516ce2f05675aef"
 "checksum bare-metal 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "ad046fbca36b9b8b593ebccb968382d2a196d35dbcaa511e5af5da9aab503fd7"
+"checksum bitflags 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d0c54bb8f454c567f21197eefcdbf5679d0bd99f2ddbe52e84c77061952e6789"
 "checksum cc 1.0.18 (registry+https://github.com/rust-lang/crates.io-index)" = "2119ea4867bd2b8ed3aecab467709720b2d55b1bcfe09f772fd68066eaf15275"
 "checksum cortex-m 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "de9b334d0778b1ace2dfb63672594d0c0db093a3924617ad4e2f1669d32832dc"
 "checksum cortex-m 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)" = "a0fe072148cea4ada9239b401e5ab704bc6db52d2520be68a2483e5e4a78b8a2"

@@ -4,11 +4,18 @@ use gpio::{
     RegisterBlockB, RegisterBlockD, Resistor,
 };
 
-pub struct Pins<Led: OutputPin, Button: InputPin, DisplayEnable: OutputPin, Backlight: OutputPin> {
+pub struct Pins<
+    Led: OutputPin,
+    Button: InputPin,
+    DisplayEnable: OutputPin,
+    Backlight: OutputPin,
+    SdcardPresent: InputPin,
+> {
     pub led: Led,
     pub button: Button,
     pub display_enable: DisplayEnable,
     pub backlight: Backlight,
+    pub sdcard_present: SdcardPresent,
 }
 
 pub fn init<'a>(
@@ -23,7 +30,13 @@ pub fn init<'a>(
     mut gpio_i: GpioPort<RegisterBlockD<'a>>,
     mut gpio_j: GpioPort<RegisterBlockD<'a>>,
     mut gpio_k: GpioPort<RegisterBlockD<'a>>,
-) -> Pins<impl OutputPin + 'a, impl InputPin + 'a, impl OutputPin + 'a, impl OutputPin + 'a> {
+) -> Pins<
+    impl OutputPin + 'a,
+    impl InputPin + 'a,
+    impl OutputPin + 'a,
+    impl OutputPin + 'a,
+    impl InputPin + 'a,
+> {
     let _gpio_a_pins = PortPins::new();
     let gpio_b_pins = PortPins::new();
     let gpio_c_pins = PortPins::new();
@@ -42,8 +55,7 @@ pub fn init<'a>(
             OutputType::PushPull,
             OutputSpeed::Low,
             Resistor::NoPull,
-        )
-        .expect("Pin I-1 already in use");
+        ).expect("Pin I-1 already in use");
     let button = gpio_i
         .to_input(gpio_i_pins.pin_11.pin(), Resistor::NoPull)
         .expect("Pin I-11 already in use");
@@ -200,16 +212,14 @@ pub fn init<'a>(
                 OutputType::PushPull,
                 OutputSpeed::Low,
                 Resistor::PullDown,
-            )
-            .expect("Failed to reserve LCD display enable pin");
+            ).expect("Failed to reserve LCD display enable pin");
         let backlight = gpio_k
             .to_output(
                 gpio_k_pins.pin_3.pin(),
                 OutputType::PushPull,
                 OutputSpeed::Low,
                 Resistor::PullDown,
-            )
-            .expect("Failed to reserve LCD backlight pin");
+            ).expect("Failed to reserve LCD backlight pin");
         (display_enable, backlight)
     };
 
@@ -273,11 +283,53 @@ pub fn init<'a>(
             .expect("Failed to reserve SAI2 GPIO G pins");
     }
 
+    // SD card pins
+    let sdcard_present = {
+        let alt_fn = AlternateFunction::AF12;
+        let speed = OutputSpeed::High;
+        let typ = OutputType::PushPull;
+        let res = Resistor::PullUp;
+
+        // dx = data ports. For Default Bus mode only d0 is needed.
+        let b_pins = &[
+            gpio_b_pins.pin_8.pin(), // d4
+            gpio_b_pins.pin_9.pin(), // d5
+        ];
+        let c_pins = &[
+            gpio_c_pins.pin_8.pin(),  // d0
+            gpio_c_pins.pin_9.pin(),  // d1
+            gpio_c_pins.pin_10.pin(), // d2
+            gpio_c_pins.pin_11.pin(), // d3
+            gpio_c_pins.pin_6.pin(),  // d6
+            gpio_c_pins.pin_7.pin(),  // d7
+            gpio_c_pins.pin_12.pin(), // ck (clock)
+        ];
+        let d_pins = &[
+            gpio_d_pins.pin_2.pin(), // cmd
+        ];
+
+        gpio_b
+            .to_alternate_function_all(b_pins, alt_fn, typ, speed, res)
+            .expect("Failed to reserve SD card GPIO B pins");
+        gpio_c
+            .to_alternate_function_all(c_pins, alt_fn, typ, speed, res)
+            .expect("Failed to reserve SD card GPIO C pins");
+        gpio_d
+            .to_alternate_function_all(d_pins, alt_fn, typ, speed, res)
+            .expect("Failed to reserve SD card GPIO D pins");
+
+        let present_pin = gpio_c
+            .to_input(gpio_c_pins.pin_13.pin(), Resistor::PullUp)
+            .expect("Failed to reserve SD card present pin");
+        present_pin
+    };
+
     Pins {
         led,
         button,
         display_enable,
         backlight,
+        sdcard_present,
     }
 }
 

@@ -56,8 +56,10 @@ impl Color {
     }
 
     pub fn to_argb1555(&self) -> u16 {
-        (u16::from(self.alpha) & 0x80) << 8 | (u16::from(self.red) & 0xf8) << 7 |
-            (u16::from(self.green) & 0xf8) << 2 | (u16::from(self.blue) & 0xf8) >> 3
+        (u16::from(self.alpha) & 0x80) << 8
+            | (u16::from(self.red) & 0xf8) << 7
+            | (u16::from(self.green) & 0xf8) << 2
+            | (u16::from(self.blue) & 0xf8) >> 3
     }
 
     pub fn from_argb1555(color: u16) -> Color {
@@ -68,7 +70,7 @@ impl Color {
             blue: ((color << 3) & 0xf8) as u8,
         }
     }
-    
+
     pub fn from_hsv(hue: i32, saturation: f32, value: f32) -> Color {
         let mut h = hue % 360;
         if h < 0 {
@@ -106,8 +108,9 @@ impl Color {
         rgb.2 += m;
 
         Color::rgb(
-                (255f32 * rgb.0) as u8,
-                (255f32 * rgb.1) as u8,
-                (255f32 * rgb.2) as u8)
+            (255f32 * rgb.0) as u8,
+            (255f32 * rgb.1) as u8,
+            (255f32 * rgb.2) as u8,
+        )
     }
 }

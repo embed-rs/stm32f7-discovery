@@ -108,6 +108,24 @@ pub fn enable_gpio_ports(rcc: &mut RCC) {
         w.gpioken().enabled();
         w
     });
+    // wait till enabled
+    loop {
+        let ahb1enr = rcc.ahb1enr.read();
+        if ahb1enr.gpioaen().is_enabled()
+            && ahb1enr.gpioben().is_enabled()
+            && ahb1enr.gpiocen().is_enabled()
+            && ahb1enr.gpioden().is_enabled()
+            && ahb1enr.gpioeen().is_enabled()
+            && ahb1enr.gpiofen().is_enabled()
+            && ahb1enr.gpiogen().is_enabled()
+            && ahb1enr.gpiohen().is_enabled()
+            && ahb1enr.gpioien().is_enabled()
+            && ahb1enr.gpiojen().is_enabled()
+            && ahb1enr.gpioken().is_enabled()
+        {
+            break;
+        }
+    }
 }
 
 pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) {

@@ -1,5 +1,5 @@
-use i2c::{self, I2C};
 use arrayvec::ArrayVec;
+use i2c::{self, I2C};
 
 const FT5336_ADDRESS: i2c::Address = i2c::Address::bits_7(0b0111000);
 const FT5336_FAMILY_ID_REGISTER: u8 = 0xA8;
