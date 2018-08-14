@@ -19,7 +19,7 @@ pub struct Pins<
 }
 
 pub fn init<'a>(
-    _gpio_a: GpioPort<RegisterBlockA<'a>>,
+    mut gpio_a: GpioPort<RegisterBlockA<'a>>,
     mut gpio_b: GpioPort<RegisterBlockB<'a>>,
     mut gpio_c: GpioPort<RegisterBlockD<'a>>,
     mut gpio_d: GpioPort<RegisterBlockD<'a>>,
@@ -37,7 +37,7 @@ pub fn init<'a>(
     impl OutputPin + 'a,
     impl InputPin + 'a,
 > {
-    let _gpio_a_pins = PortPins::new();
+    let gpio_a_pins = PortPins::new();
     let gpio_b_pins = PortPins::new();
     let gpio_c_pins = PortPins::new();
     let gpio_d_pins = PortPins::new();
@@ -323,6 +323,41 @@ pub fn init<'a>(
             .expect("Failed to reserve SD card present pin");
         present_pin
     };
+
+    // ethernet pins
+    {
+        let alt_fn = AlternateFunction::AF11;
+        let speed = OutputSpeed::High;
+        let typ = OutputType::PushPull;
+        let res = Resistor::NoPull;
+
+        // RMII pins
+        let a_pins = &[
+            gpio_a_pins.pin_1.pin(), // ref_clk
+            gpio_a_pins.pin_2.pin(), // mdio
+            gpio_a_pins.pin_7.pin(), // crsdv
+        ];
+        let c_pins = &[
+            gpio_c_pins.pin_1.pin(), // mdc
+            gpio_c_pins.pin_4.pin(), // rxd0
+            gpio_c_pins.pin_5.pin(), // rxd1
+        ];
+        let g_pins = &[
+            gpio_g_pins.pin_11.pin(), // tx_en
+            gpio_g_pins.pin_13.pin(), // txd0
+            gpio_g_pins.pin_14.pin(), // txd1
+        ];
+
+        gpio_a
+            .to_alternate_function_all(a_pins, alt_fn, typ, speed, res)
+            .expect("Failed to reserve ethernet GPIO A pins");
+        gpio_c
+            .to_alternate_function_all(c_pins, alt_fn, typ, speed, res)
+            .expect("Failed to reserve ethernet GPIO C pins");
+        gpio_g
+            .to_alternate_function_all(g_pins, alt_fn, typ, speed, res)
+            .expect("Failed to reserve ethernet GPIO G pins");
+    }
 
     Pins {
         led,

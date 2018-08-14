@@ -57,6 +57,10 @@ pub fn init(Hz(frequency): Hz, systick: &mut SYST, rcc: &RCC) {
     systick.enable_counter();
 }
 
+pub fn get_frequency() -> Hz {
+    Hz(FREQUENCY.load(Ordering::Acquire))
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct Hz(pub usize);

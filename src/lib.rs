@@ -13,6 +13,10 @@ extern crate spin;
 extern crate stm32f7;
 #[macro_use]
 extern crate bitflags;
+extern crate smoltcp;
+extern crate volatile;
+extern crate bit_field;
+extern crate byteorder;
 
 pub mod gpio;
 pub mod i2c;
@@ -22,3 +26,4 @@ pub mod random;
 pub mod sd;
 pub mod system_clock;
 pub mod touch;
+pub mod ethernet;
