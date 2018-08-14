@@ -11,6 +11,7 @@ const FT5336_DATA_REGISTERS: [u8; 5] = [0x03, 0x09, 0x0F, 0x15, 0x1B];
 pub fn check_family_id(i2c_3: &mut I2C) -> Result<(), i2c::Error> {
     i2c_3.connect::<u8, _>(FT5336_ADDRESS, |mut conn| {
         // read and check device family ID
+        // FIXME: This assertion fails in release mode (read returns Err(_))
         assert_eq!(conn.read(FT5336_FAMILY_ID_REGISTER).ok(), Some(0x51));
         Ok(())
     })
