@@ -4,14 +4,7 @@ target = "thumbv7em-none-eabihf"
 [target.thumbv7em-none-eabihf]
 runner = "sh gdb.sh"
 rustflags = [
-  "-C", "link-arg=-Wl,-Tlink.x",
-  "-C", "link-arg=-nostartfiles",
-
-  # uncomment to use rustc LLD to link programs (a)
-  # "-C", "link-arg=-Tlink.x",
-  # "-C", "linker=lld",
-  # "-Z", "linker-flavor=ld.lld",
+  "-C", "link-arg=-Tlink.x",
+  "-C", "linker=rust-lld",
+  "-Z", "linker-flavor=ld.lld",
 ]
-
-# (a) you also need to comment out the other two `link-arg` lines. But note that as of v0.6.0 LLD
-# has a bug where it mislinks FFI calls and they up crashing the program at runtime
