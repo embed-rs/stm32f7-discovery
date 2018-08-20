@@ -83,8 +83,8 @@ dependencies = [
 
 [[package]]
 name = "font8x8"
-version = "0.1.5"
-source = "git+https://github.com/phil-opp/font8x8-rs#03866ff66820a4b73f997409c33066b406ede522"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "linked_list_allocator"
@@ -144,7 +144,7 @@ dependencies = [
  "cortex-m 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m-rt 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m-semihosting 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "font8x8 0.1.5 (git+https://github.com/phil-opp/font8x8-rs)",
+ "font8x8 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp.git)",
  "spin 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "stm32f7 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -187,7 +187,7 @@ dependencies = [
 "checksum cortex-m 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)" = "a0fe072148cea4ada9239b401e5ab704bc6db52d2520be68a2483e5e4a78b8a2"
 "checksum cortex-m-rt 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "6d5c26952ec2bdfd3c66cddb22cb6432b042ca9ccda55762ebba68b73adbae5a"
 "checksum cortex-m-semihosting 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0b3d0df96d537c4f66dd9f4d1da21d83f9a5917990196925b3603be85e46071e"
-"checksum font8x8 0.1.5 (git+https://github.com/phil-opp/font8x8-rs)" = "<none>"
+"checksum font8x8 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)" = "b81d84c3c978af7d05d31a2198af4b9ba956d819d15d8f6d58fc150e33f8dc1f"
 "checksum linked_list_allocator 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)" = "655d57c71827fe0891ce72231b6aa5e14033dae3f604609e6a6f807267c1678d"
 "checksum managed 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)" = "fdcec5e97041c7f0f1c5b7d93f12e57293c831c646f4cc7a5db59460c7ea8de6"
 "checksum nodrop 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)" = "9a2228dca57108069a5262f2ed8bd2e82496d2e074a06d1ccc7ce1687b6ae0a2"

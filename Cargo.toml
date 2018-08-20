@@ -11,7 +11,6 @@ cortex-m-rt = "0.5.1"
 cortex-m-semihosting = "0.3.0"
 alloc-cortex-m = "0.3.4"
 spin = "0.4.8"
-font8x8 = { git = "https://github.com/phil-opp/font8x8-rs" }
 bitflags = "1.0.3"
 volatile = "0.2.4"
 bit_field = "0.9.0"
@@ -32,6 +31,11 @@ default-features = false
 git = "https://github.com/m-labs/smoltcp.git"
 default-features = false
 features = ["alloc", "socket-raw", "socket-udp", "socket-tcp", "socket-icmp", "proto-ipv4"]
+
+[dependencies.font8x8]
+version = "0.2.4"
+default-features = false
+features = ["unicode"]
 
 [profile.release]
 codegen-units = 1 # better optimizations

@@ -258,16 +258,15 @@ impl<'a, T: Framebuffer> TextWriter<'a, T> {
 
 impl<'a, T: Framebuffer> fmt::Write for TextWriter<'a, T> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        use font8x8::{self, Utf16Fonts};
+        use font8x8::{self, UnicodeFonts};
 
         for c in s.chars() {
             if c == '\n' {
                 self.newline();
                 continue;
             }
-            let c = c as u16;
             match c {
-                0..=0x7f => {
+                ' '..='~' => {
                     let rendered = font8x8::BASIC_FONTS
                         .get(c)
                         .expect("character not found in basic font");
