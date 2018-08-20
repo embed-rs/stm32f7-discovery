@@ -97,6 +97,7 @@ impl<'d> EthernetDevice<'d> {
 impl<'d> Drop for EthernetDevice<'d> {
     fn drop(&mut self) {
         // TODO stop ethernet device and wait for idle
+        unimplemented!();
     }
 }
 
