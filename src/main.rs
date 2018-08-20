@@ -123,10 +123,9 @@ fn main() -> ! {
     // SD
     let mut sd = sd::Sd::new(&mut sdmmc, &mut rcc, &pins.sdcard_present);
 
-    touch::check_family_id(&mut i2c_3).unwrap();
-
     init::init_sai_2(&mut sai_2, &mut rcc);
     init::init_wm8994(&mut i2c_3).expect("WM8994 init failed");
+    touch::check_family_id(&mut i2c_3).unwrap();
 
     // ethernet
     let mut ethernet_interface = ethernet::EthernetDevice::new(
