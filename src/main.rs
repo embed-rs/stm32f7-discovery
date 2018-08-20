@@ -124,6 +124,8 @@ fn main() -> ! {
 
     init::init_sai_2(&mut sai_2, &mut rcc);
     init::init_wm8994(&mut i2c_3).expect("WM8994 init failed");
+    // touch initialization should be done after audio initialization, because the touch
+    // controller might not be ready yet
     touch::check_family_id(&mut i2c_3).unwrap();
 
     let mut rng = Rng::init(&mut rng, &mut rcc).expect("RNG init failed");
