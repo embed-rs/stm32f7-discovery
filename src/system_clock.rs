@@ -15,20 +15,13 @@ pub fn ticks() -> usize {
 }
 
 pub fn wait_ticks(ticks: usize) {
-    let current = TICKS.load(Ordering::Acquire);
+    let current = self::ticks();
     let desired = current + ticks;
-    while TICKS.load(Ordering::Acquire) != desired {}
+    while self::ticks() != desired {}
 }
 
 pub fn wait_ms(ms: usize) {
-    let frequency = FREQUENCY.load(Ordering::Acquire);
-    let thousand_ticks = frequency / ms;
-    let ticks = if thousand_ticks % 1000 == 0 {
-        thousand_ticks / 1000
-    } else {
-        (thousand_ticks / 1000) + 1 // round up
-    };
-    wait_ticks(ticks);
+    wait_ticks(ms_to_ticks(ms));
 }
 
 pub fn init(Hz(frequency): Hz, systick: &mut SYST, rcc: &RCC) {
@@ -66,3 +59,18 @@ pub fn system_clock_speed() -> Hz {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct Hz(pub usize);
+
+pub fn ticks_to_ms(ticks: usize) -> usize {
+    let frequency = FREQUENCY.load(Ordering::Acquire);
+    (ticks * 1000) / frequency
+}
+
+pub fn ms_to_ticks(ms: usize) -> usize {
+    let frequency = FREQUENCY.load(Ordering::Acquire);
+    let ticks_x1000 = frequency * ms;
+    if ticks_x1000 % 1000 == 0 {
+        ticks_x1000 / 1000
+    } else {
+        (ticks_x1000 / 1000) + 1 // round up
+    }
+}

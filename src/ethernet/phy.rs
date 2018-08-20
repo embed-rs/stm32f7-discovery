@@ -12,7 +12,7 @@ const PHY_RESET: u16 = 1 << 15;
 const AUTONEGOTIATION_ENABLE: u16 = 1 << 12;
 const AUTONEGOTIATION_RESTART: u16 = 1 << 9;
 
-const TIMEOUT: usize = 5_000;
+const TIMEOUT_MS: usize = 5000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
@@ -45,9 +45,10 @@ pub fn init(ethernet_mac: &mut ETHERNET_MAC) -> Result<AutoNegotiationResult, Er
     while phy_read(ethernet_mac, LAN8742A_PHY_ADDRESS, BASIC_CONTROL_REG) & PHY_RESET != 0 {}
 
     // wait for link bit
+    let timeout_ticks = system_clock::ms_to_ticks(TIMEOUT_MS);
     let ticks = system_clock::ticks();
     while !phy_read(ethernet_mac, LAN8742A_PHY_ADDRESS, BASIC_STATUS_REG).get_bit(2) {
-        if system_clock::ticks() - ticks > TIMEOUT {
+        if system_clock::ticks() - ticks > timeout_ticks {
             return Err(Error::LinkTimeout); // timeout
         }
     }
@@ -63,7 +64,7 @@ pub fn init(ethernet_mac: &mut ETHERNET_MAC) -> Result<AutoNegotiationResult, Er
     // wait until auto-negotiation complete bit is set
     let ticks = system_clock::ticks();
     while !phy_read(ethernet_mac, LAN8742A_PHY_ADDRESS, BASIC_STATUS_REG).get_bit(5) {
-        if system_clock::ticks() - ticks > TIMEOUT {
+        if system_clock::ticks() - ticks > timeout_ticks {
             return Err(Error::AutoNegotiationTimeout); // timeout
         }
     }
