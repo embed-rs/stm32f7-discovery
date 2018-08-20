@@ -143,19 +143,21 @@ fn main() -> ! {
     };
 
     let mut sockets = SocketSet::new(Vec::new());
-    let endpoint = IpEndpoint::new(IpAddress::Ipv4(IP_ADDR), 15);
 
-    let udp_rx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 3], vec![0u8; 256]);
-    let udp_tx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 1], vec![0u8; 128]);
-    let mut example_udp_socket = UdpSocket::new(udp_rx_buffer, udp_tx_buffer);
-    example_udp_socket.bind(endpoint).unwrap();
-    sockets.add(example_udp_socket);
+    if ethernet_interface.is_ok() {
+        let endpoint = IpEndpoint::new(IpAddress::Ipv4(IP_ADDR), 15);
+        let udp_rx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 3], vec![0u8; 256]);
+        let udp_tx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 1], vec![0u8; 128]);
+        let mut example_udp_socket = UdpSocket::new(udp_rx_buffer, udp_tx_buffer);
+        example_udp_socket.bind(endpoint).unwrap();
+        sockets.add(example_udp_socket);
 
-    let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
-    let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
-    let mut example_tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
-    example_tcp_socket.listen(endpoint).unwrap();
-    sockets.add(example_tcp_socket);
+        let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
+        let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
+        let mut example_tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
+        example_tcp_socket.listen(endpoint).unwrap();
+        sockets.add(example_tcp_socket);
+    }
 
     let mut rng = Rng::init(&mut rng, &mut rcc).expect("RNG init failed");
     print!("Random numbers: ");
