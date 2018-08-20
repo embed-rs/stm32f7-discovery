@@ -109,6 +109,11 @@ fn main() -> ! {
 
     println!("Hello World");
 
+    // Initialize the allocator BEFORE you use it
+    unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }
+
+    let xs = vec![1, 2, 3];
+
     let mut i2c_3 = init::init_i2c_3(&peripherals.I2C3, &mut rcc);
     i2c_3.test_1();
     i2c_3.test_2();
@@ -162,11 +167,6 @@ fn main() -> ! {
         );
     }
     println!("");
-
-    // Initialize the allocator BEFORE you use it
-    unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }
-
-    let xs = vec![1, 2, 3];
 
     let mut previous_button_state = pins.button.get();
     loop {
