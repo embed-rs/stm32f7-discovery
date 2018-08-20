@@ -306,14 +306,12 @@ fn default_handler(irqn: i16) {
 
 // define what happens in an Out Of Memory (OOM) condition
 #[alloc_error_handler]
-#[no_mangle]
-pub fn rust_oom(_: AllocLayout) -> ! {
+fn rust_oom(_: AllocLayout) -> ! {
     panic!("out of memory");
 }
 
 #[panic_implementation]
-#[no_mangle]
-pub fn panic(info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
     interrupt::disable();
 
     if lcd::stdout::is_initialized() {
