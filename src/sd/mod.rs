@@ -255,8 +255,7 @@ impl<'a, PresentPin: InputPin> Sd<'a, PresentPin> {
         }
 
         // If there is still valid data in the FIFO, empty the FIFO
-        while (::system_clock::ms() as u32) < timeout
-            && self.sdmmc.sta.read().rxdavl().bit_is_set()
+        while (::system_clock::ms() as u32) < timeout && self.sdmmc.sta.read().rxdavl().bit_is_set()
         {
             data.push(self.sdmmc.fifo.read().fifodata().bits());
         }
