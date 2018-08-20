@@ -48,7 +48,7 @@ use stm32f7_discovery::{
 #[global_allocator]
 static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
 
-const HEAP_SIZE: usize = 1024; // in bytes
+const HEAP_SIZE: usize = 50 * 1024; // in bytes
 const ETH_ADDR: EthernetAddress = EthernetAddress([0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef]);
 const IP_ADDR: Ipv4Address = Ipv4Address([141, 52, 46, 198]);
 
