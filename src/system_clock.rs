@@ -3,6 +3,7 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 use stm32f7::stm32f7x6::{RCC, SYST};
 
 static TICKS: AtomicUsize = AtomicUsize::new(0);
+static SYSTEM_CLOCK_SPEED: AtomicUsize = AtomicUsize::new(0);
 static FREQUENCY: AtomicUsize = AtomicUsize::new(0);
 
 pub fn tick() {
@@ -47,6 +48,7 @@ pub fn init(Hz(frequency): Hz, systick: &mut SYST, rcc: &RCC) {
     let system_clock_speed = (((25 * 1000 * 1000) / pllm) * plln) / pllp; // HSE runs at 25 MHz
     let reload_ticks = u32::try_from(system_clock_speed / frequency as u64).unwrap();
 
+    SYSTEM_CLOCK_SPEED.store(system_clock_speed as usize, Ordering::Release);
     FREQUENCY.store(frequency, Ordering::Release);
 
     // SysTick Reload Value Register = ((25000/25) * 432) / 2 - 1 = 215_999
@@ -57,8 +59,8 @@ pub fn init(Hz(frequency): Hz, systick: &mut SYST, rcc: &RCC) {
     systick.enable_counter();
 }
 
-pub fn get_frequency() -> Hz {
-    Hz(FREQUENCY.load(Ordering::Acquire))
+pub fn system_clock_speed() -> Hz {
+    Hz(SYSTEM_CLOCK_SPEED.load(Ordering::Acquire))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

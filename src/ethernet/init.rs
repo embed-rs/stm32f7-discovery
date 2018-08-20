@@ -44,7 +44,7 @@ pub fn init(
     while ethernet_dma.dmabmr.read().sr().bit_is_set() {} // wait for auto clear
 
     // MAC init: set clock range in MAC MII address register
-    match system_clock::get_frequency() {
+    match system_clock::system_clock_speed() {
         f if f.0 >= 150000000 => {
             ethernet_mac.macmiiar.modify(|_, w| w.cr().cr_150_168()); // 150-168 MHz HCLK/102
         }
