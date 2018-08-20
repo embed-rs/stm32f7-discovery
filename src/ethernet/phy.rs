@@ -1,5 +1,5 @@
 use bit_field::BitField;
-use stm32f7::stm32f7x6::{ETHERNET_MAC};
+use stm32f7::stm32f7x6::ETHERNET_MAC;
 use system_clock;
 
 const LAN8742A_PHY_ADDRESS: u8 = 0;

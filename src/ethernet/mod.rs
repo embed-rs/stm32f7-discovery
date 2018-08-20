@@ -63,12 +63,22 @@ impl<'d> EthernetDevice<'d> {
         let rx_device = RxDevice::new(rx_config)?;
         let tx_device = TxDevice::new(tx_config);
 
-        ethernet_dma.dmardlar.write(|w| w.srl().bits(&rx_device.descriptors[0] as *const Volatile<_> as u32));
-        ethernet_dma.dmatdlar.write(|w| w.stl().bits(tx_device.front_of_queue() as *const Volatile<_> as u32));
+        ethernet_dma.dmardlar.write(|w| {
+            w.srl()
+                .bits(&rx_device.descriptors[0] as *const Volatile<_> as u32)
+        });
+        ethernet_dma.dmatdlar.write(|w| {
+            w.stl()
+                .bits(tx_device.front_of_queue() as *const Volatile<_> as u32)
+        });
 
         let eth_bytes = ethernet_address.as_bytes();
-        ethernet_mac.maca0lr.write(|w| w.maca0l().bits(LittleEndian::read_u32(&eth_bytes[..4])));
-        ethernet_mac.maca0hr.write(|w| w.maca0h().bits(LittleEndian::read_u16(&eth_bytes[4..])));
+        ethernet_mac
+            .maca0lr
+            .write(|w| w.maca0l().bits(LittleEndian::read_u32(&eth_bytes[..4])));
+        ethernet_mac
+            .maca0hr
+            .write(|w| w.maca0h().bits(LittleEndian::read_u16(&eth_bytes[4..])));
 
         init::start(ethernet_mac, ethernet_dma);
         Ok(EthernetDevice {
@@ -79,7 +89,10 @@ impl<'d> EthernetDevice<'d> {
         })
     }
 
-    pub fn into_interface<'a>(self, ip_address: Ipv4Address) -> EthernetInterface<'a, 'a, 'a, Self> {
+    pub fn into_interface<'a>(
+        self,
+        ip_address: Ipv4Address,
+    ) -> EthernetInterface<'a, 'a, 'a, Self> {
         use alloc::collections::BTreeMap;
         use smoltcp::iface::NeighborCache;
 
@@ -177,7 +190,11 @@ impl<'a> TxToken<'a> {
         } else if state.is_suspended() {
             // write poll demand register
             self.ethernet_dma.dmatpdr.write(|w| w.tpd().poll());
-        } else if state.is_running() || state.is_running_fetching() ||state.is_running_waiting() || state.is_running_reading() {
+        } else if state.is_running()
+            || state.is_running_fetching()
+            || state.is_running_waiting()
+            || state.is_running_reading()
+        {
             // do nothing
         } else {
             panic!("unexpected transmit process state");

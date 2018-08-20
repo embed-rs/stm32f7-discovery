@@ -50,7 +50,6 @@ pub fn init(
         }
         _ => panic!("unsupported"),
     };
-   
 
     // init PHY
     let auto_neg_result = phy::init(ethernet_mac)?;

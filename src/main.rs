@@ -17,6 +17,7 @@ extern crate stm32f7;
 extern crate stm32f7_discovery;
 extern crate smoltcp;
 
+use alloc::vec::Vec;
 use alloc_cortex_m::CortexMHeap;
 use core::alloc::Layout as AllocLayout;
 use core::fmt::Write;
@@ -24,8 +25,17 @@ use core::panic::PanicInfo;
 use cortex_m::{asm, interrupt};
 use rt::ExceptionFrame;
 use sh::hio::{self, HStdout};
+use smoltcp::{
+    socket::{
+        Socket, SocketSet, TcpSocket, TcpSocketBuffer, UdpPacketMetadata, UdpSocket,
+        UdpSocketBuffer,
+    },
+    time::Instant,
+    wire::{EthernetAddress, IpAddress, IpEndpoint, Ipv4Address},
+};
 use stm32f7::stm32f7x6::{CorePeripherals, Interrupt, Peripherals};
 use stm32f7_discovery::{
+    ethernet,
     gpio::{GpioPort, InputPin, OutputPin},
     init,
     lcd::{self, Color},
@@ -33,11 +43,7 @@ use stm32f7_discovery::{
     sd,
     system_clock::{self, Hz},
     touch,
-    ethernet,
 };
-use smoltcp::{socket::{Socket, SocketSet,UdpSocketBuffer, UdpSocket, UdpPacketMetadata, TcpSocket, TcpSocketBuffer},
-    wire::{EthernetAddress, Ipv4Address, IpEndpoint, IpAddress}, time::Instant};
-use alloc::vec::Vec;
 
 #[global_allocator]
 static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
@@ -221,7 +227,6 @@ fn main() -> ! {
         }
     }
 }
-
 
 fn poll_socket(socket: &mut Socket) -> Result<(), smoltcp::Error> {
     match socket {
