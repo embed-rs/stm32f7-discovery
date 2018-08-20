@@ -206,7 +206,7 @@ fn main() -> ! {
         if let Ok(ref mut eth) = ethernet_interface {
             match eth.poll(
                 &mut sockets,
-                Instant::from_millis(system_clock::ticks() as i64),
+                Instant::from_millis(system_clock::ms() as i64),
             ) {
                 Err(::smoltcp::Error::Exhausted) => continue,
                 Err(::smoltcp::Error::Unrecognized) => {}

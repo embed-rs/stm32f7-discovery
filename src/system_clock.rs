@@ -14,6 +14,10 @@ pub fn ticks() -> usize {
     TICKS.load(Ordering::Acquire)
 }
 
+pub fn ms() -> usize {
+    ticks_to_ms(ticks())
+}
+
 pub fn wait_ticks(ticks: usize) {
     let current = self::ticks();
     let desired = current + ticks;
