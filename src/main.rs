@@ -306,14 +306,7 @@ fn default_handler(irqn: i16) {
 #[alloc_error_handler]
 #[no_mangle]
 pub fn rust_oom(_: AllocLayout) -> ! {
-    if let Ok(mut hstdout) = hio::hstdout() {
-        let _ = hstdout.write_str("out of memory");
-    }
-
-    // OK to fire a breakpoint here because we know the microcontroller is connected to a debugger
-    asm::bkpt();
-
-    loop {}
+    panic!("out of memory");
 }
 
 #[panic_implementation]
