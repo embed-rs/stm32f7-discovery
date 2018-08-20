@@ -39,23 +39,23 @@ impl From<()> for Error {
 
 pub const MTU: usize = 1536;
 
-pub struct EthernetDevice {
+pub struct EthernetDevice<'d> {
     rx: RxDevice,
     tx: TxDevice,
-    ethernet_dma: &'static mut ETHERNET_DMA,
+    ethernet_dma: &'d mut ETHERNET_DMA,
     ethernet_address: EthernetAddress,
 }
 
-impl EthernetDevice {
+impl<'d> EthernetDevice<'d> {
     pub fn new(
         rx_config: RxConfig,
         tx_config: TxConfig,
         rcc: &mut RCC,
         syscfg: &mut SYSCFG,
-        ethernet_mac: &'static mut ETHERNET_MAC,
-        ethernet_dma: &'static mut ETHERNET_DMA,
+        ethernet_mac: &mut ETHERNET_MAC,
+        ethernet_dma: &'d mut ETHERNET_DMA,
         ethernet_address: EthernetAddress,
-    ) -> Result<EthernetDevice, Error> {
+    ) -> Result<Self, Error> {
         use byteorder::{ByteOrder, LittleEndian};
 
         init::init(rcc, syscfg, ethernet_mac, ethernet_dma)?;
@@ -94,13 +94,13 @@ impl EthernetDevice {
     }
 }
 
-impl Drop for EthernetDevice {
+impl<'d> Drop for EthernetDevice<'d> {
     fn drop(&mut self) {
         // TODO stop ethernet device and wait for idle
     }
 }
 
-impl<'a> Device<'a> for EthernetDevice {
+impl<'a, 'd> Device<'a> for EthernetDevice<'d> {
     type RxToken = RxToken<'a>;
     type TxToken = TxToken<'a>;
 
