@@ -15,6 +15,7 @@ extern crate cortex_m_semihosting as sh;
 extern crate stm32f7;
 #[macro_use]
 extern crate stm32f7_discovery;
+extern crate smoltcp;
 
 use alloc_cortex_m::CortexMHeap;
 use core::alloc::Layout as AllocLayout;
@@ -32,12 +33,18 @@ use stm32f7_discovery::{
     sd,
     system_clock::{self, Hz},
     touch,
+    ethernet,
 };
+use smoltcp::{socket::{Socket, SocketSet,UdpSocketBuffer, UdpSocket, UdpPacketMetadata, TcpSocket, TcpSocketBuffer},
+    wire::{EthernetAddress, Ipv4Address, IpEndpoint, IpAddress}, time::Instant};
+use alloc::vec::Vec;
 
 #[global_allocator]
 static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
 
 const HEAP_SIZE: usize = 1024; // in bytes
+const ETH_ADDR: EthernetAddress = EthernetAddress([0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef]);
+const IP_ADDR: Ipv4Address = Ipv4Address([141, 52, 46, 198]);
 
 entry!(main);
 
@@ -55,6 +62,9 @@ fn main() -> ! {
     let mut sai_2 = peripherals.SAI2;
     let mut rng = peripherals.RNG;
     let mut sdmmc = peripherals.SDMMC1;
+    let mut syscfg = peripherals.SYSCFG;
+    let mut ethernet_mac = peripherals.ETHERNET_MAC;
+    let mut ethernet_dma = peripherals.ETHERNET_DMA;
 
     init::init_system_clock_216mhz(&mut rcc, &mut pwr, &mut flash);
     init::enable_gpio_ports(&mut rcc);
@@ -107,6 +117,35 @@ fn main() -> ! {
     init::init_sai_2(&mut sai_2, &mut rcc);
     init::init_wm8994(&mut i2c_3).expect("WM8994 init failed");
 
+    // ethernet
+    let mut ethernet_interface = ethernet::EthernetDevice::new(
+        Default::default(),
+        Default::default(),
+        &mut rcc,
+        &mut syscfg,
+        &mut ethernet_mac,
+        &mut ethernet_dma,
+        ETH_ADDR,
+    ).map(|device| device.into_interface(IP_ADDR));
+    if let Err(e) = ethernet_interface {
+        println!("ethernet init failed: {:?}", e);
+    };
+
+    let mut sockets = SocketSet::new(Vec::new());
+    let endpoint = IpEndpoint::new(IpAddress::Ipv4(IP_ADDR), 15);
+
+    let udp_rx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 3], vec![0u8; 256]);
+    let udp_tx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 1], vec![0u8; 128]);
+    let mut example_udp_socket = UdpSocket::new(udp_rx_buffer, udp_tx_buffer);
+    example_udp_socket.bind(endpoint).unwrap();
+    sockets.add(example_udp_socket);
+
+    let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
+    let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
+    let mut example_tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
+    example_tcp_socket.listen(endpoint).unwrap();
+    sockets.add(example_tcp_socket);
+
     let mut rng = Rng::init(&mut rng, &mut rcc).expect("RNG init failed");
     print!("Random numbers: ");
     for _ in 0..4 {
@@ -155,6 +194,23 @@ fn main() -> ! {
 
         audio_writer.set_next_col(data0, data1);
 
+        // handle new ethernet packets
+        if let Ok(ref mut eth) = ethernet_interface {
+            match eth.poll(
+                &mut sockets,
+                Instant::from_millis(system_clock::ticks() as i64),
+            ) {
+                Err(::smoltcp::Error::Exhausted) => continue,
+                Err(::smoltcp::Error::Unrecognized) => {}
+                Err(e) => println!("Network error: {:?}", e),
+                Ok(socket_changed) => if socket_changed {
+                    for mut socket in sockets.iter_mut() {
+                        poll_socket(&mut socket).expect("socket poll failed");
+                    }
+                },
+            }
+        }
+
         // Initialize the SD Card on insert and deinitialize on extract.
         if sd.card_present() && !sd.card_initialized() {
             if let Some(i_err) = sd::init(&mut sd).err() {
@@ -164,6 +220,53 @@ fn main() -> ! {
             sd::de_init(&mut sd);
         }
     }
+}
+
+
+fn poll_socket(socket: &mut Socket) -> Result<(), smoltcp::Error> {
+    match socket {
+        &mut Socket::Udp(ref mut socket) => match socket.endpoint().port {
+            15 => loop {
+                let reply;
+                match socket.recv() {
+                    Ok((data, remote_endpoint)) => {
+                        let mut data = Vec::from(data);
+                        let len = data.len() - 1;
+                        data[..len].reverse();
+                        reply = (data, remote_endpoint);
+                    }
+                    Err(smoltcp::Error::Exhausted) => break,
+                    Err(err) => return Err(err),
+                }
+                socket.send_slice(&reply.0, reply.1)?;
+            },
+            _ => {}
+        },
+        &mut Socket::Tcp(ref mut socket) => match socket.local_endpoint().port {
+            15 => {
+                if !socket.may_recv() {
+                    return Ok(());
+                }
+                let reply = socket.recv(|data| {
+                    if data.len() > 0 {
+                        let mut reply = Vec::from("tcp: ");
+                        let start_index = reply.len();
+                        reply.extend_from_slice(data);
+                        reply[start_index..(start_index + data.len() - 1)].reverse();
+                        (data.len(), Some(reply))
+                    } else {
+                        (data.len(), None)
+                    }
+                })?;
+                if let Some(reply) = reply {
+                    assert_eq!(socket.send_slice(&reply)?, reply.len());
+                }
+            }
+            _ => {}
+        },
+        _ => {}
+    }
+    Ok(())
 }
 
 interrupt!(EXTI0, exti0, state: Option<HStdout> = None);
