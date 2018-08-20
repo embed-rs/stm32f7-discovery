@@ -120,12 +120,22 @@ fn main() -> ! {
 
     nvic.enable(Interrupt::EXTI0);
 
-    // SD
     let mut sd = sd::Sd::new(&mut sdmmc, &mut rcc, &pins.sdcard_present);
 
     init::init_sai_2(&mut sai_2, &mut rcc);
     init::init_wm8994(&mut i2c_3).expect("WM8994 init failed");
     touch::check_family_id(&mut i2c_3).unwrap();
+
+    let mut rng = Rng::init(&mut rng, &mut rcc).expect("RNG init failed");
+    print!("Random numbers: ");
+    for _ in 0..4 {
+        print!(
+            "{} ",
+            rng.poll_and_get()
+                .expect("Failed to generate random number")
+        );
+    }
+    println!("");
 
     // ethernet
     let mut ethernet_interface = ethernet::EthernetDevice::new(
@@ -157,17 +167,6 @@ fn main() -> ! {
         example_tcp_socket.listen(endpoint).unwrap();
         sockets.add(example_tcp_socket);
     }
-
-    let mut rng = Rng::init(&mut rng, &mut rcc).expect("RNG init failed");
-    print!("Random numbers: ");
-    for _ in 0..4 {
-        print!(
-            "{} ",
-            rng.poll_and_get()
-                .expect("Failed to generate random number")
-        );
-    }
-    println!("");
 
     let mut previous_button_state = pins.button.get();
     loop {
