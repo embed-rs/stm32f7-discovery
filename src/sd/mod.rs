@@ -10,7 +10,7 @@ use self::error::*;
 use alloc::vec::Vec;
 use core::cmp::min;
 use gpio::InputPin;
-use stm32f7::stm32f7x6::{SDMMC1, RCC};
+use stm32f7::stm32f7x6::{RCC, SDMMC1};
 
 /// SD handle.
 pub struct Sd<'a, PresentPin: InputPin + 'a> {

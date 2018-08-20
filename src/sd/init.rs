@@ -1,7 +1,7 @@
 use super::error::Error;
 use super::{sdmmc_cmd, CardInfo, CardType, Sd};
 use gpio::InputPin;
-use stm32f7::stm32f7x6::{SDMMC1, RCC};
+use stm32f7::stm32f7x6::{RCC, SDMMC1};
 
 /// Initializes the SD Card, if it is inserted and not already initialized. If the card is already
 /// initialized this function does nothing and returns no error.
