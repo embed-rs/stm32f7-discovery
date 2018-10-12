@@ -1,5 +1,4 @@
 #![feature(alloc)]
-#![feature(panic_implementation)]
 #![feature(alloc_error_handler)]
 #![no_main]
 #![no_std]
@@ -310,7 +309,7 @@ fn rust_oom(_: AllocLayout) -> ! {
     panic!("out of memory");
 }
 
-#[panic_implementation]
+#[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     interrupt::disable();
 
