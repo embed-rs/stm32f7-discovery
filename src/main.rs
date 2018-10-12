@@ -6,7 +6,6 @@
 #[macro_use]
 extern crate alloc;
 extern crate cortex_m;
-#[macro_use]
 extern crate cortex_m_rt as rt;
 extern crate alloc_cortex_m;
 extern crate cortex_m_semihosting as sh;
@@ -22,7 +21,7 @@ use core::alloc::Layout as AllocLayout;
 use core::fmt::Write;
 use core::panic::PanicInfo;
 use cortex_m::{asm, interrupt};
-use rt::ExceptionFrame;
+use rt::{entry, exception, ExceptionFrame};
 use sh::hio::{self, HStdout};
 use smoltcp::{
     socket::{
@@ -51,8 +50,7 @@ const HEAP_SIZE: usize = 50 * 1024; // in bytes
 const ETH_ADDR: EthernetAddress = EthernetAddress([0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef]);
 const IP_ADDR: Ipv4Address = Ipv4Address([141, 52, 46, 198]);
 
-entry!(main);
-
+#[entry]
 fn main() -> ! {
     let core_peripherals = CorePeripherals::take().unwrap();
     let mut systick = core_peripherals.SYST;
@@ -281,9 +279,8 @@ fn exti0(_state: &mut Option<HStdout>) {
     println!("Interrupt fired! This means that the button was pressed.");
 }
 
-exception!(SysTick, sys_tick, state: Option<HStdout> = None);
-
-fn sys_tick(_state: &mut Option<HStdout>) {
+#[exception]
+fn SysTick() {
     system_clock::tick();
     // print a `.` every 500ms
     if system_clock::ticks() % 50 == 0 && lcd::stdout::is_initialized() {
@@ -291,15 +288,13 @@ fn sys_tick(_state: &mut Option<HStdout>) {
     }
 }
 
-exception!(HardFault, hard_fault);
-
-fn hard_fault(ef: &ExceptionFrame) -> ! {
+#[exception]
+fn HardFault(ef: &ExceptionFrame) -> ! {
     panic!("HardFault at {:#?}", ef);
 }
 
-exception!(*, default_handler);
-
-fn default_handler(irqn: i16) {
+#[exception]
+fn DefaultHandler(irqn: i16) {
     panic!("Unhandled exception (IRQn = {})", irqn);
 }
 

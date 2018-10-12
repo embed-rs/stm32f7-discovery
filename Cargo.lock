@@ -32,17 +32,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "bitflags"
-version = "1.0.3"
+version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "byteorder"
-version = "1.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "cc"
-version = "1.0.18"
+version = "1.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -55,31 +50,38 @@ dependencies = [
 
 [[package]]
 name = "cortex-m"
-version = "0.5.4"
+version = "0.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "aligned 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bare-metal 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "cc 1.0.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "volatile-register 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "cortex-m-rt"
-version = "0.5.2"
+version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "cc 1.0.18 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cortex-m-rt-macros 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "r0 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
-name = "cortex-m-semihosting"
-version = "0.3.0"
+name = "cortex-m-rt-macros"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "cc 1.0.18 (registry+https://github.com/rust-lang/crates.io-index)",
+ "proc-macro2 0.4.20 (registry+https://github.com/rust-lang/crates.io-index)",
+ "quote 0.6.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syn 0.15.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "cortex-m-semihosting"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "font8x8"
@@ -102,17 +104,54 @@ version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "proc-macro2"
+version = "0.4.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "unicode-xid 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "quote"
+version = "0.6.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "proc-macro2 0.4.20 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "r0"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "rand"
+version = "0.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "rand_core 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "rand_core"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "rand_core 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "rand_core"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "smoltcp"
 version = "0.4.0"
-source = "git+https://github.com/m-labs/smoltcp.git#21396867114d267da06f19cc54cc4a1883b900a5"
+source = "git+https://github.com/m-labs/smoltcp.git#ef014b118b19d2c4e9218be6ab52ffe4c2aecff3"
 dependencies = [
- "bitflags 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "byteorder 1.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bitflags 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "managed 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -123,12 +162,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "stm32f7"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bare-metal 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "cortex-m 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "cortex-m-rt 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cortex-m 0.5.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cortex-m-rt 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "vcell 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -139,17 +178,32 @@ dependencies = [
  "alloc-cortex-m 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "arrayvec 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "bit_field 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "bitflags 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "byteorder 1.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "cortex-m 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "cortex-m-rt 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "cortex-m-semihosting 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bitflags 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cortex-m 0.5.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cortex-m-rt 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cortex-m-semihosting 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "font8x8 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp.git)",
  "spin 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "stm32f7 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "stm32f7 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "volatile 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "syn"
+version = "0.15.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "proc-macro2 0.4.20 (registry+https://github.com/rust-lang/crates.io-index)",
+ "quote 0.6.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "unicode-xid 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "unicode-xid"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "vcell"
@@ -180,21 +234,28 @@ dependencies = [
 "checksum arrayvec 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)" = "a1e964f9e24d588183fcb43503abda40d288c8657dfc27311516ce2f05675aef"
 "checksum bare-metal 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "1bdcf9294ed648c7cd29b11db06ea244005aeef50ae8f605b1a3af2940bf8f92"
 "checksum bit_field 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ed8765909f9009617974ab6b7d332625b320b33c326b1e9321382ef1999b5d56"
-"checksum bitflags 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d0c54bb8f454c567f21197eefcdbf5679d0bd99f2ddbe52e84c77061952e6789"
-"checksum byteorder 1.2.4 (registry+https://github.com/rust-lang/crates.io-index)" = "8389c509ec62b9fe8eca58c502a0acaf017737355615243496cde4994f8fa4f9"
-"checksum cc 1.0.18 (registry+https://github.com/rust-lang/crates.io-index)" = "2119ea4867bd2b8ed3aecab467709720b2d55b1bcfe09f772fd68066eaf15275"
+"checksum bitflags 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)" = "228047a76f468627ca71776ecdebd732a3423081fcf5125585bcd7c49886ce12"
+"checksum byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "90492c5858dd7d2e78691cfb89f90d273a2800fc11d98f60786e5d87e2f83781"
 "checksum cortex-m 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "3df5de9a9829f2ccb7defa8945fa020c6614cd2f6ba9b5f33db9241dcc01985e"
-"checksum cortex-m 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)" = "a0fe072148cea4ada9239b401e5ab704bc6db52d2520be68a2483e5e4a78b8a2"
-"checksum cortex-m-rt 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b4de9e6421e777c5889981a5c2a7d99d1e902d0e81f13373e7333ca48329c6e4"
-"checksum cortex-m-semihosting 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0b3d0df96d537c4f66dd9f4d1da21d83f9a5917990196925b3603be85e46071e"
+"checksum cortex-m 0.5.7 (registry+https://github.com/rust-lang/crates.io-index)" = "4573199c5b1e9b0eeae418b46f7c0af5fdf11b3057f83880810dfef68dd1dcb5"
+"checksum cortex-m-rt 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)" = "d86cfa89fa220d3cb7a41133693e2d302d18e9a632298ffb3738f175c8c12325"
+"checksum cortex-m-rt-macros 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "3139fdadccaa0db6fa96637678ced9b0b97e4f10047c9ab603d125048e107d1a"
+"checksum cortex-m-semihosting 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "54d46ec4730314a01de4504328ef4ed6b2c51b63815caac4847ac9e70f88c9e5"
 "checksum font8x8 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)" = "b81d84c3c978af7d05d31a2198af4b9ba956d819d15d8f6d58fc150e33f8dc1f"
 "checksum linked_list_allocator 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)" = "655d57c71827fe0891ce72231b6aa5e14033dae3f604609e6a6f807267c1678d"
 "checksum managed 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)" = "fdcec5e97041c7f0f1c5b7d93f12e57293c831c646f4cc7a5db59460c7ea8de6"
 "checksum nodrop 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)" = "9a2228dca57108069a5262f2ed8bd2e82496d2e074a06d1ccc7ce1687b6ae0a2"
+"checksum proc-macro2 0.4.20 (registry+https://github.com/rust-lang/crates.io-index)" = "3d7b7eaaa90b4a90a932a9ea6666c95a389e424eff347f0f793979289429feee"
+"checksum quote 0.6.8 (registry+https://github.com/rust-lang/crates.io-index)" = "dd636425967c33af890042c483632d33fa7a18f19ad1d7ea72e8998c6ef8dea5"
 "checksum r0 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e2a38df5b15c8d5c7e8654189744d8e396bddc18ad48041a500ce52d6948941f"
+"checksum rand 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)" = "e464cd887e869cddcae8792a4ee31d23c7edd516700695608f5b98c67ee0131c"
+"checksum rand_core 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1961a422c4d189dfb50ffa9320bf1f2a9bd54ecb92792fb9477f99a1045f3372"
+"checksum rand_core 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0905b6b7079ec73b314d4c748701f6931eb79fd97c668caa3f1899b22b32c6db"
 "checksum smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp.git)" = "<none>"
 "checksum spin 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)" = "37b5646825922b96b5d7d676b5bb3458a54498e96ed7b0ce09dc43a07038fea4"
-"checksum stm32f7 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "f7b4a4c4481b6e6d7e013de07e8dcdd9f0fbaa92c1f2493ea5250f9b3aa6d464"
+"checksum stm32f7 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "7105129993a499e22e79bb1ee81bfb826de6690cc012385fa93c5b0834bdb6ac"
+"checksum syn 0.15.9 (registry+https://github.com/rust-lang/crates.io-index)" = "b10ee269228fb723234fce98e9aac0eaed2bd5f1ad2f6930e8d5b93f04445a1a"
+"checksum unicode-xid 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fc72304796d0818e357ead4e000d19c9c174ab23dc11093ac919054d20a6a7fc"
 "checksum vcell 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "45c297f0afb6928cd08ab1ff9d95e99392595ea25ae1b5ecf822ff8764e57a0d"
 "checksum volatile 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)" = "54d4343a2df2d65144a874f95950754ee7b7e8594f6027aae8c7d0f4858a3fe8"
 "checksum volatile-register 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a470889aa8f2d3ad893bd43cd90c824e63e8ac0ee5fe64c5d81a932d184fd549"
