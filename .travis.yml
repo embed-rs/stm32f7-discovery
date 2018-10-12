@@ -1,23 +1,36 @@
-language: generic
+language: rust
 
-sudo: required
+matrix:
+  include:
+    - env: TARGET=thumbv7em-none-eabihf
+      rust: nightly
+      addons:
+        apt:
+          packages:
+            - gcc-arm-none-eabi
 
-services:
-  - docker
+before_install: set -e
 
-before_script:
-- docker build -t stm32f7-discovery .
+install:
+  - bash ci/install.sh
 
 script:
-- docker run stm32f7-discovery sh -c "
-    set -e;
-    pwd; ls;
-    echo `pwd`;
-    cargo build;
-    cd blinking_led;
-    cargo update;
-    cargo build;
-    cd ../blinking_led_with_interrupts;
-    cargo update;
-    cargo build;
-  "
+  - bash ci/script.sh
+
+after_script: set +e
+
+cache: cargo
+
+before_cache:
+  # Travis can't cache files that are not readable by "others"
+  - chmod -R a+r $HOME/.cargo
+
+branches:
+  only:
+    - staging
+    - trying
+    - master
+
+notifications:
+  email:
+    on_success: never
