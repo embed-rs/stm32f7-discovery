@@ -9,6 +9,10 @@ rust: nightly
 
 env: TARGET=thumbv7em-none-eabihf
 
+matrix:
+  allow_failures:
+    - os: windows # see https://travis-ci.community/t/rust-error-could-not-compile-winapi/268
+
 before_install: set -e
 
 install:
