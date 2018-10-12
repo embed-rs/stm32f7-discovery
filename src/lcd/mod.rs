@@ -1,45 +1,46 @@
-#![allow(dead_code)]
-
 pub use self::color::Color;
 pub use self::init::init;
 pub use self::stdout::init as init_stdout;
-pub use self::font::FontRenderer;
 
-use board::ltdc::Ltdc;
-use embedded::interfaces::gpio::OutputPin;
 use core::{fmt, ptr};
+use stm32f7::stm32f7x6::LTDC;
 
 #[macro_use]
 pub mod stdout;
-mod init;
 mod color;
-pub mod font;
+mod init;
 
-const HEIGHT: usize = 272;
-const WIDTH: usize = 480;
+pub const HEIGHT: usize = 272;
+pub const WIDTH: usize = 480;
 
-const LAYER_1_OCTETS_PER_PIXEL: usize = 4;
-const LAYER_1_LENGTH: usize = HEIGHT * WIDTH * LAYER_1_OCTETS_PER_PIXEL;
-const LAYER_2_OCTETS_PER_PIXEL: usize = 2;
-const LAYER_2_LENGTH: usize = HEIGHT * WIDTH * LAYER_2_OCTETS_PER_PIXEL;
+pub const LAYER_1_OCTETS_PER_PIXEL: usize = 4;
+pub const LAYER_1_LENGTH: usize = HEIGHT * WIDTH * LAYER_1_OCTETS_PER_PIXEL;
+pub const LAYER_2_OCTETS_PER_PIXEL: usize = 2;
+pub const LAYER_2_LENGTH: usize = HEIGHT * WIDTH * LAYER_2_OCTETS_PER_PIXEL;
 
-const SDRAM_START: usize = 0xC000_0000;
-const LAYER_1_START: usize = SDRAM_START;
-const LAYER_2_START: usize = SDRAM_START + LAYER_1_LENGTH;
+pub const SDRAM_START: usize = 0xC000_0000;
+pub const LAYER_1_START: usize = SDRAM_START;
+pub const LAYER_2_START: usize = SDRAM_START + LAYER_1_LENGTH;
 
-static TTF: &[u8] = include_bytes!("../../RobotoMono-Bold.ttf");
-
-pub struct Lcd {
-    controller: &'static mut Ltdc,
-    display_enable: OutputPin,
-    backlight_enable: OutputPin,
+pub struct Lcd<'a> {
+    controller: &'a mut LTDC,
     layer_1_in_use: bool,
     layer_2_in_use: bool,
 }
 
-impl Lcd {
+impl<'a> Lcd<'a> {
+    fn new(ltdc: &'a mut LTDC) -> Self {
+        Self {
+            controller: ltdc,
+            layer_1_in_use: false,
+            layer_2_in_use: false,
+        }
+    }
+
     pub fn set_background_color(&mut self, color: Color) {
-        self.controller.bccr.update(|r| r.set_bc(color.to_rgb()));
+        self.controller
+            .bccr
+            .modify(|_, w| unsafe { w.bc().bits(color.to_rgb()) });
     }
 
     pub fn layer_1(&mut self) -> Option<Layer<FramebufferArgb8888>> {
@@ -89,7 +90,6 @@ pub struct FramebufferAl88 {
     base_addr: usize,
 }
 
-
 impl FramebufferAl88 {
     fn new(base_addr: usize) -> Self {
         Self { base_addr }
@@ -111,14 +111,7 @@ pub struct Layer<T> {
 impl<T: Framebuffer> Layer<T> {
     pub fn horizontal_stripes(&mut self) {
         let colors = [
-            0xffffff,
-            0xcccccc,
-            0x999999,
-            0x666666,
-            0x333333,
-            0x0,
-            0xff0000,
-            0x0000ff,
+            0xffffff, 0xcccccc, 0x999999, 0x666666, 0x333333, 0x0, 0xff0000, 0x0000ff,
         ];
 
         // horizontal stripes
@@ -135,14 +128,7 @@ impl<T: Framebuffer> Layer<T> {
 
     pub fn vertical_stripes(&mut self) {
         let colors = [
-            0xcccccc,
-            0x999999,
-            0x666666,
-            0x333333,
-            0x0,
-            0xff0000,
-            0x0000ff,
-            0xffffff,
+            0xcccccc, 0x999999, 0x666666, 0x333333, 0x0, 0xff0000, 0x0000ff, 0xffffff,
         ];
 
         // vertical stripes
@@ -188,7 +174,6 @@ impl<T: Framebuffer> Layer<T> {
     pub fn text_writer(&mut self) -> TextWriter<T> {
         TextWriter {
             layer: self,
-            font_renderer: FontRenderer::new(TTF, 14.0),
             x_pos: 0,
             y_pos: 0,
         }
@@ -213,12 +198,12 @@ impl<'a, T: Framebuffer + 'a> AudioWriter<'a, T> {
         &mut self.layer
     }
 
-    pub fn set_next_col(&mut self, value0: usize, value1: usize) {
-        let value0 = value0 + 2usize.pow(15);
+    pub fn set_next_col(&mut self, value0: u32, value1: u32) {
+        let value0 = value0 + 2u32.pow(15);
         let value0 = value0 as u16 as usize;
         let value0 = value0 / 241;
 
-        let value1 = value1 + 2usize.pow(15);
+        let value1 = value1 + 2u32.pow(15);
         let value1 = value1 as u16 as usize;
         let value1 = value1 / 241;
 
@@ -249,7 +234,6 @@ impl<'a, T: Framebuffer + 'a> AudioWriter<'a, T> {
             self.layer.print_point_color_at(self.next_col, i, color);
         }
 
-
         self.next_col = (self.next_col + 1) % WIDTH;
         self.prev_value = (value0, value1);
     }
@@ -257,53 +241,54 @@ impl<'a, T: Framebuffer + 'a> AudioWriter<'a, T> {
 
 pub struct TextWriter<'a, T: Framebuffer + 'a> {
     layer: &'a mut Layer<T>,
-    font_renderer: FontRenderer<'a>,
     x_pos: usize,
     y_pos: usize,
 }
 
 impl<'a, T: Framebuffer> TextWriter<'a, T> {
-    fn write_str_no_newlines(&mut self, s: &str) -> fmt::Result {
-        let font_height = self.font_renderer.font_height() as usize;
-        let &mut TextWriter {
-            ref mut layer,
-            ref mut font_renderer,
-            ref mut x_pos,
-            ref mut y_pos,
-            ..
-        } = self;
-
-        let width = font_renderer.render(s, |x, y, v| {
-            if *x_pos + x >= WIDTH {
-                *x_pos = 0;
-                *y_pos += font_height;
-            }
-            if *y_pos + font_height >= HEIGHT {
-                *y_pos = 0;
-                layer.clear();
-            }
-            let alpha = (v * 255.0 + 0.5) as u8;
-            let color = Color {
-                red: 255,
-                green: 255,
-                blue: 255,
-                alpha,
-            };
-            layer.print_point_color_at(*x_pos + x, *y_pos + y, color);
-        });
-        *x_pos += width;
-        Ok(())
+    fn newline(&mut self) {
+        self.y_pos += 8;
+        self.x_pos = 0;
+        if self.y_pos >= HEIGHT {
+            self.y_pos = 0;
+            self.layer.clear();
+        }
     }
 }
 
 impl<'a, T: Framebuffer> fmt::Write for TextWriter<'a, T> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        let mut lines = s.split('\n').peekable();
-        while let Some(line) = lines.next() {
-            self.write_str_no_newlines(line)?;
-            if lines.peek().is_some() {
-                self.x_pos = 0;
-                self.y_pos += self.font_renderer.font_height() as usize;
+        use font8x8::{self, UnicodeFonts};
+
+        for c in s.chars() {
+            if c == '\n' {
+                self.newline();
+                continue;
+            }
+            match c {
+                ' '..='~' => {
+                    let rendered = font8x8::BASIC_FONTS
+                        .get(c)
+                        .expect("character not found in basic font");
+                    for (y, byte) in rendered.iter().enumerate() {
+                        for (x, bit) in (0..8).enumerate() {
+                            let alpha = if *byte & (1 << bit) == 0 { 0 } else { 255 };
+                            let color = Color {
+                                red: 255,
+                                green: 255,
+                                blue: 255,
+                                alpha,
+                            };
+                            self.layer
+                                .print_point_color_at(self.x_pos + x, self.y_pos + y, color);
+                        }
+                    }
+                }
+                _ => panic!("unprintable character"),
+            }
+            self.x_pos += 8;
+            if self.x_pos >= WIDTH {
+                self.newline();
             }
         }
         Ok(())

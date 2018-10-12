@@ -1,43 +1,21 @@
-define reset
-    # reset board by setting the SYSRESETREQ bit it the AIRCR register
-    # see http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0552a/Cihehdge.html
-    set *(0xE000ED0C) = 0x05fa0004
-end
+target remote :3333
 
-define load-reset
-    reset
-    load
-    reset
-end
+# print demangled symbols by default
+set print asm-demangle on
 
-define lr
-    load-reset
-end
+monitor arm semihosting enable
 
-define lrc
-    reset
-    load
-    reset
-    continue
-end
+# # send captured ITM to the file itm.fifo
+# # (the microcontroller SWO pin must be connected to the programmer SWO pin)
+# # 8000000 must match the core clock frequency
+# monitor tpiu config internal itm.fifo uart off 8000000
 
-define semihosting-enable
-  source semihosting.py
-  catch signal SIGTRAP
-  commands
-    silent
-    if $rust_syn
-      set $break = (*($pc as u32)&0xff) == 0xab
-    else
-      set $break = (*(int)$pc&0xff) == 0xab
-    end
-    if $break
-      pi SemiHostHelper.on_break()
-      set $pc = $pc + 2
-      continue
-    else
-      echo \n
-      frame
-    end
-  end
-end
+# # OR: make the microcontroller SWO pin output compatible with UART (8N1)
+# # 2000000 is the frequency of the SWO pin
+# monitor tpiu config external uart off 8000000 2000000
+
+# # enable ITM port 0
+# monitor itm port 0 on
+
+load
+step

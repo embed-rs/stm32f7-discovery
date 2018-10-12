@@ -1,8 +1,7 @@
-use super::{Sd, CardType, sdmmc_cmd, CardInfo};
 use super::error::Error;
-use board::rcc::Rcc;
-use board::sdmmc::Sdmmc;
-use embedded::interfaces::gpio::Gpio;
+use super::{sdmmc_cmd, CardInfo, CardType, Sd};
+use gpio::InputPin;
+use stm32f7::stm32f7x6::{RCC, SDMMC1};
 
 /// Initializes the SD Card, if it is inserted and not already initialized. If the card is already
 /// initialized this function does nothing and returns no error.
@@ -46,25 +45,28 @@ use embedded::interfaces::gpio::Gpio;
 /// }
 /// ```
 // TODO: Automate the (de-)initialization with interupts?
-pub fn init(sd: &mut Sd) -> Result<(), Error> {
+pub fn init<P: InputPin>(sd: &mut Sd<P>) -> Result<(), Error> {
     // Check for SD card
     if !sd.card_present() {
-        return Err(Error::NoSdCard)
+        return Err(Error::NoSdCard);
     }
 
     // Card already initialized
     if sd.card_initialized() {
-        return Ok(())
+        return Ok(());
     }
 
     // default clock configuration
-    sd.sdmmc.clkcr.update(|clkcr| {
-        clkcr.set_negedge(false);
-        clkcr.set_bypass(false);
-        clkcr.set_pwrsav(false);
-        clkcr.set_widbus(0);
-        clkcr.set_hwfc_en(false);
-        clkcr.set_clkdiv(0x76);
+    sd.sdmmc.clkcr.modify(|_, w| {
+        w.negedge().clear_bit();
+        w.bypass().clear_bit();
+        w.pwrsav().clear_bit();
+        w.hwfc_en().clear_bit();
+        unsafe {
+            w.widbus().bits(0);
+            w.clkdiv().bits(0x76);
+        }
+        w
     });
 
     let mut card_info = CardInfo::default();
@@ -78,10 +80,12 @@ pub fn init(sd: &mut Sd) -> Result<(), Error> {
 
     sdmmc_cmd::send_csd(sd.sdmmc, u32::from(card_info.rca) << 16)?;
 
-    let csd = [sd.sdmmc.resp1.read().cardstatus1(),
-               sd.sdmmc.resp2.read().cardstatus2(),
-               sd.sdmmc.resp3.read().cardstatus3(),
-               sd.sdmmc.resp4.read().cardstatus4()];
+    let csd = [
+        sd.sdmmc.resp1.read().cardstatus1().bits(),
+        sd.sdmmc.resp2.read().cardstatus2().bits(),
+        sd.sdmmc.resp3.read().cardstatus3().bits(),
+        sd.sdmmc.resp4.read().cardstatus4().bits(),
+    ];
 
     get_card_csd(&mut card_info, csd);
 
@@ -93,75 +97,28 @@ pub fn init(sd: &mut Sd) -> Result<(), Error> {
 }
 
 /// Deinitializes the SD Card.
-pub fn de_init(sd: &mut Sd) {
+pub fn de_init<P: InputPin>(sd: &mut Sd<P>) {
     sd.card_info = None;
 
-    sd.sdmmc.power.update(|pwr| pwr.set_pwrctrl(0x00));
+    sd.sdmmc
+        .power
+        .modify(|_, w| unsafe { w.pwrctrl().bits(0x00) });
 }
 
-/// Initializes the hardware, including the clocks and pins used by the SDMMC-Controller.
-pub fn init_hw(gpio: &mut Gpio, rcc: &mut Rcc) {
+/// Initializes the hardware, including the clocks used by the SDMMC-Controller.
+pub fn init_hw(rcc: &mut RCC) {
     // Enable SDMMC1 clock
-    rcc.apb2enr.update(|r| r.set_sdmmc1en(true));
-    // Enable data and sdmmc_cmd port
-    rcc.ahb1enr.update(|r| {
-        r.set_gpiocen(true); // Data and clock port
-        r.set_gpioden(true); // CMD port
-        // r.set_gpioben(true); // only needed in mmc 8bit mode
-    });
+    rcc.apb2enr.modify(|_, w| w.sdmmc1en().enabled());
+
     // wait for enabling
-    while !rcc.apb2enr.read().sdmmc1en()
-            || !rcc.ahb1enr.read().gpiocen()
-            || !rcc.ahb1enr.read().gpioden() {}
-            // || !rcc.ahb1enr.read().gpioben() {}
-
-    init_pins(gpio);
+    while !rcc.apb2enr.read().sdmmc1en().is_enabled() {}
 }
 
-fn init_pins(gpio: &mut Gpio) {
-    use embedded::interfaces::gpio::Port::*;
-    use embedded::interfaces::gpio::Pin::*;
-    use embedded::interfaces::gpio::{AlternateFunction, OutputType, OutputSpeed, Resistor};
-
-    // Data ports. For Default Bus mode only d0 is needed.
-    let d0 = (PortC, Pin8);
-    let d1 = (PortC, Pin9);
-    let d2 = (PortC, Pin10);
-    let d3 = (PortC, Pin11);
-    let d4 = (PortB, Pin8);
-    let d5 = (PortB, Pin9);
-    let d6 = (PortC, Pin6);
-    let d7 = (PortC, Pin7);
-
-    // Clock
-    let ck = (PortC, Pin12);
-
-    // sdmmc_cmd
-    let cmd = (PortD, Pin2);
-
-    let pins = [d0,
-                d1,
-                d2,
-                d3,
-                d4,
-                d5,
-                d6,
-                d7,
-                ck,
-                cmd];
-
-    gpio.to_alternate_function_all(&pins,
-                                   AlternateFunction::AF12,
-                                   OutputType::PushPull,
-                                   OutputSpeed::High,
-                                   Resistor::PullUp).unwrap();
-}
-
-fn power_on(sdmmc: &mut Sdmmc) -> Result<CardType, Error> {
+fn power_on(sdmmc: &mut SDMMC1) -> Result<CardType, Error> {
     // power up the card
-    sdmmc.clkcr.update(|clkcr| clkcr.set_clken(false));
-    sdmmc.power.update(|pwr| pwr.set_pwrctrl(0x03));
-    sdmmc.clkcr.update(|clkcr| clkcr.set_clken(true));
+    sdmmc.clkcr.modify(|_, w| w.clken().clear_bit());
+    sdmmc.power.modify(|_, w| unsafe { w.pwrctrl().bits(0x03) });
+    sdmmc.clkcr.modify(|_, w| w.clken().set_bit());
 
     let mut card_type = CardType::SDv1;
 
@@ -177,7 +134,7 @@ fn power_on(sdmmc: &mut Sdmmc) -> Result<CardType, Error> {
         // voltage trial for card V2
         while !valid_voltage {
             if count == max_volt_trial {
-                return Err(Error::InvalidVoltrange)
+                return Err(Error::InvalidVoltrange);
             }
             count += 1;
 
@@ -187,7 +144,7 @@ fn power_on(sdmmc: &mut Sdmmc) -> Result<CardType, Error> {
             // Send ACMD41. 0x40..0 for high capacity.
             sdmmc_cmd::app_oper(sdmmc, 0x4000_0000)?;
 
-            card_status = sdmmc.resp1.read().cardstatus1();
+            card_status = sdmmc.resp1.read().cardstatus1().bits();
 
             valid_voltage = card_status >> 31 == 1
         }
@@ -200,7 +157,7 @@ fn power_on(sdmmc: &mut Sdmmc) -> Result<CardType, Error> {
     } else {
         while !valid_voltage {
             if count == max_volt_trial {
-                return Err(Error::InvalidVoltrange)
+                return Err(Error::InvalidVoltrange);
             }
             count += 1;
 
@@ -210,7 +167,7 @@ fn power_on(sdmmc: &mut Sdmmc) -> Result<CardType, Error> {
             // Send ACMD41. 0x0 for standard capacity.
             sdmmc_cmd::app_oper(sdmmc, 0x0)?;
 
-            let card_status = sdmmc.resp1.read().cardstatus1();
+            let card_status = sdmmc.resp1.read().cardstatus1().bits();
 
             valid_voltage = card_status >> 31 == 1
         }

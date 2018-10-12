@@ -1,17 +1,14 @@
-use core::fmt;
 use alloc::boxed::Box;
-use alloc::Vec;
+use alloc::vec::Vec;
+use core::fmt;
 
-use board::{rcc, syscfg};
-use board::ethernet_dma::{self, EthernetDma};
-use board::ethernet_mac::{self, EthernetMac};
-use embedded::interfaces::gpio;
+use stm32f7::stm32f7x6::{ETHERNET_DMA, ETHERNET_MAC, RCC, SYSCFG};
 use volatile::Volatile;
 
-use smoltcp::wire::{EthernetAddress, Ipv4Address, IpCidr, Ipv4Cidr};
-use smoltcp::phy::{Device, DeviceCapabilities};
 use smoltcp::iface::{EthernetInterface, EthernetInterfaceBuilder};
+use smoltcp::phy::{Device, DeviceCapabilities};
 use smoltcp::time::Instant;
+use smoltcp::wire::{EthernetAddress, IpCidr, Ipv4Address, Ipv4Cidr};
 
 mod init;
 mod phy;
@@ -42,46 +39,46 @@ impl From<()> for Error {
 
 pub const MTU: usize = 1536;
 
-pub struct EthernetDevice {
+pub struct EthernetDevice<'d> {
     rx: RxDevice,
     tx: TxDevice,
-    ethernet_dma: &'static mut EthernetDma,
+    ethernet_dma: &'d mut ETHERNET_DMA,
     ethernet_address: EthernetAddress,
 }
 
-impl EthernetDevice {
+impl<'d> EthernetDevice<'d> {
     pub fn new(
         rx_config: RxConfig,
         tx_config: TxConfig,
-        rcc: &mut rcc::Rcc,
-        syscfg: &mut syscfg::Syscfg,
-        gpio: &mut gpio::Gpio,
-        ethernet_mac: &'static mut EthernetMac,
-        ethernet_dma: &'static mut EthernetDma,
+        rcc: &mut RCC,
+        syscfg: &mut SYSCFG,
+        ethernet_mac: &mut ETHERNET_MAC,
+        ethernet_dma: &'d mut ETHERNET_DMA,
         ethernet_address: EthernetAddress,
-    ) -> Result<EthernetDevice, Error> {
+    ) -> Result<Self, Error> {
         use byteorder::{ByteOrder, LittleEndian};
 
-        init::init(rcc, syscfg, gpio, ethernet_mac, ethernet_dma)?;
+        init::init(rcc, syscfg, ethernet_mac, ethernet_dma)?;
 
         let rx_device = RxDevice::new(rx_config)?;
         let tx_device = TxDevice::new(tx_config);
 
-        let mut srl = ethernet_dma::Dmardlar::default();
-        srl.set_srl(&rx_device.descriptors[0] as *const Volatile<_> as u32);
-        ethernet_dma.dmardlar.write(srl);
-
-        let mut stl = ethernet_dma::Dmatdlar::default();
-        stl.set_stl(tx_device.front_of_queue() as *const Volatile<_> as u32);
-        ethernet_dma.dmatdlar.write(stl);
+        ethernet_dma.dmardlar.write(|w| {
+            w.srl()
+                .bits(&rx_device.descriptors[0] as *const Volatile<_> as u32)
+        });
+        ethernet_dma.dmatdlar.write(|w| {
+            w.stl()
+                .bits(tx_device.front_of_queue() as *const Volatile<_> as u32)
+        });
 
         let eth_bytes = ethernet_address.as_bytes();
-        let mut mac0_low = ethernet_mac::Maca0lr::default();
-        mac0_low.set_maca0l(LittleEndian::read_u32(&eth_bytes[..4]));
-        ethernet_mac.maca0lr.write(mac0_low);
-        let mut mac0_high = ethernet_mac::Maca0hr::default();
-        mac0_high.set_maca0h(LittleEndian::read_u16(&eth_bytes[4..]));
-        ethernet_mac.maca0hr.write(mac0_high);
+        ethernet_mac
+            .maca0lr
+            .write(|w| w.maca0l().bits(LittleEndian::read_u32(&eth_bytes[..4])));
+        ethernet_mac
+            .maca0hr
+            .write(|w| w.maca0h().bits(LittleEndian::read_u16(&eth_bytes[4..])));
 
         init::start(ethernet_mac, ethernet_dma);
         Ok(EthernetDevice {
@@ -92,9 +89,12 @@ impl EthernetDevice {
         })
     }
 
-    pub fn into_interface<'a>(self, ip_address: Ipv4Address) -> EthernetInterface<'a, 'a, Self> {
+    pub fn into_interface<'a>(
+        self,
+        ip_address: Ipv4Address,
+    ) -> EthernetInterface<'a, 'a, 'a, Self> {
+        use alloc::collections::BTreeMap;
         use smoltcp::iface::NeighborCache;
-        use alloc::BTreeMap;
 
         let neighbor_cache = NeighborCache::new(BTreeMap::new());
         let ethernet_address = self.ethernet_address;
@@ -107,26 +107,37 @@ impl EthernetDevice {
     }
 }
 
-impl Drop for EthernetDevice {
+impl<'d> Drop for EthernetDevice<'d> {
     fn drop(&mut self) {
         // TODO stop ethernet device and wait for idle
+        unimplemented!();
     }
 }
 
-impl<'a> Device<'a> for EthernetDevice {
+impl<'a, 'd> Device<'a> for EthernetDevice<'d> {
     type RxToken = RxToken<'a>;
     type TxToken = TxToken<'a>;
 
     fn receive(&'a mut self) -> Option<(Self::RxToken, Self::TxToken)> {
-        if !self.rx.new_data_received() { return None }
-        let rx = RxToken { rx: &mut self.rx, };
-        let tx = TxToken { tx: &mut self.tx, ethernet_dma: &mut self.ethernet_dma, };
+        if !self.rx.new_data_received() {
+            return None;
+        }
+        let rx = RxToken { rx: &mut self.rx };
+        let tx = TxToken {
+            tx: &mut self.tx,
+            ethernet_dma: &mut self.ethernet_dma,
+        };
         Some((rx, tx))
     }
 
     fn transmit(&'a mut self) -> Option<Self::TxToken> {
-        if !self.tx.descriptor_available() { return None }
-        Some(TxToken { tx: &mut self.tx, ethernet_dma: &mut self.ethernet_dma, })
+        if !self.tx.descriptor_available() {
+            return None;
+        }
+        Some(TxToken {
+            tx: &mut self.tx,
+            ethernet_dma: &mut self.ethernet_dma,
+        })
     }
 
     fn capabilities(&self) -> DeviceCapabilities {
@@ -142,20 +153,25 @@ pub struct RxToken<'a> {
 
 impl<'a> ::smoltcp::phy::RxToken for RxToken<'a> {
     fn consume<R, F>(self, _timestamp: Instant, f: F) -> ::smoltcp::Result<R>
-        where F: FnOnce(&[u8]) -> ::smoltcp::Result<R>
+    where
+        F: FnOnce(&[u8]) -> ::smoltcp::Result<R>,
     {
-        self.rx.receive(f)
+        self.rx.receive(f).map_err(|err| match err {
+            ReceiveError::Processing(e) => e,
+            _ => ::smoltcp::Error::Truncated,
+        })
     }
 }
 
 pub struct TxToken<'a> {
     tx: &'a mut TxDevice,
-    ethernet_dma: &'a mut EthernetDma,
+    ethernet_dma: &'a mut ETHERNET_DMA,
 }
 
 impl<'a> ::smoltcp::phy::TxToken for TxToken<'a> {
     fn consume<R, F>(mut self, _timestamp: Instant, len: usize, f: F) -> ::smoltcp::Result<R>
-        where F: FnOnce(&mut [u8]) -> ::smoltcp::Result<R>
+    where
+        F: FnOnce(&mut [u8]) -> ::smoltcp::Result<R>,
     {
         let mut data = vec![0; len].into_boxed_slice();
         let ret = f(&mut data)?;
@@ -168,19 +184,20 @@ impl<'a> ::smoltcp::phy::TxToken for TxToken<'a> {
 impl<'a> TxToken<'a> {
     fn start_send(&mut self) {
         // read transmit process state
-        match self.ethernet_dma.dmasr.read().tps() {
-            // stopped
-            0b000 => panic!("stopped"),
-            // running
-            0b001 | 0b010 | 0b011 | 0b111 => {}
-            // suspended
-            0b110 => {
-                // write poll demand register
-                let mut poll_demand = ethernet_dma::Dmatpdr::default();
-                poll_demand.set_tpd(0); // any value
-                self.ethernet_dma.dmatpdr.write(poll_demand);
-            }
-            _ => unreachable!(),
+        let state = self.ethernet_dma.dmasr.read().tps();
+        if state.is_stopped() {
+            panic!("stopped")
+        } else if state.is_suspended() {
+            // write poll demand register
+            self.ethernet_dma.dmatpdr.write(|w| w.tpd().poll());
+        } else if state.is_running()
+            || state.is_running_fetching()
+            || state.is_running_waiting()
+            || state.is_running_reading()
+        {
+            // do nothing
+        } else {
+            panic!("unexpected transmit process state");
         }
     }
 }
@@ -206,6 +223,18 @@ impl<F> fmt::Debug for PortInUse<F> {
             self.port
         )
     }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ReceiveError {
+    Crc,
+    Receive,
+    WatchdogTimeout,
+    LateCollision,
+    GiantFrame,
+    Overflow,
+    Descriptor,
+    Processing(::smoltcp::Error),
 }
 
 struct RxDevice {
@@ -248,7 +277,7 @@ impl RxDevice {
         !descriptor.own() && descriptor.is_first_descriptor()
     }
 
-    fn receive<T, F>(&mut self, f: F) -> ::smoltcp::Result<T>
+    fn receive<T, F>(&mut self, f: F) -> Result<T, ReceiveError>
     where
         F: FnOnce(&[u8]) -> ::smoltcp::Result<T>,
     {
@@ -256,10 +285,10 @@ impl RxDevice {
         let descriptor = self.descriptors[descriptor_index].read();
 
         if descriptor.own() || !descriptor.is_first_descriptor() {
-            return Err(::smoltcp::Error::Exhausted);
+            return Err(ReceiveError::Processing(::smoltcp::Error::Exhausted));
         }
         if let rx::ChecksumResult::Error(_, _) = descriptor.checksum_result() {
-            return Err(::smoltcp::Error::Checksum);
+            return Err(ReceiveError::Processing(::smoltcp::Error::Checksum));
         }
 
         // find the last descriptor belonging to the received packet
@@ -270,11 +299,14 @@ impl RxDevice {
             // Descriptors wrap around, but we don't want packets to wrap around. So we require
             // that the last descriptor in the list is large enough to hold all received packets.
             // This assertion checks that no wraparound occurs.
-            assert!(descriptor_index + i < self.descriptors.len(), "buffer of last descriptor in \
-                list must be large enough to hold received packets without wrap-around");
+            assert!(
+                descriptor_index + i < self.descriptors.len(),
+                "buffer of last descriptor in \
+                 list must be large enough to hold received packets without wrap-around"
+            );
             last_descriptor = self.descriptors[descriptor_index + i].read();
             if last_descriptor.own() {
-                return Err(::smoltcp::Error::Exhausted); // packet is not fully received
+                return Err(ReceiveError::Processing(::smoltcp::Error::Exhausted)); // packet is not fully received
             }
         }
 
@@ -282,27 +314,26 @@ impl RxDevice {
         let mut error = None;
         if last_descriptor.error() {
             if last_descriptor.crc_error() {
-                println!("crc_error");
+                error = Some(ReceiveError::Crc);
             }
             if last_descriptor.receive_error() {
-                println!("receive_error");
+                error = Some(ReceiveError::Receive);
             }
             if last_descriptor.watchdog_timeout_error() {
-                println!("watchdog_timeout_error");
+                error = Some(ReceiveError::WatchdogTimeout);
             }
             if last_descriptor.late_collision_error() {
-                println!("late_collision_error");
+                error = Some(ReceiveError::LateCollision);
             }
             if last_descriptor.giant_frame_error() {
-                println!("giant_frame_error");
+                error = Some(ReceiveError::GiantFrame);
             }
             if last_descriptor.overflow_error() {
-                println!("overflow_error");
+                error = Some(ReceiveError::Overflow);
             }
             if last_descriptor.descriptor_error() {
-                println!("descriptor_error");
+                error = Some(ReceiveError::Descriptor);
             }
-            error = Some(::smoltcp::Error::Truncated);
         }
 
         let ret = match error {
@@ -312,7 +343,7 @@ impl RxDevice {
                 let offset = self.config.descriptor_buffer_offset(descriptor_index);
                 let len = last_descriptor.frame_len();
                 let data = &self.buffer[offset..(offset + len)];
-                f(data)
+                f(data).map_err(ReceiveError::Processing)
             }
         };
 
@@ -322,7 +353,9 @@ impl RxDevice {
             let descriptor = self.descriptors[next].read();
             self.descriptors[next].update(|d| d.reset());
             next = (next + 1) % self.descriptors.len();
-            if descriptor.is_last_descriptor() { break }
+            if descriptor.is_last_descriptor() {
+                break;
+            }
         }
         self.next_descriptor = next;
 
@@ -375,8 +408,10 @@ impl TxDevice {
     pub fn cleanup(&mut self) {
         let mut c = 0;
         for descriptor in self.descriptors.iter_mut() {
-            descriptor.update(|d| if !d.own() && d.buffer().is_some() {
-                c += 1;
+            descriptor.update(|d| {
+                if !d.own() && d.buffer().is_some() {
+                    c += 1;
+                }
             });
         }
         if c > 0 {

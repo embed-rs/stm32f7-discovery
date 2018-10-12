@@ -1,141 +1,80 @@
-use board::rcc::Rcc;
-use board::pwr::Pwr;
-use board::flash::Flash;
-use cortex_m::peripheral;
-
+use core::convert::TryFrom;
 use core::sync::atomic::{AtomicUsize, Ordering};
+use stm32f7::stm32f7x6::{RCC, SYST};
 
 static TICKS: AtomicUsize = AtomicUsize::new(0);
+static SYSTEM_CLOCK_SPEED: AtomicUsize = AtomicUsize::new(0);
+static FREQUENCY: AtomicUsize = AtomicUsize::new(0);
 
-pub extern "C" fn systick() {
-    TICKS.fetch_add(1, Ordering::Relaxed);
+pub fn tick() {
+    TICKS.fetch_add(1, Ordering::AcqRel);
 }
 
 pub fn ticks() -> usize {
-    TICKS.load(Ordering::Relaxed)
+    TICKS.load(Ordering::Acquire)
 }
 
-pub fn reset_ticks() {
-    TICKS.store(0, Ordering::Relaxed);
+pub fn ms() -> usize {
+    ticks_to_ms(ticks())
 }
 
-pub fn wait(ms: usize) {
-    let current = ticks();
-    loop {
-        if ticks() >= current + ms {
-            break;
-        }
-    }
+pub fn wait_ticks(ticks: usize) {
+    let current = self::ticks();
+    let desired = current + ticks;
+    while self::ticks() != desired {}
 }
 
-pub fn init(rcc: &mut Rcc, pwr: &mut Pwr, flash: &mut Flash) {
-    // Enable Power Control clock
-    rcc.apb1enr.update(|r| r.set_pwren(true));
-    rcc.apb1enr.read(); // delay
+pub fn wait_ms(ms: usize) {
+    wait_ticks(ms_to_ticks(ms));
+}
 
-    // Reset HSEON and HSEBYP bits before configuring the HSE
-    rcc.cr.update(|r| {
-        r.set_hseon(false);
-        r.set_hsebyp(false);
-    });
-    // wait till HSE is disabled
-    while rcc.cr.read().hserdy() {}
-    // turn HSE on
-    rcc.cr.update(|r| r.set_hseon(true));
-    // wait till HSE is enabled
-    while !rcc.cr.read().hserdy() {}
-
-    // disable main PLL
-    rcc.cr.update(|r| r.set_pllon(false));
-    while rcc.cr.read().pllrdy() {}
-    // Configure the main PLL clock source, multiplication and division factors.
-    // HSE is used as clock source. HSE runs at 25 MHz.
-    // PLLM = 25: Division factor for the main PLLs (PLL, PLLI2S and PLLSAI) input clock
-    // VCO input frequency = PLL input clock frequency / PLLM with 2 ≤ PLLM ≤ 63
-    // => VCO input frequency = 25_000 kHz / 25 = 1_000 kHz = 1 MHz
-    // PPLM = 432: Main PLL (PLL) multiplication factor for VCO
-    // VCO output frequency = VCO input frequency × PLLN with 50 ≤ PLLN ≤ 432
-    // => VCO output frequency 1 Mhz * 432 = 432 MHz
-    // PPLQ = 0 =^= division factor 2: Main PLL (PLL) division factor for main system clock
-    // PLL output clock frequency = VCO frequency / PLLP with PLLP = 2, 4, 6, or 8
-    // => PLL output clock frequency = 432 MHz / 2 = 216 MHz
-    rcc.pllcfgr.update(|r| {
-        r.set_pllsrc(true); // HSE
-        r.set_pllm(25);
-        r.set_plln(432); // 400 for 200 MHz, 432 for 216 MHz(don't forget to update `get_frequency`)
-        r.set_pllp(0); // 0 =^= division factor 2
-        r.set_pllq(9); // 8 for 200 MHz, 9 for 216 MHz
-    });
-    // enable main PLL
-    rcc.cr.update(|r| r.set_pllon(true));
-    while !rcc.cr.read().pllrdy() {}
-
-    // enable overdrive
-    pwr.cr1.update(|r| r.set_oden(true));
-    while !pwr.csr1.read().odrdy() {}
-    // enable overdrive switching
-    pwr.cr1.update(|r| r.set_odswen(true));
-    while !pwr.csr1.read().odswrdy() {}
-
-    // Program the new number of wait states to the LATENCY bits in the FLASH_ACR register
-    flash.acr.update(|r| r.set_latency(5));
-    // Check that the new number of wait states is taken into account to access the Flash
-    // memory by reading the FLASH_ACR register
-    assert_eq!(flash.acr.read().latency(), 5);
-
-    const NO_DIVIDE: u8 = 0;
-    const SYSTEM_CLOCK_PLL: u8 = 0b10;
-
-    // HCLK Configuration
-    // HPRE = system clock not divided: AHB prescaler
-    // => AHB clock frequency = system clock / 1 = 216 MHz / 1 = 216 MHz
-    rcc.cfgr.update(|r| r.set_hpre(NO_DIVIDE));
-    // SYSCLK Configuration
-    rcc.cfgr.update(|r| r.set_sw(SYSTEM_CLOCK_PLL));
-    while rcc.cfgr.read().sws() != SYSTEM_CLOCK_PLL {}
-
-    const DIVIDE_2: u8 = 0b100;
-    const DIVIDE_4: u8 = 0b101;
-
-    // PCLK1 Configuration
-    // PPRE1: APB Low-speed prescaler (APB1)
-    // => APB low-speed clock frequency = AHB clock / 4 = 216 Mhz / 4 = 54 MHz
-    // FIXME: Frequency should not exceed 45 MHz
-    rcc.cfgr.update(|r| r.set_ppre1(DIVIDE_4));
-    // PCLK2 Configuration
-    // PPRE2: APB high-speed prescaler (APB2)
-    // => APB high-speed clock frequency = AHB clock / 2 = 216 Mhz / 2 = 108 MHz
-    // FIXME: Frequency should not exceed 90 MHz
-    rcc.cfgr.update(|r| r.set_ppre2(DIVIDE_2));
-
-
-    let systick = unsafe { peripheral::syst_mut() };
+pub fn init(Hz(frequency): Hz, systick: &mut SYST, rcc: &RCC) {
+    use cortex_m::peripheral::syst::SystClkSource;
+    use stm32f7::stm32f7x6::rcc::pllcfgr::PLLPR;
 
     let pll_cfgr = rcc.pllcfgr.read();
-    let pllm = u32::from(pll_cfgr.pllm());
-    let plln = u32::from(pll_cfgr.plln());
-    let pllp = u32::from(pll_cfgr.pllp() + 1) * 2;
+    let pllm = u64::from(pll_cfgr.pllm().bits());
+    let plln = u64::from(pll_cfgr.plln().bits());
+    let pllp = match pll_cfgr.pllp() {
+        PLLPR::DIV2 => 2,
+        PLLPR::DIV4 => 4,
+        PLLPR::DIV6 => 6,
+        PLLPR::DIV8 => 8,
+    };
+
+    let system_clock_speed = (((25 * 1000 * 1000) / pllm) * plln) / pllp; // HSE runs at 25 MHz
+    let reload_ticks = u32::try_from(system_clock_speed / frequency as u64).unwrap();
+
+    SYSTEM_CLOCK_SPEED.store(system_clock_speed as usize, Ordering::Release);
+    FREQUENCY.store(frequency, Ordering::Release);
+
     // SysTick Reload Value Register = ((25000/25) * 432) / 2 - 1 = 215_999
     // => SysTick interrupt tiggers every 1 ms
-    systick.rvr.write((((25 * 1000) / pllm) * plln) / pllp - 1); // hse runs at 25 MHz
-    systick.cvr.write(0); // clear
-    systick.csr.write(0b111); // CLKSOURCE | TICKINT | ENABLE
-
-    reset_ticks();
+    systick.set_clock_source(SystClkSource::Core);
+    systick.set_reload(reload_ticks - 1);
+    systick.clear_current();
+    systick.enable_counter();
 }
 
-pub fn get_frequency() -> u32 {
-    216_000_000 // 216 MHz
+pub fn system_clock_speed() -> Hz {
+    Hz(SYSTEM_CLOCK_SPEED.load(Ordering::Acquire))
 }
 
-pub fn get_ahb_frequency() -> u32 {
-    get_frequency() / 1 //216 MHz
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct Hz(pub usize);
+
+pub fn ticks_to_ms(ticks: usize) -> usize {
+    let frequency = FREQUENCY.load(Ordering::Acquire);
+    (ticks * 1000) / frequency
 }
 
-pub fn get_apb1_frequency() -> u32 {
-    get_ahb_frequency() / 4 // 54 MHz
-}
-
-pub fn get_apb2_frequency() -> u32 {
-    get_ahb_frequency() / 2 // 108 MHz
+pub fn ms_to_ticks(ms: usize) -> usize {
+    let frequency = FREQUENCY.load(Ordering::Acquire);
+    let ticks_x1000 = frequency * ms;
+    if ticks_x1000 % 1000 == 0 {
+        ticks_x1000 / 1000
+    } else {
+        (ticks_x1000 / 1000) + 1 // round up
+    }
 }

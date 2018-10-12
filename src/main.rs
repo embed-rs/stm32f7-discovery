@@ -1,174 +1,149 @@
-#![feature(lang_items)]
-#![feature(const_fn)]
 #![feature(alloc)]
-#![feature(asm)]
-#![no_std]
+#![feature(alloc_error_handler)]
 #![no_main]
-
-#[macro_use]
-extern crate stm32f7_discovery as stm32f7;
-
-// initialization routines for .data and .bss
+#![no_std]
 
 #[macro_use]
 extern crate alloc;
-extern crate r0;
+extern crate cortex_m;
+extern crate cortex_m_rt as rt;
+extern crate alloc_cortex_m;
+extern crate cortex_m_semihosting as sh;
+#[macro_use]
+extern crate stm32f7;
+#[macro_use]
+extern crate stm32f7_discovery;
 extern crate smoltcp;
 
-// hardware register structs with accessor methods
-use stm32f7::{audio, board, embedded, ethernet, lcd, sdram, system_clock, touch, i2c, sd};
-use smoltcp::socket::{Socket, SocketSet, TcpSocket, TcpSocketBuffer};
-use smoltcp::socket::{UdpSocket, UdpPacketMetadata, UdpSocketBuffer};
-use smoltcp::wire::{IpEndpoint, IpAddress, EthernetAddress, Ipv4Address};
-use smoltcp::time::Instant;
-use alloc::Vec;
+use alloc::vec::Vec;
+use alloc_cortex_m::CortexMHeap;
+use core::alloc::Layout as AllocLayout;
+use core::fmt::Write;
+use core::panic::PanicInfo;
+use cortex_m::{asm, interrupt};
+use rt::{entry, exception, ExceptionFrame};
+use sh::hio::{self, HStdout};
+use smoltcp::{
+    socket::{
+        Socket, SocketSet, TcpSocket, TcpSocketBuffer, UdpPacketMetadata, UdpSocket,
+        UdpSocketBuffer,
+    },
+    time::Instant,
+    wire::{EthernetAddress, IpAddress, IpEndpoint, Ipv4Address},
+};
+use stm32f7::stm32f7x6::{CorePeripherals, Interrupt, Peripherals};
+use stm32f7_discovery::{
+    ethernet,
+    gpio::{GpioPort, InputPin, OutputPin},
+    init,
+    lcd::{self, Color},
+    random::Rng,
+    sd,
+    system_clock::{self, Hz},
+    touch,
+};
 
-pub const ETH_ADDR: EthernetAddress = EthernetAddress([0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef]);
-pub const IP_ADDR: Ipv4Address = Ipv4Address([141, 52, 46, 198]);
+#[global_allocator]
+static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
 
-#[no_mangle]
-pub unsafe extern "C" fn reset() -> ! {
-    extern "C" {
-        static __DATA_LOAD: u32;
-        static mut __DATA_END: u32;
-        static mut __DATA_START: u32;
+const HEAP_SIZE: usize = 50 * 1024; // in bytes
+const ETH_ADDR: EthernetAddress = EthernetAddress([0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef]);
+const IP_ADDR: Ipv4Address = Ipv4Address([141, 52, 46, 198]);
 
-        static mut __BSS_START: u32;
-        static mut __BSS_END: u32;
-    }
+#[entry]
+fn main() -> ! {
+    let core_peripherals = CorePeripherals::take().unwrap();
+    let mut systick = core_peripherals.SYST;
+    let mut nvic = core_peripherals.NVIC;
 
-    // initializes the .data section (copy the data segment initializers from flash to RAM)
-    r0::init_data(&mut __DATA_START, &mut __DATA_END, &__DATA_LOAD);
-    // zeroes the .bss section
-    r0::zero_bss(&mut __BSS_START, &__BSS_END);
+    let peripherals = Peripherals::take().unwrap();
+    let mut rcc = peripherals.RCC;
+    let mut pwr = peripherals.PWR;
+    let mut flash = peripherals.FLASH;
+    let mut fmc = peripherals.FMC;
+    let mut ltdc = peripherals.LTDC;
+    let mut sai_2 = peripherals.SAI2;
+    let mut rng = peripherals.RNG;
+    let mut sdmmc = peripherals.SDMMC1;
+    let mut syscfg = peripherals.SYSCFG;
+    let mut ethernet_mac = peripherals.ETHERNET_MAC;
+    let mut ethernet_dma = peripherals.ETHERNET_DMA;
 
-    stm32f7::heap::init();
+    init::init_system_clock_216mhz(&mut rcc, &mut pwr, &mut flash);
+    init::enable_gpio_ports(&mut rcc);
 
-    // enable floating point unit
-    let scb = stm32f7::cortex_m::peripheral::scb_mut();
-    scb.cpacr.modify(|v| v | 0b1111 << 20);
-    asm!("DSB; ISB;"::::"volatile"); // pipeline flush
-
-    main(board::hw());
-}
-
-// WORKAROUND: rust compiler will inline & reorder fp instructions into
-#[inline(never)] //             reset() before the FPU is initialized
-fn main(hw: board::Hardware) -> ! {
-    use embedded::interfaces::gpio::{self, Gpio};
-    use alloc::Vec;
-
-    let x = vec![1, 2, 3, 4, 5];
-    assert_eq!(x.len(), 5);
-    assert_eq!(x[3], 4);
-
-    let board::Hardware {
-        rcc,
-        pwr,
-        flash,
-        fmc,
-        ltdc,
-        gpio_a,
-        gpio_b,
-        gpio_c,
-        gpio_d,
-        gpio_e,
-        gpio_f,
-        gpio_g,
-        gpio_h,
-        gpio_i,
-        gpio_j,
-        gpio_k,
-        i2c_3,
-        sai_2,
-        syscfg,
-        ethernet_mac,
-        ethernet_dma,
-        nvic,
-        exti,
-        sdmmc,
-        ..
-    } = hw;
-
-    let mut gpio = Gpio::new(
-        gpio_a,
-        gpio_b,
-        gpio_c,
-        gpio_d,
-        gpio_e,
-        gpio_f,
-        gpio_g,
-        gpio_h,
-        gpio_i,
-        gpio_j,
-        gpio_k,
+    let gpio_a = GpioPort::new_a(&peripherals.GPIOA);
+    let gpio_b = GpioPort::new_b(&peripherals.GPIOB);
+    let gpio_c = GpioPort::new(&peripherals.GPIOC);
+    let gpio_d = GpioPort::new(&peripherals.GPIOD);
+    let gpio_e = GpioPort::new(&peripherals.GPIOE);
+    let gpio_f = GpioPort::new(&peripherals.GPIOF);
+    let gpio_g = GpioPort::new(&peripherals.GPIOG);
+    let gpio_h = GpioPort::new(&peripherals.GPIOH);
+    let gpio_i = GpioPort::new(&peripherals.GPIOI);
+    let gpio_j = GpioPort::new(&peripherals.GPIOJ);
+    let gpio_k = GpioPort::new(&peripherals.GPIOK);
+    let mut pins = init::pins(
+        gpio_a, gpio_b, gpio_c, gpio_d, gpio_e, gpio_f, gpio_g, gpio_h, gpio_i, gpio_j, gpio_k,
     );
 
-    system_clock::init(rcc, pwr, flash);
+    // configures the system timer to trigger a SysTick exception every second
+    init::init_systick(Hz(100), &mut systick, &rcc);
+    systick.enable_interrupt();
 
-    // enable all gpio ports
-    rcc.ahb1enr.update(|r| {
-        r.set_gpioaen(true);
-        r.set_gpioben(true);
-        r.set_gpiocen(true);
-        r.set_gpioden(true);
-        r.set_gpioeen(true);
-        r.set_gpiofen(true);
-        r.set_gpiogen(true);
-        r.set_gpiohen(true);
-        r.set_gpioien(true);
-        r.set_gpiojen(true);
-        r.set_gpioken(true);
-    });
+    init::init_sdram(&mut rcc, &mut fmc);
+    let mut lcd = init::init_lcd(&mut ltdc, &mut rcc);
+    pins.display_enable.set(true);
+    pins.backlight.set(true);
 
-    // configure led pin as output pin
-    let led_pin = (gpio::Port::PortI, gpio::Pin::Pin1);
-    let mut led = gpio.to_output(
-        led_pin,
-        gpio::OutputType::PushPull,
-        gpio::OutputSpeed::Low,
-        gpio::Resistor::NoPull,
-    ).expect("led pin already in use");
-
-    // turn led on
-    led.set(true);
-
-    let button_pin = (gpio::Port::PortI, gpio::Pin::Pin11);
-    let _ = gpio.to_input(button_pin, gpio::Resistor::NoPull)
-        .expect("button pin already in use");
-
-    // init sdram (needed for display buffer)
-    sdram::init(rcc, fmc, &mut gpio);
-
-    // lcd controller
-    let mut lcd = lcd::init(ltdc, rcc, &mut gpio);
     let mut layer_1 = lcd.layer_1().unwrap();
     let mut layer_2 = lcd.layer_2().unwrap();
 
     layer_1.clear();
+    let mut audio_writer = layer_1.audio_writer();
     layer_2.clear();
     lcd::init_stdout(layer_2);
 
-    // i2c
-    i2c::init_pins_and_clocks(rcc, &mut gpio);
-    let mut i2c_3 = i2c::init(i2c_3);
+    println!("Hello World");
+
+    // Initialize the allocator BEFORE you use it
+    unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }
+
+    let xs = vec![1, 2, 3];
+
+    let mut i2c_3 = init::init_i2c_3(&peripherals.I2C3, &mut rcc);
     i2c_3.test_1();
     i2c_3.test_2();
 
-    // sai and stereo microphone
-    audio::init_sai_2_pins(&mut gpio);
-    audio::init_sai_2(sai_2, rcc);
-    assert!(audio::init_wm8994(&mut i2c_3).is_ok());
+    nvic.enable(Interrupt::EXTI0);
+
+    let mut sd = sd::Sd::new(&mut sdmmc, &mut rcc, &pins.sdcard_present);
+
+    init::init_sai_2(&mut sai_2, &mut rcc);
+    init::init_wm8994(&mut i2c_3).expect("WM8994 init failed");
+    // touch initialization should be done after audio initialization, because the touch
+    // controller might not be ready yet
+    touch::check_family_id(&mut i2c_3).unwrap();
+
+    let mut rng = Rng::init(&mut rng, &mut rcc).expect("RNG init failed");
+    print!("Random numbers: ");
+    for _ in 0..4 {
+        print!(
+            "{} ",
+            rng.poll_and_get()
+                .expect("Failed to generate random number")
+        );
+    }
+    println!("");
 
     // ethernet
     let mut ethernet_interface = ethernet::EthernetDevice::new(
         Default::default(),
         Default::default(),
-        rcc,
-        syscfg,
-        &mut gpio,
-        ethernet_mac,
-        ethernet_dma,
+        &mut rcc,
+        &mut syscfg,
+        &mut ethernet_mac,
+        &mut ethernet_dma,
         ETH_ADDR,
     ).map(|device| device.into_interface(IP_ADDR));
     if let Err(e) = ethernet_interface {
@@ -176,98 +151,80 @@ fn main(hw: board::Hardware) -> ! {
     };
 
     let mut sockets = SocketSet::new(Vec::new());
-    let endpoint = IpEndpoint::new(IpAddress::Ipv4(IP_ADDR), 15);
 
-    let udp_rx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 3], vec![0u8; 256]);
-    let udp_tx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 1], vec![0u8; 128]);
-    let mut example_udp_socket = UdpSocket::new(udp_rx_buffer, udp_tx_buffer);
-    example_udp_socket.bind(endpoint).unwrap();
-    sockets.add(example_udp_socket);
+    if ethernet_interface.is_ok() {
+        let endpoint = IpEndpoint::new(IpAddress::Ipv4(IP_ADDR), 15);
+        let udp_rx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 3], vec![0u8; 256]);
+        let udp_tx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 1], vec![0u8; 128]);
+        let mut example_udp_socket = UdpSocket::new(udp_rx_buffer, udp_tx_buffer);
+        example_udp_socket.bind(endpoint).unwrap();
+        sockets.add(example_udp_socket);
 
-    let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
-    let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
-    let mut example_tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
-    example_tcp_socket.listen(endpoint).unwrap();
-    sockets.add(example_tcp_socket);
+        let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
+        let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
+        let mut example_tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
+        example_tcp_socket.listen(endpoint).unwrap();
+        sockets.add(example_tcp_socket);
+    }
 
-    // SD
-    let mut sd = sd::Sd::new(sdmmc, &mut gpio, rcc);
+    let mut previous_button_state = pins.button.get();
+    loop {
+        // poll button state
+        let current_button_state = pins.button.get();
+        if current_button_state != previous_button_state {
+            if current_button_state {
+                pins.led.toggle();
 
-    touch::check_family_id(&mut i2c_3).unwrap();
-
-    let mut audio_writer = layer_1.audio_writer();
-    let mut last_led_toggle = system_clock::ticks();
-
-    use stm32f7::board::embedded::interfaces::gpio::Port;
-    use stm32f7::board::embedded::components::gpio::stm32f7::Pin;
-    use stm32f7::exti::{EdgeDetection, Exti, ExtiLine};
-
-    let mut exti = Exti::new(exti);
-    let mut exti_handle = exti.register(
-        ExtiLine::Gpio(Port::PortI, Pin::Pin11),
-        EdgeDetection::FallingEdge,
-        syscfg,
-    ).unwrap();
-
-    use stm32f7::interrupts::{scope, Priority};
-    use stm32f7::interrupts::interrupt_request::InterruptRequest;
-
-    scope(
-        nvic,
-        |_| {},
-        |interrupt_table| {
-            let _ = interrupt_table.register(InterruptRequest::Exti10to15, Priority::P1, move || {
-                exti_handle.clear_pending_state();
-                // choose a new background color
-                let new_color = ((system_clock::ticks() as u32).wrapping_mul(19801)) % 0x1000000;
-                lcd.set_background_color(lcd::Color::from_hex(new_color));
-            });
-
-            loop {
-                let ticks = system_clock::ticks();
-
-                // every 0.5 seconds
-                if ticks - last_led_toggle >= 500 {
-                    // toggle the led
-                    let led_current = led.get();
-                    led.set(!led_current);
-                    last_led_toggle = ticks;
-                }
-
-
-                // poll for new touch data
-                for touch in &touch::touches(&mut i2c_3).unwrap() {
-                    audio_writer
-                        .layer()
-                        .print_point_at(touch.x as usize, touch.y as usize);
-                }
-
-
-                // handle new ethernet packets
-                if let Ok(ref mut eth) = ethernet_interface {
-                    match eth.poll(&mut sockets, Instant::from_millis(system_clock::ticks() as i64)) {
-                        Err(::smoltcp::Error::Exhausted) => continue,
-                        Err(::smoltcp::Error::Unrecognized) => {},
-                        Err(e) => println!("Network error: {:?}", e),
-                        Ok(socket_changed) => if socket_changed {
-                            for mut socket in sockets.iter_mut() {
-                                poll_socket(&mut socket).expect("socket poll failed");
-                            }
-                        },
-                    }
-                }
-
-                // Initialize the SD Card on insert and deinitialize on extract.
-                if sd.card_present() && !sd.card_initialized() {
-                    if let Some(i_err) = sd::init(&mut sd).err() {
-                        hprintln!("{:?}", i_err);
-                    }
-                } else if !sd.card_present() && sd.card_initialized() {
-                    sd::de_init(&mut sd);
-                }
+                // trigger the `EXTI0` interrupt
+                nvic.set_pending(Interrupt::EXTI0);
             }
-        },
-    )
+
+            previous_button_state = current_button_state;
+        }
+
+        // poll for new touch data
+        for touch in &touch::touches(&mut i2c_3).unwrap() {
+            audio_writer.layer().print_point_color_at(
+                touch.x as usize,
+                touch.y as usize,
+                Color::from_hex(0xffff00),
+            );
+        }
+
+        // poll for new audio data
+        while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
+        let data0 = sai_2.bdr.read().data().bits();
+        while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
+        let data1 = sai_2.bdr.read().data().bits();
+
+        audio_writer.set_next_col(data0, data1);
+
+        // handle new ethernet packets
+        if let Ok(ref mut eth) = ethernet_interface {
+            match eth.poll(
+                &mut sockets,
+                Instant::from_millis(system_clock::ms() as i64),
+            ) {
+                Err(::smoltcp::Error::Exhausted) => continue,
+                Err(::smoltcp::Error::Unrecognized) => {}
+                Err(e) => println!("Network error: {:?}", e),
+                Ok(socket_changed) => if socket_changed {
+                    for mut socket in sockets.iter_mut() {
+                        poll_socket(&mut socket).expect("socket poll failed");
+                    }
+                },
+            }
+        }
+
+        // Initialize the SD Card on insert and deinitialize on extract.
+        if sd.card_present() && !sd.card_initialized() {
+            if let Some(i_err) = sd::init(&mut sd).err() {
+                println!("{:?}", i_err);
+            }
+        } else if !sd.card_present() && sd.card_initialized() {
+            sd::de_init(&mut sd);
+        }
+    }
 }
 
 fn poll_socket(socket: &mut Socket) -> Result<(), smoltcp::Error> {
@@ -278,20 +235,22 @@ fn poll_socket(socket: &mut Socket) -> Result<(), smoltcp::Error> {
                 match socket.recv() {
                     Ok((data, remote_endpoint)) => {
                         let mut data = Vec::from(data);
-                        let len = data.len()-1;
+                        let len = data.len() - 1;
                         data[..len].reverse();
                         reply = (data, remote_endpoint);
-                    },
+                    }
                     Err(smoltcp::Error::Exhausted) => break,
                     Err(err) => return Err(err),
                 }
                 socket.send_slice(&reply.0, reply.1)?;
-            }
+            },
             _ => {}
-        }
+        },
         &mut Socket::Tcp(ref mut socket) => match socket.local_endpoint().port {
             15 => {
-                if !socket.may_recv() { return Ok(()); }
+                if !socket.may_recv() {
+                    return Ok(());
+                }
                 let reply = socket.recv(|data| {
                     if data.len() > 0 {
                         let mut reply = Vec::from("tcp: ");
@@ -308,8 +267,57 @@ fn poll_socket(socket: &mut Socket) -> Result<(), smoltcp::Error> {
                 }
             }
             _ => {}
-        }
+        },
         _ => {}
     }
     Ok(())
+}
+
+interrupt!(EXTI0, exti0, state: Option<HStdout> = None);
+
+fn exti0(_state: &mut Option<HStdout>) {
+    println!("Interrupt fired! This means that the button was pressed.");
+}
+
+#[exception]
+fn SysTick() {
+    system_clock::tick();
+    // print a `.` every 500ms
+    if system_clock::ticks() % 50 == 0 && lcd::stdout::is_initialized() {
+        print!(".");
+    }
+}
+
+#[exception]
+fn HardFault(ef: &ExceptionFrame) -> ! {
+    panic!("HardFault at {:#?}", ef);
+}
+
+#[exception]
+fn DefaultHandler(irqn: i16) {
+    panic!("Unhandled exception (IRQn = {})", irqn);
+}
+
+// define what happens in an Out Of Memory (OOM) condition
+#[alloc_error_handler]
+fn rust_oom(_: AllocLayout) -> ! {
+    panic!("out of memory");
+}
+
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    interrupt::disable();
+
+    if lcd::stdout::is_initialized() {
+        println!("{}", info);
+    }
+
+    if let Ok(mut hstdout) = hio::hstdout() {
+        let _ = writeln!(hstdout, "{}", info);
+    }
+
+    // OK to fire a breakpoint here because we know the microcontroller is connected to a debugger
+    asm::bkpt();
+
+    loop {}
 }

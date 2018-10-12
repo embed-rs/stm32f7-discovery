@@ -25,22 +25,19 @@
 //!
 //! Iter is currently not implemented. Pull Requests welcome!
 
-
-use core::result::Result;
 use core::ops::Drop;
-use board;
-
+use core::result::Result;
+use stm32f7::stm32f7x6::{RCC, RNG};
 
 /// Contains state as well as the Rng Struct from embedded::board.
-pub struct Rng {
+pub struct Rng<'a> {
     last_number: u32,
     counter: u32,
-    board_rng: &'static mut board::rng::Rng,
+    board_rng: &'a mut RNG,
 }
 
-
-///Any of the errors (except AlreadyEnabled) can usually be resolved by initializing this
-///struct again.
+/// Any of the errors (except AlreadyEnabled) can usually be resolved by initializing this
+/// struct again.
 #[derive(Debug)]
 pub enum ErrorType {
     CECS,
@@ -51,16 +48,12 @@ pub enum ErrorType {
     NotReady,
 }
 
-
-impl Rng {
+impl<'a> Rng<'a> {
     ///! This will take semi-ownership (with &'static) for the rng struct
     /// from board::rng.
-    pub fn init(
-        rng: &'static mut board::rng::Rng,
-        rcc: &mut board::rcc::Rcc,
-    ) -> Result<Rng, ErrorType> {
+    pub fn init(rng: &'a mut RNG, rcc: &mut RCC) -> Result<Self, ErrorType> {
         let control_register = rng.cr.read().rngen();
-        if control_register {
+        if control_register.bit_is_set() {
             return Err(ErrorType::AlreadyEnabled);
         }
 
@@ -69,46 +62,45 @@ impl Rng {
             counter: 0x0,
             board_rng: rng,
         };
-        rcc.ahb2enr.update(|r| r.set_rngen(true));
+        rcc.ahb2enr.modify(|_, w| w.rngen().set_bit());
 
-        rng.board_rng.cr.update(|r| {
-            r.set_ie(false);
-            r.set_rngen(true);
+        rng.board_rng.cr.modify(|_, w| {
+            w.ie().clear_bit();
+            w.rngen().set_bit();
+            w
         });
 
         Ok(rng)
     }
-
 
     /// For Testing purposes. Do not use except for debugging!
     pub fn tick(&mut self) -> u32 {
         self.poll_and_get().unwrap_or(0)
     }
 
-
     /// Actually try to acquire some random number
     /// Returns Ok(number) or Err!
     pub fn poll_and_get(&mut self) -> Result<u32, ErrorType> {
         let status = self.board_rng.sr.read();
 
-        if status.ceis() {
+        if status.ceis().bit_is_set() {
             self.reset();
             return Err(ErrorType::CEIS);
         }
-        if status.seis() {
+        if status.seis().bit_is_set() {
             self.reset();
             return Err(ErrorType::SEIS);
         }
 
-        if status.cecs() {
+        if status.cecs().bit_is_set() {
             return Err(ErrorType::CECS);
         }
-        if status.secs() {
+        if status.secs().bit_is_set() {
             self.reset();
             return Err(ErrorType::SECS);
         }
-        if status.drdy() {
-            let data = self.board_rng.dr.read().rndata();
+        if status.drdy().bit_is_set() {
+            let data = self.board_rng.dr.read().rndata().bits();
             if data != self.last_number {
                 self.last_number = data;
                 self.counter = 0;
@@ -124,30 +116,26 @@ impl Rng {
         Err(ErrorType::NotReady)
     }
 
-
     pub fn reset(&mut self) {
-        self.board_rng.cr.update(|r| r.set_rngen(false));
-        self.board_rng.cr.update(|r| r.set_ie(false));
-        self.board_rng.cr.update(|r| r.set_rngen(true));
+        self.board_rng.cr.modify(|_, w| w.rngen().clear_bit());
+        self.board_rng.cr.modify(|_, w| w.ie().clear_bit());
+        self.board_rng.cr.modify(|_, w| w.rngen().set_bit());
     }
 
-
-    fn disable_cr(&mut self, rcc: &mut board::rcc::Rcc) {
-        self.board_rng.cr.update(|r| r.set_rngen(false));
-        self.board_rng.cr.update(|r| r.set_ie(false));
-        rcc.ahb2enr.update(|r| r.set_rngen(false));
+    fn disable_cr(&mut self, rcc: &mut RCC) {
+        self.board_rng.cr.modify(|_, w| w.rngen().clear_bit());
+        self.board_rng.cr.modify(|_, w| w.ie().clear_bit());
+        rcc.ahb2enr.modify(|_, w| w.rngen().clear_bit());
     }
 
-
-    pub fn disable(mut self, rcc: &mut board::rcc::Rcc) {
+    pub fn disable(mut self, rcc: &mut RCC) {
         use core::mem;
         self.disable_cr(rcc);
         mem::forget(self);
     }
 }
 
-
-impl Drop for Rng {
+impl<'a> Drop for Rng<'a> {
     /// PANICS EVERYTIME! Use .disable(rcc) explicitly!
     fn drop(&mut self) {
         panic!("Use .disable() method on your random struct!");

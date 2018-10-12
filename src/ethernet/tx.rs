@@ -1,6 +1,6 @@
+use alloc::boxed::Box;
 use bit_field::BitField;
 use core::{mem, slice};
-use alloc::boxed::Box;
 
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
@@ -93,7 +93,6 @@ impl TxDescriptor {
 
     fn set_buffer_1_size(&mut self, size: usize) {
         assert_eq!(size as u32 as usize, size);
-        self.word_1
-            .set_bits(0..13, size as u32);
+        self.word_1.set_bits(0..13, size as u32);
     }
 }

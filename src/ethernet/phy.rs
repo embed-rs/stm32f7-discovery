@@ -1,5 +1,5 @@
-use board::ethernet_mac::{self, EthernetMac};
 use bit_field::BitField;
+use stm32f7::stm32f7x6::ETHERNET_MAC;
 use system_clock;
 
 const LAN8742A_PHY_ADDRESS: u8 = 0;
@@ -12,7 +12,7 @@ const PHY_RESET: u16 = 1 << 15;
 const AUTONEGOTIATION_ENABLE: u16 = 1 << 12;
 const AUTONEGOTIATION_RESTART: u16 = 1 << 9;
 
-const TIMEOUT: usize = 5_000;
+const TIMEOUT_MS: usize = 5000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
@@ -31,7 +31,7 @@ pub enum Speed {
     Speed100M,
 }
 
-pub fn init(ethernet_mac: &mut EthernetMac) -> Result<AutoNegotiationResult, Error> {
+pub fn init(ethernet_mac: &mut ETHERNET_MAC) -> Result<AutoNegotiationResult, Error> {
     // reset PHY
     phy_write(
         ethernet_mac,
@@ -40,14 +40,15 @@ pub fn init(ethernet_mac: &mut EthernetMac) -> Result<AutoNegotiationResult, Err
         PHY_RESET,
     );
     // wait 0.5s
-    system_clock::wait(500);
+    system_clock::wait_ms(500);
     // wait for reset bit auto clear
     while phy_read(ethernet_mac, LAN8742A_PHY_ADDRESS, BASIC_CONTROL_REG) & PHY_RESET != 0 {}
 
     // wait for link bit
+    let timeout_ticks = system_clock::ms_to_ticks(TIMEOUT_MS);
     let ticks = system_clock::ticks();
     while !phy_read(ethernet_mac, LAN8742A_PHY_ADDRESS, BASIC_STATUS_REG).get_bit(2) {
-        if system_clock::ticks() - ticks > TIMEOUT {
+        if system_clock::ticks() - ticks > timeout_ticks {
             return Err(Error::LinkTimeout); // timeout
         }
     }
@@ -63,7 +64,7 @@ pub fn init(ethernet_mac: &mut EthernetMac) -> Result<AutoNegotiationResult, Err
     // wait until auto-negotiation complete bit is set
     let ticks = system_clock::ticks();
     while !phy_read(ethernet_mac, LAN8742A_PHY_ADDRESS, BASIC_STATUS_REG).get_bit(5) {
-        if system_clock::ticks() - ticks > TIMEOUT {
+        if system_clock::ticks() - ticks > timeout_ticks {
             return Err(Error::AutoNegotiationTimeout); // timeout
         }
     }
@@ -84,40 +85,40 @@ pub fn init(ethernet_mac: &mut EthernetMac) -> Result<AutoNegotiationResult, Err
     })
 }
 
-fn phy_read(ethernet_mac: &mut EthernetMac, phy_address: u8, register: u8) -> u16 {
+fn phy_read(ethernet_mac: &mut ETHERNET_MAC, phy_address: u8, register: u8) -> u16 {
     // set the MII address register
-    ethernet_mac.macmiiar.update(|r| {
-        assert_eq!(r.mb(), false); // assert that MII is not busy
+    ethernet_mac.macmiiar.modify(|r, w| {
+        assert!(!r.mb().is_busy()); // assert that MII is not busy
 
-        r.set_pa(phy_address); // set phy address
-        r.set_mr(register); // set mii register address
-        r.set_mw(false); // MII write operation (false = read)
-        r.set_mb(true); // MII busy
+        w.pa().bits(phy_address); // set phy address
+        w.mr().bits(register); // set mii register address
+        w.mw().read(); // MII write operation (false = read)
+        w.mb().busy(); // MII busy
+        w
     });
 
     // wait for completion (busy flag cleared)
-    while ethernet_mac.macmiiar.read().mb() {}
+    while ethernet_mac.macmiiar.read().mb().is_busy() {}
 
     // read the value from the MII data register
-    ethernet_mac.macmiidr.read().td()
+    ethernet_mac.macmiidr.read().md().bits()
 }
 
-fn phy_write(ethernet_mac: &mut EthernetMac, phy_address: u8, register: u8, value: u16) {
-    assert_eq!(ethernet_mac.macmiiar.read().mb(), false); // assert that MII is not busy
+fn phy_write(ethernet_mac: &mut ETHERNET_MAC, phy_address: u8, register: u8, value: u16) {
+    assert!(!ethernet_mac.macmiiar.read().mb().is_busy()); // assert that MII is not busy
 
     // give the value to the MII data register
-    let mut macmiidr = ethernet_mac::Macmiidr::default();
-    macmiidr.set_td(value);
-    ethernet_mac.macmiidr.write(macmiidr);
+    ethernet_mac.macmiidr.write(|w| w.md().bits(value));
 
     // set the MII address register
-    ethernet_mac.macmiiar.update(|r| {
-        r.set_pa(phy_address); // set phy address
-        r.set_mr(register); // set mii register address
-        r.set_mw(true); // MII write operation (true = write)
-        r.set_mb(true); // MII busy
+    ethernet_mac.macmiiar.modify(|_, w| {
+        w.pa().bits(phy_address); // set phy address
+        w.mr().bits(register); // set mii register address
+        w.mw().write(); // MII write operation (true = write)
+        w.mb().busy(); // MII busy
+        w
     });
 
     // wait for completion (busy flag cleared)
-    while ethernet_mac.macmiiar.read().mb() {}
+    while ethernet_mac.macmiiar.read().mb().is_busy() {}
 }

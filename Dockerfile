@@ -12,7 +12,7 @@ RUN set -ex; \
     apt-get clean -q -y; \
     rm -rf /var/lib/apt/lists/*; \
     cd ..; \
-    rustup default nightly-2018-04-19; \
+    rustup default nightly-2018-04-27; \
     rustup target add thumbv7em-none-eabihf; \
     cd myapp;
     
