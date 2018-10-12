@@ -293,11 +293,6 @@ fn HardFault(ef: &ExceptionFrame) -> ! {
     panic!("HardFault at {:#?}", ef);
 }
 
-#[exception]
-fn DefaultHandler(irqn: i16) {
-    panic!("Unhandled exception (IRQn = {})", irqn);
-}
-
 // define what happens in an Out Of Memory (OOM) condition
 #[alloc_error_handler]
 fn rust_oom(_: AllocLayout) -> ! {

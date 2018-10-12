@@ -2,6 +2,7 @@
 #![feature(try_from)]
 #![feature(trusted_len)]
 #![feature(alloc)]
+#![feature(optin_builtin_traits)]
 
 #[macro_use]
 extern crate alloc;
@@ -16,6 +17,8 @@ extern crate bit_field;
 extern crate byteorder;
 extern crate smoltcp;
 extern crate volatile;
+extern crate cortex_m_rt as rt;
+extern crate bare_metal;
 
 pub mod ethernet;
 pub mod gpio;
@@ -26,3 +29,4 @@ pub mod random;
 pub mod sd;
 pub mod system_clock;
 pub mod touch;
+pub mod interrupts;
