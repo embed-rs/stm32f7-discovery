@@ -1,6 +1,5 @@
 #![no_std]
 #![feature(try_from)]
-#![feature(const_fn)]
 #![feature(trusted_len)]
 #![feature(alloc)]
 
