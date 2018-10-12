@@ -101,14 +101,14 @@ fn phy_read(ethernet_mac: &mut ETHERNET_MAC, phy_address: u8, register: u8) -> u
     while ethernet_mac.macmiiar.read().mb().is_busy() {}
 
     // read the value from the MII data register
-    ethernet_mac.macmiidr.read().td().bits()
+    ethernet_mac.macmiidr.read().md().bits()
 }
 
 fn phy_write(ethernet_mac: &mut ETHERNET_MAC, phy_address: u8, register: u8, value: u16) {
     assert!(!ethernet_mac.macmiiar.read().mb().is_busy()); // assert that MII is not busy
 
     // give the value to the MII data register
-    ethernet_mac.macmiidr.write(|w| w.td().bits(value));
+    ethernet_mac.macmiidr.write(|w| w.md().bits(value));
 
     // set the MII address register
     ethernet_mac.macmiiar.modify(|_, w| {

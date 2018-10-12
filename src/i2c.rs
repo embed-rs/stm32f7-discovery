@@ -89,7 +89,7 @@ impl RegisterType for u16 {
 
 impl<'a, 'i: 'a, T: RegisterType> I2cConnection<'a, 'i, T> {
     fn start(&mut self, read: bool, bytes: u8) {
-        self.i2c.0.cr2.write(|w| unsafe {
+        self.i2c.0.cr2.write(|w| {
             w.sadd().bits(self.device_address.0); // slave_address
             w.start().set_bit(); // start_generation
             w.rd_wrn().bit(read); // read_transfer
@@ -113,7 +113,7 @@ impl<'a, 'i: 'a, T: RegisterType> I2cConnection<'a, 'i, T> {
 
         for b in bytes {
             self.i2c.wait_for_txis()?;
-            self.i2c.0.txdr.modify(|_, w| unsafe { w.txdata().bits(b) }); // transmit_data
+            self.i2c.0.txdr.modify(|_, w| w.txdata().bits(b)); // transmit_data
         }
 
         self.i2c.wait_for_transfer_complete()?;
@@ -294,7 +294,7 @@ impl<'a> I2C<'a> {
     pub fn test_1(&mut self) {
         let i2c = &mut self.0;
 
-        i2c.cr2.modify(|_, w| unsafe {
+        i2c.cr2.modify(|_, w| {
             w.sadd().bits(Address::bits_7(0b1010101).0); // slave_address
             w.start().set_bit(); // start_generation
             w.nbytes().bits(0); // number_of_bytes
@@ -322,7 +322,7 @@ impl<'a> I2C<'a> {
 
         let mut addr = 0;
         loop {
-            i2c.cr2.modify(|_, w| unsafe {
+            i2c.cr2.modify(|_, w| {
                 w.sadd().bits(Address::bits_7(addr).0); // slave_address
                 w.start().set_bit(); // start_generation
                 w.nbytes().bits(0); // number_of_bytes
@@ -363,7 +363,7 @@ pub fn init<'a>(i2c: &'a RegisterBlock, rcc: &mut RCC) -> I2C<'a> {
     i2c.cr1.modify(|_, w| w.pe().clear_bit()); // peripheral_enable register
 
     // configure timing register TODO: check/understand values
-    i2c.timingr.modify(|_, w| unsafe {
+    i2c.timingr.modify(|_, w| {
         w.presc().bits(0x4); // timing_prescaler
         w.scldel().bits(0x9); // data_setup_time
         w.sdadel().bits(0x1); // data_hold_time
@@ -375,7 +375,7 @@ pub fn init<'a>(i2c: &'a RegisterBlock, rcc: &mut RCC) -> I2C<'a> {
     // configure oar1
     i2c.oar1.modify(|_, w| w.oa1en().clear_bit()); // own_address_1_enable register
     i2c.oar1.modify(|_, w| {
-        unsafe { w.oa1().bits(0x00) }; // own_address_1
+        w.oa1().bits(0x00); // own_address_1
         w.oa1mode().clear_bit(); // 10 bit mode
         w.oa1en().clear_bit(); // TODO
         w
