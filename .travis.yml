@@ -5,14 +5,9 @@ os:
   - mac
   - windows
 
-matrix:
-  include:
-    - env: TARGET=thumbv7em-none-eabihf
-      rust: nightly
-      addons:
-        apt:
-          packages:
-            - gcc-arm-none-eabi
+rust: nightly
+
+env: TARGET=thumbv7em-none-eabihf
 
 before_install: set -e
 
