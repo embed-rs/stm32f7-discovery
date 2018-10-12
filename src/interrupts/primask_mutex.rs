@@ -8,8 +8,8 @@
 //! the synchronized data implements `Send`.
 
 use core::cell::UnsafeCell;
-use cortex_m::register::primask;
 use cortex_m::interrupt;
+use cortex_m::register::primask;
 
 /// Mutex that uses the `primask` core register from the cortem m processor to disable
 /// interrupts before the critical section and enables interrupts again, when interrupts

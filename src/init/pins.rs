@@ -55,7 +55,8 @@ pub fn init<'a>(
             OutputType::PushPull,
             OutputSpeed::Low,
             Resistor::NoPull,
-        ).expect("Pin I-1 already in use");
+        )
+        .expect("Pin I-1 already in use");
     let button = gpio_i
         .to_input(gpio_i_pins.pin_11.pin(), Resistor::NoPull)
         .expect("Pin I-11 already in use");
@@ -212,14 +213,16 @@ pub fn init<'a>(
                 OutputType::PushPull,
                 OutputSpeed::Low,
                 Resistor::PullDown,
-            ).expect("Failed to reserve LCD display enable pin");
+            )
+            .expect("Failed to reserve LCD display enable pin");
         let backlight = gpio_k
             .to_output(
                 gpio_k_pins.pin_3.pin(),
                 OutputType::PushPull,
                 OutputSpeed::Low,
                 Resistor::PullDown,
-            ).expect("Failed to reserve LCD backlight pin");
+            )
+            .expect("Failed to reserve LCD backlight pin");
         (display_enable, backlight)
     };
 

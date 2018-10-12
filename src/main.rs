@@ -5,9 +5,9 @@
 
 #[macro_use]
 extern crate alloc;
+extern crate alloc_cortex_m;
 extern crate cortex_m;
 extern crate cortex_m_rt as rt;
-extern crate alloc_cortex_m;
 extern crate cortex_m_semihosting as sh;
 #[macro_use]
 extern crate stm32f7;
@@ -145,7 +145,8 @@ fn main() -> ! {
         &mut ethernet_mac,
         &mut ethernet_dma,
         ETH_ADDR,
-    ).map(|device| device.into_interface(IP_ADDR));
+    )
+    .map(|device| device.into_interface(IP_ADDR));
     if let Err(e) = ethernet_interface {
         println!("ethernet init failed: {:?}", e);
     };
@@ -208,11 +209,13 @@ fn main() -> ! {
                 Err(::smoltcp::Error::Exhausted) => continue,
                 Err(::smoltcp::Error::Unrecognized) => {}
                 Err(e) => println!("Network error: {:?}", e),
-                Ok(socket_changed) => if socket_changed {
-                    for mut socket in sockets.iter_mut() {
-                        poll_socket(&mut socket).expect("socket poll failed");
+                Ok(socket_changed) => {
+                    if socket_changed {
+                        for mut socket in sockets.iter_mut() {
+                            poll_socket(&mut socket).expect("socket poll failed");
+                        }
                     }
-                },
+                }
             }
         }
 

@@ -2,23 +2,23 @@
 #![no_main]
 #![feature(alloc_error_handler)]
 
-extern crate stm32f7_discovery;
-extern crate cortex_m_rt as rt;
-extern crate stm32f7;
 extern crate alloc_cortex_m;
 extern crate cortex_m;
+extern crate cortex_m_rt as rt;
 extern crate cortex_m_semihosting;
+extern crate stm32f7;
+extern crate stm32f7_discovery;
 
-use stm32f7::stm32f7x6::{CorePeripherals, Peripherals};
-use stm32f7_discovery::{
-    init,
-    system_clock::{self, Hz},
-    gpio::{GpioPort, OutputPin},
-};
-use rt::{entry, exception};
+use alloc_cortex_m::CortexMHeap;
 use core::alloc::Layout as AllocLayout;
 use core::panic::PanicInfo;
-use alloc_cortex_m::CortexMHeap;
+use rt::{entry, exception};
+use stm32f7::stm32f7x6::{CorePeripherals, Peripherals};
+use stm32f7_discovery::{
+    gpio::{GpioPort, OutputPin},
+    init,
+    system_clock::{self, Hz},
+};
 
 #[entry]
 fn main() -> ! {
@@ -83,8 +83,8 @@ fn rust_oom(_: AllocLayout) -> ! {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     use core::fmt::Write;
+    use cortex_m::asm;
     use cortex_m_semihosting::hio;
-    use cortex_m::{asm};
 
     if let Ok(mut hstdout) = hio::hstdout() {
         let _ = writeln!(hstdout, "{}", info);
@@ -92,6 +92,6 @@ fn panic(info: &PanicInfo) -> ! {
 
     // OK to fire a breakpoint here because we know the microcontroller is connected to a debugger
     asm::bkpt();
-    
+
     loop {}
 }

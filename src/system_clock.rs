@@ -44,8 +44,12 @@ pub fn init(Hz(frequency): Hz, systick: &mut SYST, rcc: &RCC) {
 
     let system_clock_speed = (((25 * 1000 * 1000) / pllm) * plln) / pllp; // HSE runs at 25 MHz
     let reload_ticks = u32::try_from(system_clock_speed / frequency as u64).unwrap();
-    assert!(reload_ticks < 0x0100_0000, "Systick frequency is too low for the SysTick RVR register. \
-The minimum frequency for the current system frequency is {}Hz", system_clock_speed as f32 / 0x0100_0000 as f32);
+    assert!(
+        reload_ticks < 0x0100_0000,
+        "Systick frequency is too low for the SysTick RVR register. \
+         The minimum frequency for the current system frequency is {}Hz",
+        system_clock_speed as f32 / 0x0100_0000 as f32
+    );
 
     SYSTEM_CLOCK_SPEED.store(system_clock_speed as usize, Ordering::Release);
     FREQUENCY.store(frequency, Ordering::Release);

@@ -17,13 +17,13 @@
 //! interrupt service routine.
 
 use alloc::boxed::Box;
-use stm32f7::stm32f7x6::{Interrupt as InterruptRequest, NVIC, NVIC_STIR};
-use core::marker::PhantomData;
+use bare_metal::Nr;
+use core::convert::{TryFrom, TryInto};
 use core::intrinsics::transmute;
+use core::marker::PhantomData;
 use core::{fmt, ptr};
 use rt::exception;
-use core::convert::{TryFrom, TryInto};
-use bare_metal::Nr;
+use stm32f7::stm32f7x6::{Interrupt as InterruptRequest, NVIC, NVIC_STIR};
 
 pub mod primask_mutex;
 
@@ -34,112 +34,23 @@ fn DefaultHandler(irqn: i16) {
     } else {
         // irqs 0-15 are exceptions
         let interrupt_number = irqn - 16;
-        unsafe { match ISRS[usize::try_from(interrupt_number).unwrap()] {
-            Some(ref mut isr) => isr(),
-            None => default_interrupt_handler(interrupt_number.try_into().unwrap()),
-        }}
+        unsafe {
+            match ISRS[usize::try_from(interrupt_number).unwrap()] {
+                Some(ref mut isr) => isr(),
+                None => default_interrupt_handler(interrupt_number.try_into().unwrap()),
+            }
+        }
     }
 }
 
 static mut ISRS: [Option<Box<FnMut()>>; 98] = [
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
+    None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+    None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+    None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+    None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+    None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+    None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+    None, None,
 ];
 
 /// Default interrupt handler
@@ -167,7 +78,11 @@ impl fmt::Debug for Error {
         match self {
             Error::InterruptAlreadyInUse(interrupt_request) => {
                 // fixme: use Debug implementation when available
-                writeln!(f, "Error::InterruptAlreadyInUse({})", interrupt_request.nr())
+                writeln!(
+                    f,
+                    "Error::InterruptAlreadyInUse({})",
+                    interrupt_request.nr()
+                )
             }
         }
     }
@@ -263,16 +178,22 @@ impl<'a> Drop for InterruptTable<'a> {
 ///
 /// # Panics
 /// Panics if an interrupt is enabled and is not disabled after use in `code()`
-pub fn scope<'a, F, C, R>(nvic: &'static mut NVIC, nvic_stir: &'static mut NVIC_STIR, default_handler: F, code: C) -> R
+pub fn scope<'a, F, C, R>(
+    nvic: &'static mut NVIC,
+    nvic_stir: &'static mut NVIC_STIR,
+    default_handler: F,
+    code: C,
+) -> R
 where
     F: FnMut(u8) + Send,
     C: FnOnce(&mut InterruptTable<'a>) -> R,
 {
     unsafe {
         debug_assert!(DEFAULT_INTERRUPT_HANDLER.is_none());
-        DEFAULT_INTERRUPT_HANDLER = Some(
-            transmute::<Box<FnMut(u8) + Send>, Box<FnMut(u8) + 'static>>(Box::new(default_handler)),
-        );
+        DEFAULT_INTERRUPT_HANDLER = Some(transmute::<
+            Box<FnMut(u8) + Send>,
+            Box<FnMut(u8) + 'static>,
+        >(Box::new(default_handler)));
     }
 
     let mut interrupt_table = InterruptTable {
@@ -370,9 +291,9 @@ impl<'a> InterruptTable<'a> {
         // and alway only one isr can access the data (Send is not needed for closure)
         let isr = unsafe {
             let parameter = &mut *(self.data[irq_number as usize] as *mut T);
-            transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>>(
-                Box::new(move || { isr(parameter); }),
-            )
+            transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>>(Box::new(move || {
+                isr(parameter);
+            }))
         };
         let interrupt_handle = self.insert_boxed_isr(irq, isr)?;
         self.set_priority(&interrupt_handle, priority);
@@ -539,7 +460,6 @@ impl<'a> InterruptTable<'a> {
         unsafe { self.nvic.set_priority(irq, priority) };
     }
 
-
     /// Returns the priority of the interrupt corresponding to the `interrupt_handle`.
     pub fn get_priority<T>(&self, interrupt_handle: &InterruptHandle<T>) -> Priority {
         let irq = InterruptId(interrupt_handle.irq.nr());
@@ -576,7 +496,9 @@ impl<'a> InterruptTable<'a> {
 
     /// Triggers the given interrupt `irq`.
     pub fn trigger(&mut self, irq: InterruptRequest) {
-        self.nvic_stir.stir.write(|w| unsafe { w.intid().bits(irq.nr().into())});
+        self.nvic_stir
+            .stir
+            .write(|w| unsafe { w.intid().bits(irq.nr().into()) });
     }
 }
 
