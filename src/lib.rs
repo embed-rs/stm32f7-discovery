@@ -19,6 +19,7 @@ extern crate byteorder;
 extern crate cortex_m_rt as rt;
 extern crate smoltcp;
 extern crate volatile;
+extern crate embedded_hal;
 
 pub mod ethernet;
 pub mod gpio;
