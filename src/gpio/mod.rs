@@ -87,7 +87,7 @@ pub trait InputPin: Sized {
 
 pub struct InputPinImpl<'a, IDR: IdrTrait + 'a> {
     pin: PinNumber,
-    input_data: &'a IDR,
+    input_data: ReadOnlyIdr<'a, IDR>,
 }
 
 impl<'a, IDR> InputPin for InputPinImpl<'a, IDR>
@@ -99,6 +99,17 @@ where
         value.get(self.pin)
     }
 }
+
+struct ReadOnlyIdr<'a, IDR: IdrTrait>(&'a IDR);
+
+impl<'a, IDR: IdrTrait> ReadOnlyIdr<'a, IDR> {
+    fn read(&self) -> IDR::R {
+        self.0.read()
+    }
+}
+
+unsafe impl<'a, IDR: IdrTrait> Sync for ReadOnlyIdr<'a, IDR> {}
+unsafe impl<'a, IDR: IdrTrait> Send for ReadOnlyIdr<'a, IDR> {}
 
 pub trait OutputPin: Sized {
     fn get(&self) -> bool;
@@ -113,7 +124,7 @@ pub trait OutputPin: Sized {
 
 pub struct OutputPinImpl<'a, ODR: OdrTrait + 'a, BSRR: BsrrTrait + 'a> {
     pin: PinNumber,
-    output_data: &'a ODR,
+    output_data: ReadOnlyOdr<'a, ODR>,
     bit_set_reset: BsrrRef<'a, BSRR>,
 }
 
@@ -131,6 +142,17 @@ where
         self.bit_set_reset.set(self.pin, value);
     }
 }
+
+pub struct ReadOnlyOdr<'a, ODR: OdrTrait>(&'a ODR);
+
+impl<'a, ODR: OdrTrait> ReadOnlyOdr<'a, ODR> {
+    fn read(&self) -> ODR::R {
+        self.0.read()
+    }
+}
+
+unsafe impl<'a, ODR: OdrTrait> Send for ReadOnlyOdr<'a, ODR> {}
+unsafe impl<'a, ODR: OdrTrait> Sync for ReadOnlyOdr<'a, ODR> {}
 
 #[derive(Debug, Clone)]
 struct BsrrRef<'a, BSRR: 'a> {
