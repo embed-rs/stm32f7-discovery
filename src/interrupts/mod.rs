@@ -124,8 +124,8 @@ impl<T> InterruptHandle<T> {
 /// ```
 pub struct InterruptTable<'a> {
     _lifetime: PhantomData<&'a ()>,
-    nvic: &'static mut NVIC,
-    nvic_stir: &'static mut NVIC_STIR,
+    nvic: &'a mut NVIC,
+    nvic_stir: &'a mut NVIC_STIR,
     data: [*mut (); 98],
 }
 
@@ -180,8 +180,8 @@ impl<'a> Drop for InterruptTable<'a> {
 /// # Panics
 /// Panics if an interrupt is enabled and is not disabled after use in `code()`
 pub fn scope<'a, F, C, R>(
-    nvic: &'static mut NVIC,
-    nvic_stir: &'static mut NVIC_STIR,
+    nvic: &'a mut NVIC,
+    nvic_stir: &'a mut NVIC_STIR,
     default_handler: F,
     code: C,
 ) -> R
