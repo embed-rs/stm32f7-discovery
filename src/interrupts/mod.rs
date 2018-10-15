@@ -30,15 +30,13 @@ pub mod primask_mutex;
 
 #[exception]
 fn DefaultHandler(irqn: i16) {
-    if irqn < 16 {
+    if irqn < 0 {
         panic!("Unhandled exception (IRQn = {})", irqn);
     } else {
-        // irqs 0-15 are exceptions
-        let interrupt_number = irqn - 16;
         unsafe {
-            match ISRS[usize::try_from(interrupt_number).unwrap()] {
+            match ISRS[usize::try_from(irqn).unwrap()] {
                 Some(ref mut isr) => isr(),
-                None => default_interrupt_handler(interrupt_number.try_into().unwrap()),
+                None => default_interrupt_handler(irqn.try_into().unwrap()),
             }
         }
     }
