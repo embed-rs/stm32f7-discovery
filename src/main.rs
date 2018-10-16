@@ -1,5 +1,6 @@
 #![feature(alloc)]
 #![feature(alloc_error_handler)]
+#![feature(generators, generator_trait)]
 #![no_main]
 #![no_std]
 
@@ -42,6 +43,7 @@ use stm32f7_discovery::{
     system_clock::{self, Hz},
     touch,
 };
+use core::ops::{Generator, GeneratorState};
 
 #[global_allocator]
 static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
@@ -168,6 +170,51 @@ fn main() -> ! {
         sockets.add(example_tcp_socket);
     }
 
+    let mut touch_task = || {
+        loop {
+            // poll for new touch data
+            for touch in touch::touches(&mut i2c_3).unwrap() {
+                yield Some((touch.x, touch.y));
+            }
+            yield None;
+        }
+    };
+
+    let mut audio_task = || {
+        loop {
+            // poll for new audio data
+            while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
+            let data0 = sai_2.bdr.read().data().bits();
+            while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
+            let data1 = sai_2.bdr.read().data().bits();
+            yield (data0, data1);
+        }
+    };
+
+    let mut audio_writer_task = || {
+        loop {
+            match unsafe { touch_task.resume() } {
+                GeneratorState::Complete(_) => unreachable!(),
+                GeneratorState::Yielded(Some((x, y))) => {
+                    audio_writer.layer().print_point_color_at(
+                        x as usize,
+                        y as usize,
+                        Color::from_hex(0xffff00),
+                    );
+                },
+                GeneratorState::Yielded(None) => {},
+            }
+
+            match unsafe { audio_task.resume() } {
+                GeneratorState::Complete(_) => unreachable!(),
+                GeneratorState::Yielded((data0, data1)) => {
+                    audio_writer.set_next_col(data0, data1);
+                }
+            }
+        }
+        yield;
+    };
+
     let mut previous_button_state = pins.button.get();
     loop {
         // poll button state
@@ -183,22 +230,7 @@ fn main() -> ! {
             previous_button_state = current_button_state;
         }
 
-        // poll for new touch data
-        for touch in &touch::touches(&mut i2c_3).unwrap() {
-            audio_writer.layer().print_point_color_at(
-                touch.x as usize,
-                touch.y as usize,
-                Color::from_hex(0xffff00),
-            );
-        }
-
-        // poll for new audio data
-        while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
-        let data0 = sai_2.bdr.read().data().bits();
-        while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
-        let data1 = sai_2.bdr.read().data().bits();
-
-        audio_writer.set_next_col(data0, data1);
+        unsafe { audio_writer_task.resume() };
 
         // handle new ethernet packets
         if let Ok(ref mut eth) = ethernet_interface {
