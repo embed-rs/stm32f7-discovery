@@ -66,7 +66,7 @@ macro_rules! await {
 
 
 
-struct MyWaker(u32);
+struct MyWaker(&'static AtomicBool);
 
 impl Wake for MyWaker {
     fn wake(arc_self: &Arc<Self>) {

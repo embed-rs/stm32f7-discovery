@@ -24,6 +24,7 @@ extern crate cortex_m_rt as rt;
 extern crate smoltcp;
 extern crate volatile;
 extern crate embedded_hal;
+extern crate futures;
 
 pub mod ethernet;
 pub mod gpio;
@@ -36,3 +37,4 @@ pub mod sd;
 pub mod system_clock;
 pub mod touch;
 pub mod future_runtime;
+pub mod task_runtime;
