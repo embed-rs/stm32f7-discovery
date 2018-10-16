@@ -1,6 +1,7 @@
 #![feature(alloc)]
 #![feature(alloc_error_handler)]
 #![feature(generators, generator_trait)]
+#![feature(pin, futures_api)]
 #![no_main]
 #![no_std]
 
@@ -42,8 +43,10 @@ use stm32f7_discovery::{
     sd,
     system_clock::{self, Hz},
     touch,
+    future_runtime,
 };
 use core::ops::{Generator, GeneratorState};
+use core::future::Future;
 
 #[global_allocator]
 static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
@@ -127,6 +130,18 @@ fn main() -> ! {
     // controller might not be ready yet
     touch::check_family_id(&mut i2c_3).unwrap();
 
+    println!("Press the button to continue");
+    let button = pins.button;
+    let mut button_wait_task = || {
+        await!(wait_for_button(button));
+    };
+    loop {
+        match unsafe { button_wait_task.resume() } {
+            GeneratorState::Complete(_) => break,
+            GeneratorState::Yielded(()) => {},
+        }
+    }
+
     let mut rng = Rng::init(&mut rng, &mut rcc).expect("RNG init failed");
     print!("Random numbers: ");
     for _ in 0..4 {
@@ -191,6 +206,18 @@ fn main() -> ! {
         }
     };
 
+    fn wait_for_button<I: InputPin>(button: I) -> impl Future<Output = I> {
+        let previous_button_state = button.get();
+        let task = move || {
+            // poll button state
+            while button.get() == previous_button_state {
+                yield
+            }
+            button
+        };
+        future_runtime::from_generator(task)
+    }
+
     let mut audio_writer_task = || {
         loop {
             match unsafe { touch_task.resume() } {
@@ -215,8 +242,9 @@ fn main() -> ! {
         yield;
     };
 
-    let mut previous_button_state = pins.button.get();
+    //let mut previous_button_state = pins.button.get();
     loop {
+        /*
         // poll button state
         let current_button_state = pins.button.get();
         if current_button_state != previous_button_state {
@@ -229,6 +257,7 @@ fn main() -> ! {
 
             previous_button_state = current_button_state;
         }
+        */
 
         unsafe { audio_writer_task.resume() };
 

@@ -3,6 +3,10 @@
 #![feature(trusted_len)]
 #![feature(alloc)]
 #![feature(optin_builtin_traits)]
+#![feature(futures_api)]
+#![feature(generator_trait)]
+#![feature(pin)]
+#![feature(arbitrary_self_types)]
 
 #[macro_use]
 extern crate alloc;
@@ -31,3 +35,4 @@ pub mod random;
 pub mod sd;
 pub mod system_clock;
 pub mod touch;
+pub mod future_runtime;
