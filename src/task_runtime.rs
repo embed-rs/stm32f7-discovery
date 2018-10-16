@@ -1,10 +1,14 @@
-use alloc::prelude::*;
+use core::pin::Pin;
+use alloc::{
+    prelude::*,
+    sync::Arc,
+    task::{Wake, local_waker_from_nonlocal},
+};
 use futures::{
     prelude::*,
     future::FutureObj,
     task::{Spawn, SpawnError},
 };
-use core::pin::Pin;
 
 pub struct Executor {
     tasks: Vec<Pin<Box<FutureObj<'static, ()>>>>,
@@ -20,12 +24,12 @@ impl Spawn for Executor {
 impl Executor {
     fn run(&mut self) {
         for task in &mut self.tasks {
-            task.as_mut().poll();
+            task.as_mut().poll(&local_waker_from_nonlocal(Arc::new(MyWaker)));
         }   
     }
 }
 
-struct MyWaker(&'static );
+struct MyWaker;
 
 impl Wake for MyWaker {
     fn wake(arc_self: &Arc<Self>) {
