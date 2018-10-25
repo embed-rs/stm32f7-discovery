@@ -40,8 +40,10 @@ default-features = false
 features = ["unicode"]
 
 [dependencies.futures-preview]
-version = "0.3.0-alpha.7"
+git = "https://github.com/phil-opp/futures-rs.git"
+branch = "alloc"
 default-features = false
+features = ["alloc"]
 
 [profile.release]
 codegen-units = 1 # better optimizations

@@ -16,8 +16,10 @@ extern crate stm32f7;
 #[macro_use]
 extern crate stm32f7_discovery;
 extern crate smoltcp;
+extern crate futures;
 
 use alloc::vec::Vec;
+use alloc::boxed::Box;
 use alloc_cortex_m::CortexMHeap;
 use core::alloc::Layout as AllocLayout;
 use core::fmt::Write;
@@ -44,6 +46,7 @@ use stm32f7_discovery::{
     system_clock::{self, Hz},
     touch,
     future_runtime,
+    task_runtime,
 };
 use core::ops::{Generator, GeneratorState};
 use core::future::Future;
@@ -57,6 +60,10 @@ const IP_ADDR: Ipv4Address = Ipv4Address([141, 52, 46, 198]);
 
 #[entry]
 fn main() -> ! {
+    run()
+}
+
+fn run() -> ! {
     let core_peripherals = CorePeripherals::take().unwrap();
     let mut systick = core_peripherals.SYST;
     let mut nvic = core_peripherals.NVIC;
@@ -101,22 +108,23 @@ fn main() -> ! {
     pins.display_enable.set(true);
     pins.backlight.set(true);
 
+    // Initialize the allocator BEFORE you use it
+    unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }
+
     let mut layer_1 = lcd.layer_1().unwrap();
     let mut layer_2 = lcd.layer_2().unwrap();
 
     layer_1.clear();
-    let mut audio_writer = layer_1.audio_writer();
+    let mut audio_writer = Box::leak(Box::new(layer_1)).audio_writer();
     layer_2.clear();
     lcd::init_stdout(layer_2);
 
     println!("Hello World");
 
-    // Initialize the allocator BEFORE you use it
-    unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }
 
     let xs = vec![1, 2, 3];
 
-    let mut i2c_3 = init::init_i2c_3(&peripherals.I2C3, &mut rcc);
+    let mut i2c_3 = init::init_i2c_3(Box::leak(Box::new(peripherals.I2C3)), &mut rcc);
     i2c_3.test_1();
     i2c_3.test_2();
 
@@ -185,7 +193,7 @@ fn main() -> ! {
         sockets.add(example_tcp_socket);
     }
 
-    let mut touch_task = || {
+    let mut touch_task = move || {
         loop {
             // poll for new touch data
             for touch in touch::touches(&mut i2c_3).unwrap() {
@@ -195,7 +203,7 @@ fn main() -> ! {
         }
     };
 
-    let mut audio_task = || {
+    let mut audio_task = move || {
         loop {
             // poll for new audio data
             while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
@@ -218,7 +226,7 @@ fn main() -> ! {
         future_runtime::from_generator(task)
     }
 
-    let mut audio_writer_task = || {
+    let mut audio_writer_task = move || {
         loop {
             match unsafe { touch_task.resume() } {
                 GeneratorState::Complete(_) => unreachable!(),
@@ -242,6 +250,12 @@ fn main() -> ! {
         yield;
     };
 
+    use futures::task::LocalSpawnExt;
+
+    let mut executor = task_runtime::Executor::new();
+    executor.spawn_local(future_runtime::from_generator(audio_writer_task));
+    executor.run();
+
     //let mut previous_button_state = pins.button.get();
     loop {
         /*
@@ -259,7 +273,7 @@ fn main() -> ! {
         }
         */
 
-        unsafe { audio_writer_task.resume() };
+        //unsafe { audio_writer_task.resume() };
 
         // handle new ethernet packets
         if let Ok(ref mut eth) = ethernet_interface {
