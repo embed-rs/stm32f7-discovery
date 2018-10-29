@@ -3,7 +3,7 @@ use alloc::{
     prelude::*,
     sync::Arc,
     task::{Wake, local_waker_from_nonlocal},
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
 };
 use futures::{
     prelude::*,
@@ -13,8 +13,8 @@ use futures::{
 use spin::Mutex;
 
 pub struct Executor {
-    ready_tasks: Vec<(u64, Pin<Box<LocalFutureObj<'static, ()>>>)>,
-    waiting_tasks: BTreeMap<u64, Pin<Box<LocalFutureObj<'static, ()>>>>,
+    tasks: BTreeMap<u64, Pin<Box<LocalFutureObj<'static, ()>>>>,
+    ready_tasks: Vec<u64>,
     woken_tasks: Arc<Mutex<Vec<u64>>>,
     next_task_id: u64,
 }
@@ -35,8 +35,8 @@ impl LocalSpawn for Executor {
 impl Executor {
     pub fn new() -> Self {
         Executor {
+            tasks: BTreeMap::new(),
             ready_tasks: Vec::new(),
-            waiting_tasks: BTreeMap::new(),
             woken_tasks: Arc::new(Mutex::new(Vec::new())),
             next_task_id: 0,
         }
@@ -45,26 +45,28 @@ impl Executor {
     fn add_task(&mut self, task: Pin<Box<LocalFutureObj<'static, ()>>>) {
         let id = self.next_task_id;
         self.next_task_id += 1;
-        self.ready_tasks.push((id, task));
+        self.tasks.insert(id, task);
+        self.ready_tasks.push(id);
     }
 
     pub fn run(&mut self) {
         {
             let mut woken_tasks = self.woken_tasks.lock();
             for task_id in woken_tasks.drain(..) {
-                if let Some(task) = self.waiting_tasks.remove(&task_id) {
-                    self.ready_tasks.push((task_id, task));
-                }
+                self.ready_tasks.push(task_id);
             }
         }
-        for (task_id, mut task) in self.ready_tasks.drain(..) {
+        for task_id in self.ready_tasks.drain(..) {
             let waker = MyWaker {
                 task_id,
                 woken_tasks: self.woken_tasks.clone(),
             };
-            let poll_result = task.as_mut().poll(&local_waker_from_nonlocal(Arc::new(waker)));
-            if poll_result.is_pending() {
-                self.waiting_tasks.insert(task_id, task);
+            let poll_result = {
+                let task = self.tasks.get_mut(&task_id).expect(&format!("task with id {} not found", task_id));
+                task.as_mut().poll(&local_waker_from_nonlocal(Arc::new(waker)))
+            };
+            if poll_result.is_ready() {
+                self.tasks.remove(&task_id).expect(&format!("Task {} not found", task_id));
             }
         };
     }
