@@ -43,7 +43,17 @@ impl Executor {
     }
 }
 
-struct MyWaker;
+struct MyWaker(usize);
+
+impl MyWaker {
+    fn new() -> Self {
+        use core::sync::atomic::{AtomicUsize, Ordering};
+
+        static INIT_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+        MyWaker(INIT_COUNTER.fetch_add(1, Ordering::SeqCst))
+    }
+}
 
 impl Wake for MyWaker {
     fn wake(arc_self: &Arc<Self>) {
