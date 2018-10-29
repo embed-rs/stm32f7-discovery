@@ -7,6 +7,7 @@
 #![feature(generator_trait)]
 #![feature(pin)]
 #![feature(arbitrary_self_types)]
+#![feature(drain_filter)]
 
 #[macro_use]
 extern crate alloc;

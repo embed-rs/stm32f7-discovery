@@ -36,9 +36,10 @@ impl Executor {
     }
 
     pub fn run(&mut self) {
-        for task in &mut self.tasks {
-            task.as_mut().poll(&local_waker_from_nonlocal(Arc::new(MyWaker)));
-        }   
+        self.tasks.drain_filter(|task| {
+            let poll_result = task.as_mut().poll(&local_waker_from_nonlocal(Arc::new(MyWaker::new())));
+            poll_result.is_ready()
+        });
     }
 }
 
