@@ -226,7 +226,7 @@ fn run() -> ! {
         future_runtime::from_generator(task)
     }
 
-    let mut audio_writer_task = move || {
+    let audio_writer_task = move || {
         loop {
             match unsafe { touch_task.resume() } {
                 GeneratorState::Complete(_) => unreachable!(),
@@ -246,15 +246,46 @@ fn run() -> ! {
                     audio_writer.set_next_col(data0, data1);
                 }
             }
+            yield;
         }
+    };
+
+    let print_hello = || {
+        print!("h");
         yield;
+        print!("e");
+        yield;
+        print!("l");
+        yield;
+        print!("l");
+        yield;
+        print!("o");
+    };
+
+    let print_123456789 = || {
+        for i in 1..10 {
+            print!("{}", i);
+            yield;
+        }
+    };
+
+    let print_x_loop = || {
+        loop {
+            print!("x");
+            yield;
+        }
     };
 
     use futures::task::LocalSpawnExt;
 
     let mut executor = task_runtime::Executor::new();
     executor.spawn_local(future_runtime::from_generator(audio_writer_task));
-    executor.run();
+    executor.spawn_local(future_runtime::from_generator(print_hello));
+    executor.spawn_local(future_runtime::from_generator(print_123456789));
+    executor.spawn_local(future_runtime::from_generator(print_x_loop));
+    loop {
+        executor.run();
+    }
 
     //let mut previous_button_state = pins.button.get();
     loop {
