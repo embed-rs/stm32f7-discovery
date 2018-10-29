@@ -2,6 +2,7 @@
 #![feature(alloc_error_handler)]
 #![feature(generators, generator_trait)]
 #![feature(pin, futures_api)]
+#![feature(arbitrary_self_types)]
 #![no_main]
 #![no_std]
 
@@ -17,6 +18,7 @@ extern crate stm32f7;
 extern crate stm32f7_discovery;
 extern crate smoltcp;
 extern crate futures;
+extern crate spin;
 
 use alloc::vec::Vec;
 use alloc::boxed::Box;
@@ -269,9 +271,37 @@ fn run() -> ! {
         }
     };
 
-    let print_x_loop = || {
-        loop {
+    use spin::Mutex;
+    use alloc::sync::Arc;
+    use alloc::collections::VecDeque;
+    use core::future::Future;
+    use core::task::{Poll, LocalWaker};
+    use core::pin::Pin;
+
+    let wake_on_idle = Arc::new(Mutex::new(VecDeque::<LocalWaker>::new()));
+
+
+    struct PrintX {
+        wake_on_idle: Arc<Mutex<VecDeque<LocalWaker>>>,
+    }
+
+    impl Future for PrintX {
+        type Output = ();
+
+        fn poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
             print!("x");
+            self.wake_on_idle.lock().push_back(lw.clone());
+            Poll::Pending
+        }
+    }
+
+    let print_x = PrintX {
+        wake_on_idle: wake_on_idle.clone(),
+    };
+
+    let print_y_loop = || {
+        loop {
+            print!("y");
             yield;
         }
     };
@@ -282,9 +312,15 @@ fn run() -> ! {
     executor.spawn_local(future_runtime::from_generator(audio_writer_task));
     executor.spawn_local(future_runtime::from_generator(print_hello));
     executor.spawn_local(future_runtime::from_generator(print_123456789));
-    executor.spawn_local(future_runtime::from_generator(print_x_loop));
+    executor.spawn_local(future_runtime::from_generator(print_y_loop));
+    executor.spawn_local(print_x);
     loop {
         executor.run();
+
+        let mut wake_on_idle = wake_on_idle.lock();
+        for waker in wake_on_idle.drain(..) {
+            waker.wake();
+        }
     }
 
     //let mut previous_button_state = pins.button.get();

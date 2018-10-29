@@ -27,12 +27,13 @@ extern crate volatile;
 extern crate embedded_hal;
 extern crate futures;
 
+#[macro_use]
+pub mod lcd;
 pub mod ethernet;
 pub mod gpio;
 pub mod i2c;
 pub mod init;
 pub mod interrupts;
-pub mod lcd;
 pub mod random;
 pub mod sd;
 pub mod system_clock;
