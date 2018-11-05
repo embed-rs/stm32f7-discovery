@@ -49,6 +49,7 @@ use stm32f7_discovery::{
     touch,
     future_runtime,
     task_runtime,
+    interrupts::{self, InterruptRequest, Priority},
 };
 use core::ops::{Generator, GeneratorState};
 use core::future::Future;
@@ -82,6 +83,8 @@ fn run() -> ! {
     let mut syscfg = peripherals.SYSCFG;
     let mut ethernet_mac = peripherals.ETHERNET_MAC;
     let mut ethernet_dma = peripherals.ETHERNET_DMA;
+    let mut nvic_stir = peripherals.NVIC_STIR;
+    let mut tim6 = peripherals.TIM6;
 
     init::init_system_clock_216mhz(&mut rcc, &mut pwr, &mut flash);
     init::enable_gpio_ports(&mut rcc);
@@ -139,18 +142,6 @@ fn run() -> ! {
     // touch initialization should be done after audio initialization, because the touch
     // controller might not be ready yet
     touch::check_family_id(&mut i2c_3).unwrap();
-
-    println!("Press the button to continue");
-    let button = pins.button;
-    let mut button_wait_task = || {
-        await!(wait_for_button(button));
-    };
-    loop {
-        match unsafe { button_wait_task.resume() } {
-            GeneratorState::Complete(_) => break,
-            GeneratorState::Yielded(()) => {},
-        }
-    }
 
     let mut rng = Rng::init(&mut rng, &mut rcc).expect("RNG init failed");
     print!("Random numbers: ");
@@ -274,7 +265,6 @@ fn run() -> ! {
     use spin::Mutex;
     use alloc::sync::Arc;
     use alloc::collections::VecDeque;
-    use core::future::Future;
     use core::task::{Poll, LocalWaker};
     use core::pin::Pin;
 
@@ -299,29 +289,69 @@ fn run() -> ! {
         wake_on_idle: wake_on_idle.clone(),
     };
 
-    let print_y_loop = || {
-        loop {
-            print!("y");
-            yield;
-        }
-    };
+    // enable timers
+    rcc.apb1enr.modify(|_, w| w.tim6en().enabled());
 
-    use futures::task::LocalSpawnExt;
+    // configure timer
+    // clear update event
+    tim6.sr.modify(|_, w| w.uif().clear_bit());
 
-    let mut executor = task_runtime::Executor::new();
-    executor.spawn_local(future_runtime::from_generator(audio_writer_task));
-    executor.spawn_local(future_runtime::from_generator(print_hello));
-    executor.spawn_local(future_runtime::from_generator(print_123456789));
-    executor.spawn_local(future_runtime::from_generator(print_y_loop));
-    executor.spawn_local(print_x);
-    loop {
-        executor.run();
+    // setup timing
+    tim6.psc.modify(|_, w| unsafe { w.psc().bits(42000) });
+    tim6.arr.modify(|_, w| unsafe { w.arr().bits(3000) });
 
-        let mut wake_on_idle = wake_on_idle.lock();
-        for waker in wake_on_idle.drain(..) {
-            waker.wake();
-        }
-    }
+    // enable interrupt
+    tim6.dier.modify(|_, w| w.uie().set_bit());
+    // start the timer counter
+    tim6.cr1.modify(|_, w| w.cen().set_bit());
+
+
+    interrupts::scope(
+        &mut nvic,
+        &mut nvic_stir,
+        |_| {},
+        |interrupt_table| {
+            use futures::{
+                channel::mpsc,
+                task::LocalSpawnExt,
+                StreamExt,
+            };
+
+            let (tim6_sink, mut tim6_stream) = mpsc::unbounded();
+
+            interrupt_table.register(InterruptRequest::TIM6_DAC, Priority::P1, move || {
+                tim6_sink.unbounded_send(()).expect("sending on tim6 channel failed");
+                let tim = &mut tim6;
+                // make sure the interrupt doesn't just restart again by clearing the flag
+                tim.sr.modify(|_, w| w.uif().clear_bit());
+            }).expect("registering tim6 interrupt failed");
+
+            let print_y_loop = static move || {
+                loop {
+                    let next = tim6_stream.next();
+                    await!(next);
+                    print!("y");
+                }
+            };
+
+            let mut executor = task_runtime::Executor::new();
+            executor.spawn_local(future_runtime::from_generator(audio_writer_task));
+            executor.spawn_local(future_runtime::from_generator(print_hello));
+            executor.spawn_local(future_runtime::from_generator(print_123456789));
+            executor.spawn_local(future_runtime::from_generator(print_y_loop));
+            //executor.spawn_local(print_x);
+            
+            loop {
+                executor.run();
+
+                let mut wake_on_idle = wake_on_idle.lock();
+                for waker in wake_on_idle.drain(..) {
+                    waker.wake();
+                }
+            }
+        },
+    );
+
 
     //let mut previous_button_state = pins.button.get();
     loop {
