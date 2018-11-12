@@ -303,10 +303,17 @@ fn run() -> ! {
             }
 
             let mut idle_stream = IdleStream::new(idle_waker_sink.clone());
-            let print_space_on_idle = static move || {
+            let count_up_on_idle = static move || {
+                use core::sync::atomic::{AtomicUsize, Ordering};
+
+                static NUMBER: AtomicUsize = AtomicUsize::new(0);
+
                 loop {
                     await!(idle_stream.next()).expect("idle stream closed");
-                    print!(" ");
+                    let number = NUMBER.fetch_add(1, Ordering::SeqCst);
+                    if number % 100000 == 0 {
+                        print!(" idle({}) ", number);
+                    }
                 }
             };
 
@@ -355,7 +362,7 @@ fn run() -> ! {
             executor.spawn_local(future_runtime::from_generator(print_y_loop)).unwrap();
             executor.spawn_local(future_runtime::from_generator(print_123456789)).unwrap();
             executor.spawn_local(future_runtime::from_generator(layer_1_task)).unwrap();
-            executor.spawn_local(future_runtime::from_generator(print_space_on_idle)).unwrap();
+            executor.spawn_local(future_runtime::from_generator(count_up_on_idle)).unwrap();
             //executor.spawn_local(print_x);
 
             let mut idle = static move || {
