@@ -60,6 +60,9 @@ pub fn init<'a>(
     let button = gpio_i
         .to_input(gpio_i_pins.pin_11.pin(), Resistor::NoPull)
         .expect("Pin I-11 already in use");
+    let lcd_int = gpio_i
+        .to_input(gpio_i_pins.pin_13.pin(), Resistor::NoPull)
+        .expect("Pin I-13 already in use");
 
     // sdram pins
     {

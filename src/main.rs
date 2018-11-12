@@ -120,8 +120,6 @@ fn run() -> ! {
     let mut layer_1 = lcd.layer_1().unwrap();
     let mut layer_2 = lcd.layer_2().unwrap();
 
-    layer_1.clear();
-    let mut audio_writer = Box::leak(Box::new(layer_1)).audio_writer();
     layer_2.clear();
     lcd::init_stdout(layer_2);
 
@@ -187,16 +185,6 @@ fn run() -> ! {
         sockets.add(example_tcp_socket);
     }
 
-    let mut touch_task = move || {
-        loop {
-            // poll for new touch data
-            for touch in touch::touches(&mut i2c_3).unwrap() {
-                yield Some((touch.x, touch.y));
-            }
-            yield None;
-        }
-    };
-
     let mut audio_task = move || {
         loop {
             // poll for new audio data
@@ -205,30 +193,6 @@ fn run() -> ! {
             while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
             let data1 = sai_2.bdr.read().data().bits();
             yield (data0, data1);
-        }
-    };
-
-    let audio_writer_task = move || {
-        loop {
-            match unsafe { touch_task.resume() } {
-                GeneratorState::Complete(_) => unreachable!(),
-                GeneratorState::Yielded(Some((x, y))) => {
-                    audio_writer.layer().print_point_color_at(
-                        x as usize,
-                        y as usize,
-                        Color::from_hex(0xffff00),
-                    );
-                },
-                GeneratorState::Yielded(None) => {},
-            }
-
-            match unsafe { audio_task.resume() } {
-                GeneratorState::Complete(_) => unreachable!(),
-                GeneratorState::Yielded((data0, data1)) => {
-                    audio_writer.set_next_col(data0, data1);
-                }
-            }
-            yield;
         }
     };
 
@@ -289,6 +253,7 @@ fn run() -> ! {
 
             let (tim6_sink, mut tim6_stream) = mpsc::unbounded();
             let (button_sink, mut button_stream) = mpsc::unbounded();
+            let (touch_int_sink, mut touch_int_stream) = mpsc::unbounded();
 
             interrupt_table.register(InterruptRequest::TIM6_DAC, Priority::P1, move || {
                 tim6_sink.unbounded_send(()).expect("sending on tim6 channel failed");
@@ -304,11 +269,21 @@ fn run() -> ! {
             // unmask exti11 line
             exti.imr.modify(|_, w| w.mr11().set_bit());
 
+            // choose pin I-13 for exti13 line
+            syscfg.exticr4.modify(|_, w| unsafe { w.exti13().bits(0b1000) });
+            // trigger exti13 on rising
+            exti.rtsr.modify(|_, w| w.tr13().set_bit());
+            // unmask exti13 line
+            exti.imr.modify(|_, w| w.mr13().set_bit());
+
             interrupt_table.register(InterruptRequest::EXTI15_10, Priority::P1, move || {
                 exti.pr.modify(|r, w| {
                     if r.pr11().bit_is_set() {
                         button_sink.unbounded_send(()).expect("sending on button channel failed");
                         w.pr11().set_bit();
+                    } else if r.pr13().bit_is_set() {
+                        touch_int_sink.unbounded_send(()).expect("sending on touch_int channel failed");
+                        w.pr13().set_bit();
                     } else {
                         panic!("unknown exti15_10 interrupt");
                     }
@@ -331,10 +306,35 @@ fn run() -> ! {
                 }
             };
 
+            let layer_1_task = static move || {
+                layer_1.clear();
+                let mut audio_writer = layer_1.audio_writer();
+                let mut touch_stream = touch_int_stream.map(|()| touch::touches(&mut i2c_3));
+                loop {
+                    let touches = await!(touch_stream.next()).expect("touch channel closed").unwrap();
+                    for touch in touches {
+                        audio_writer.layer().print_point_color_at(
+                            touch.x as usize,
+                            touch.y as usize,
+                            Color::from_hex(0xffff00),
+                        );
+                    }
+                    /*
+                    match unsafe { audio_task.resume() } {
+                        GeneratorState::Complete(_) => unreachable!(),
+                        GeneratorState::Yielded((data0, data1)) => {
+                            audio_writer.set_next_col(data0, data1);
+                        }
+                    }
+                    yield;
+                    */
+                }
+            };
+
             let mut executor = task_runtime::Executor::new();
             executor.spawn_local(future_runtime::from_generator(print_y_loop)).unwrap();
-            executor.spawn_local(future_runtime::from_generator(audio_writer_task));
-            executor.spawn_local(future_runtime::from_generator(print_123456789));
+            executor.spawn_local(future_runtime::from_generator(print_123456789)).unwrap();
+            executor.spawn_local(future_runtime::from_generator(layer_1_task)).unwrap();
             //executor.spawn_local(print_x);
             
             loop {
