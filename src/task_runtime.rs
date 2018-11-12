@@ -12,13 +12,13 @@ use futures::{
     task::{Poll, Spawn, LocalSpawn, SpawnError},
     channel::mpsc,
 };
+use mpsc_queue::{Queue, PopResult};
 
 pub struct Executor {
     tasks: BTreeMap<TaskId, Pin<Box<LocalFutureObj<'static, ()>>>>,
-    ready_tasks: Vec<TaskId>,
-    woken_tasks: mpsc::UnboundedReceiver<TaskId>,
-    woken_tasks_sender: mpsc::UnboundedSender<TaskId>,
+    woken_tasks: Arc<Queue<TaskId>>,
     next_task_id: TaskId,
+    idle_task: Option<Pin<Box<LocalFutureObj<'static, !>>>>,
 }
 
 impl Spawn for Executor {
@@ -36,13 +36,11 @@ impl LocalSpawn for Executor {
 
 impl Executor {
     pub fn new() -> Self {
-        let (sender, receiver) = mpsc::unbounded();
         Executor {
             tasks: BTreeMap::new(),
-            ready_tasks: Vec::new(),
-            woken_tasks: receiver,
-            woken_tasks_sender: sender,
+            woken_tasks: Arc::new(Queue::new()),
             next_task_id: TaskId(0),
+            idle_task: None,
         }
     }
 
@@ -50,38 +48,49 @@ impl Executor {
         let id = self.next_task_id;
         self.next_task_id += 1;
         self.tasks.insert(id, task);
-        self.ready_tasks.push(id);
+        self.woken_tasks.push(id);
+    }
+
+    pub fn set_idle_task<Fut>(&mut self, future: Fut)
+    where
+        Fut: Future<Output = !> + 'static,
+    {
+        let future_obj = Box::pinned(LocalFutureObj::new(Box::new(future)));
+        self.idle_task = Some(future_obj);
     }
 
     pub fn run(&mut self) {
-        while let Ok(task_id) = self.woken_tasks.try_next() {
-            let task_id = task_id.expect("woken_tasks stream has terminated");
-            self.ready_tasks.push(task_id);
-        }
-        for task_id in self.ready_tasks.drain(..) {
-            let waker = MyWaker {
-                task_id,
-                woken_tasks: self.woken_tasks_sender.clone(),
-            };
-            let poll_result = {
-                let task = self.tasks.get_mut(&task_id).expect(&format!("task with id {:?} not found", task_id));
-                task.as_mut().poll(&local_waker_from_nonlocal(Arc::new(waker)))
-            };
-            if poll_result.is_ready() {
-                self.tasks.remove(&task_id).expect(&format!("Task {:?} not found", task_id));
+        match self.woken_tasks.pop() {
+            PopResult::Data(task_id) => {
+                let waker = MyWaker {
+                    task_id,
+                    woken_tasks: self.woken_tasks.clone(),
+                };
+                let poll_result = {
+                    let task = self.tasks.get_mut(&task_id).expect(&format!("task with id {:?} not found", task_id));
+                    task.as_mut().poll(&local_waker_from_nonlocal(Arc::new(waker)))
+                };
+                if poll_result.is_ready() {
+                    self.tasks.remove(&task_id).expect(&format!("Task {:?} not found", task_id));
+                }
             }
+            PopResult::Empty => {}
+            PopResult::Inconsistent => panic!("woken_tasks queue is inconsistent"),
+        }
+        if let Some(ref mut idle_task) = self.idle_task {
+            idle_task.as_mut().poll(&local_waker_from_nonlocal(Arc::new(NoOpWaker)));
         };
     }
 }
 
 struct MyWaker {
     task_id: TaskId,
-    woken_tasks: mpsc::UnboundedSender<TaskId>,
+    woken_tasks: Arc<Queue<TaskId>>,
 }
 
 impl Wake for MyWaker {
     fn wake(arc_self: &Arc<Self>) {
-        arc_self.woken_tasks.unbounded_send(arc_self.task_id);
+        arc_self.woken_tasks.push(arc_self.task_id);
     }
 }
 
@@ -99,5 +108,12 @@ impl Add<u64> for TaskId {
 impl AddAssign<u64> for TaskId {
     fn add_assign(&mut self, other: u64) {
         self.0 += other;
+    }
+}
+
+struct NoOpWaker;
+
+impl Wake for NoOpWaker {
+    fn wake(_arc_self: &Arc<Self>) {
     }
 }

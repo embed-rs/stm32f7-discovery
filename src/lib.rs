@@ -8,6 +8,7 @@
 #![feature(pin)]
 #![feature(arbitrary_self_types)]
 #![feature(drain_filter)]
+#![feature(never_type)]
 
 #[macro_use]
 extern crate alloc;
@@ -40,3 +41,4 @@ pub mod system_clock;
 pub mod touch;
 pub mod future_runtime;
 pub mod task_runtime;
+pub mod mpsc_queue;

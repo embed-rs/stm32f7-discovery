@@ -202,27 +202,6 @@ fn run() -> ! {
     use core::task::{Poll, LocalWaker};
     use core::pin::Pin;
 
-    let wake_on_idle = Arc::new(Mutex::new(VecDeque::<LocalWaker>::new()));
-
-
-    struct PrintX {
-        wake_on_idle: Arc<Mutex<VecDeque<LocalWaker>>>,
-    }
-
-    impl Future for PrintX {
-        type Output = ();
-
-        fn poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
-            print!("x");
-            self.wake_on_idle.lock().push_back(lw.clone());
-            Poll::Pending
-        }
-    }
-
-    let print_x = PrintX {
-        wake_on_idle: wake_on_idle.clone(),
-    };
-
     // enable timers
     rcc.apb1enr.modify(|_, w| w.tim6en().enabled());
 
@@ -251,6 +230,7 @@ fn run() -> ! {
                 StreamExt,
             };
 
+            let (idle_waker_sink, mut idle_waker_stream) = mpsc::unbounded();
             let (tim6_sink, mut tim6_stream) = mpsc::unbounded();
             let (button_sink, mut button_stream) = mpsc::unbounded();
             let (touch_int_sink, mut touch_int_stream) = mpsc::unbounded();
@@ -291,17 +271,57 @@ fn run() -> ! {
                 });
             }).expect("registering exti15_10 interrupt failed");
 
+            // tasks
+
+            struct IdleStream {
+                idle: bool,
+                idle_waker_sink: mpsc::UnboundedSender<LocalWaker>,
+            };
+
+            impl IdleStream {
+                pub fn new(idle_waker_sink: mpsc::UnboundedSender<LocalWaker>) -> Self {
+                    IdleStream {
+                        idle_waker_sink,
+                        idle: false,
+                    }
+                }
+            }
+
+            impl futures::prelude::Stream for IdleStream {
+                type Item = ();
+
+                fn poll_next(mut self: Pin<&mut Self>, waker: &LocalWaker) -> Poll<Option<()>> {
+                    let result = if self.idle {
+                        Poll::Ready(Some(()))
+                    } else {
+                        self.idle_waker_sink.unbounded_send(waker.clone()).expect("sending on idle channel failed");
+                        Poll::Pending
+                    };
+                    self.idle = !self.idle;
+                    result
+                }
+            }
+
+            let mut idle_stream = IdleStream::new(idle_waker_sink.clone());
+            let print_space_on_idle = static move || {
+                loop {
+                    await!(idle_stream.next()).expect("idle stream closed");
+                    print!(" ");
+                }
+            };
+
             let print_y_loop = static move || {
                 loop {
-                    let next = tim6_stream.next();
-                    await!(next);
+                    let next = await!(tim6_stream.next());
+                    assert!(next.is_some(), "tim6 channel closed");
                     print!("y");
                 }
             };
 
             let print_123456789 = static move || {
-                for i in 1.. {
-                    await!(button_stream.next());
+                for i in 1usize.. {
+                    let next = await!(button_stream.next());
+                    assert!(next.is_some(), "button channel closed");
                     print!("{}", i);
                 }
             };
@@ -335,15 +355,20 @@ fn run() -> ! {
             executor.spawn_local(future_runtime::from_generator(print_y_loop)).unwrap();
             executor.spawn_local(future_runtime::from_generator(print_123456789)).unwrap();
             executor.spawn_local(future_runtime::from_generator(layer_1_task)).unwrap();
+            executor.spawn_local(future_runtime::from_generator(print_space_on_idle)).unwrap();
             //executor.spawn_local(print_x);
-            
+
+            let mut idle = static move || {
+                loop {
+                    let next_waker = await!(idle_waker_stream.next()).expect("idle channel closed");
+                    next_waker.wake();
+                }
+            };
+
+            executor.set_idle_task(future_runtime::from_generator(idle));
+
             loop {
                 executor.run();
-
-                let mut wake_on_idle = wake_on_idle.lock();
-                for waker in wake_on_idle.drain(..) {
-                    waker.wake();
-                }
             }
         },
     );
