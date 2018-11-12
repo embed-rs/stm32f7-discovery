@@ -85,6 +85,7 @@ fn run() -> ! {
     let mut ethernet_dma = peripherals.ETHERNET_DMA;
     let mut nvic_stir = peripherals.NVIC_STIR;
     let mut tim6 = peripherals.TIM6;
+    let mut exti = peripherals.EXTI;
 
     init::init_system_clock_216mhz(&mut rcc, &mut pwr, &mut flash);
     init::enable_gpio_ports(&mut rcc);
@@ -207,18 +208,6 @@ fn run() -> ! {
         }
     };
 
-    fn wait_for_button<I: InputPin>(button: I) -> impl Future<Output = I> {
-        let previous_button_state = button.get();
-        let task = move || {
-            // poll button state
-            while button.get() == previous_button_state {
-                yield
-            }
-            button
-        };
-        future_runtime::from_generator(task)
-    }
-
     let audio_writer_task = move || {
         loop {
             match unsafe { touch_task.resume() } {
@@ -239,25 +228,6 @@ fn run() -> ! {
                     audio_writer.set_next_col(data0, data1);
                 }
             }
-            yield;
-        }
-    };
-
-    let print_hello = || {
-        print!("h");
-        yield;
-        print!("e");
-        yield;
-        print!("l");
-        yield;
-        print!("l");
-        yield;
-        print!("o");
-    };
-
-    let print_123456789 = || {
-        for i in 1..10 {
-            print!("{}", i);
             yield;
         }
     };
@@ -318,6 +288,7 @@ fn run() -> ! {
             };
 
             let (tim6_sink, mut tim6_stream) = mpsc::unbounded();
+            let (button_sink, mut button_stream) = mpsc::unbounded();
 
             interrupt_table.register(InterruptRequest::TIM6_DAC, Priority::P1, move || {
                 tim6_sink.unbounded_send(()).expect("sending on tim6 channel failed");
@@ -325,6 +296,25 @@ fn run() -> ! {
                 // make sure the interrupt doesn't just restart again by clearing the flag
                 tim.sr.modify(|_, w| w.uif().clear_bit());
             }).expect("registering tim6 interrupt failed");
+
+            // choose pin I-11 for exti11 line
+            syscfg.exticr3.modify(|_, w| unsafe { w.exti11().bits(0b1000) });
+            // trigger exti11 on rising
+            exti.rtsr.modify(|_, w| w.tr11().set_bit());
+            // unmask exti11 line
+            exti.imr.modify(|_, w| w.mr11().set_bit());
+
+            interrupt_table.register(InterruptRequest::EXTI15_10, Priority::P1, move || {
+                exti.pr.modify(|r, w| {
+                    if r.pr11().bit_is_set() {
+                        button_sink.unbounded_send(()).expect("sending on button channel failed");
+                        w.pr11().set_bit();
+                    } else {
+                        panic!("unknown exti15_10 interrupt");
+                    }
+                    w
+                });
+            }).expect("registering exti15_10 interrupt failed");
 
             let print_y_loop = static move || {
                 loop {
@@ -334,11 +324,17 @@ fn run() -> ! {
                 }
             };
 
+            let print_123456789 = static move || {
+                for i in 1.. {
+                    await!(button_stream.next());
+                    print!("{}", i);
+                }
+            };
+
             let mut executor = task_runtime::Executor::new();
+            executor.spawn_local(future_runtime::from_generator(print_y_loop)).unwrap();
             executor.spawn_local(future_runtime::from_generator(audio_writer_task));
-            executor.spawn_local(future_runtime::from_generator(print_hello));
             executor.spawn_local(future_runtime::from_generator(print_123456789));
-            executor.spawn_local(future_runtime::from_generator(print_y_loop));
             //executor.spawn_local(print_x);
             
             loop {
