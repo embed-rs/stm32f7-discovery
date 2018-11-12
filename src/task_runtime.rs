@@ -3,7 +3,7 @@ use core::ops::{Add, AddAssign};
 use alloc::{
     prelude::*,
     sync::Arc,
-    task::{Wake, local_waker_from_nonlocal},
+    task::{Wake, LocalWaker, local_waker_from_nonlocal},
     collections::{BTreeMap, BTreeSet},
 };
 use futures::{
@@ -115,5 +115,34 @@ struct NoOpWaker;
 
 impl Wake for NoOpWaker {
     fn wake(_arc_self: &Arc<Self>) {
+    }
+}
+
+pub struct IdleStream {
+    idle: bool,
+    idle_waker_sink: mpsc::UnboundedSender<LocalWaker>,
+}
+
+impl IdleStream {
+    pub fn new(idle_waker_sink: mpsc::UnboundedSender<LocalWaker>) -> Self {
+        IdleStream {
+            idle_waker_sink,
+            idle: false,
+        }
+    }
+}
+
+impl futures::prelude::Stream for IdleStream {
+    type Item = ();
+
+    fn poll_next(mut self: Pin<&mut Self>, waker: &LocalWaker) -> Poll<Option<()>> {
+        let result = if self.idle {
+            Poll::Ready(Some(()))
+        } else {
+            self.idle_waker_sink.unbounded_send(waker.clone()).expect("sending on idle channel failed");
+            Poll::Pending
+        };
+        self.idle = !self.idle;
+        result
     }
 }

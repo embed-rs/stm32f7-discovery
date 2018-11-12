@@ -273,36 +273,7 @@ fn run() -> ! {
 
             // tasks
 
-            struct IdleStream {
-                idle: bool,
-                idle_waker_sink: mpsc::UnboundedSender<LocalWaker>,
-            };
-
-            impl IdleStream {
-                pub fn new(idle_waker_sink: mpsc::UnboundedSender<LocalWaker>) -> Self {
-                    IdleStream {
-                        idle_waker_sink,
-                        idle: false,
-                    }
-                }
-            }
-
-            impl futures::prelude::Stream for IdleStream {
-                type Item = ();
-
-                fn poll_next(mut self: Pin<&mut Self>, waker: &LocalWaker) -> Poll<Option<()>> {
-                    let result = if self.idle {
-                        Poll::Ready(Some(()))
-                    } else {
-                        self.idle_waker_sink.unbounded_send(waker.clone()).expect("sending on idle channel failed");
-                        Poll::Pending
-                    };
-                    self.idle = !self.idle;
-                    result
-                }
-            }
-
-            let mut idle_stream = IdleStream::new(idle_waker_sink.clone());
+            let mut idle_stream = task_runtime::IdleStream::new(idle_waker_sink.clone());
             let count_up_on_idle = static move || {
                 use core::sync::atomic::{AtomicUsize, Ordering};
 
