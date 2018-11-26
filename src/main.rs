@@ -50,6 +50,7 @@ use stm32f7_discovery::{
     future_runtime,
     task_runtime,
     interrupts::{self, InterruptRequest, Priority},
+    future_mutex::FutureMutex,
 };
 use core::ops::{Generator, GeneratorState};
 use core::future::Future;
@@ -304,12 +305,17 @@ fn run() -> ! {
                 }
             };
 
+            let i2c_3_mutex = Arc::new(FutureMutex::new(i2c_3));
+
+            let layer_1_task_i2c_3_mutex = i2c_3_mutex.clone();
+
             let layer_1_task = static move || {
+                let i2c_3_mutex = layer_1_task_i2c_3_mutex;
                 layer_1.clear();
                 let mut audio_writer = layer_1.audio_writer();
-                let mut touch_stream = touch_int_stream.map(|()| touch::touches(&mut i2c_3));
                 loop {
-                    let touches = await!(touch_stream.next()).expect("touch channel closed").unwrap();
+                    await!(touch_int_stream.next()).expect("touch channel closed");
+                    let touches = await!(i2c_3_mutex.with(|i2c_3| touch::touches(i2c_3))).unwrap();
                     for touch in touches {
                         audio_writer.layer().print_point_color_at(
                             touch.x as usize,
@@ -329,6 +335,8 @@ fn run() -> ! {
                 }
             };
 
+            i2c_3_mutex.force_lock();
+
             let mut executor = task_runtime::Executor::new();
             executor.spawn_local(future_runtime::from_generator(print_y_loop)).unwrap();
             executor.spawn_local(future_runtime::from_generator(print_123456789)).unwrap();
@@ -345,8 +353,15 @@ fn run() -> ! {
 
             executor.set_idle_task(future_runtime::from_generator(idle));
 
+            let ticks = system_clock::ticks();
+            let delay = system_clock::ms_to_ticks(20*1000);
+            let mut done = false;
             loop {
                 executor.run();
+                if !done && system_clock::ticks() > ticks + delay {
+                    i2c_3_mutex.force_unlock();
+                    done = true;
+                }
             }
         },
     );

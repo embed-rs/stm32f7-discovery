@@ -42,3 +42,4 @@ pub mod touch;
 pub mod future_runtime;
 pub mod task_runtime;
 pub mod mpsc_queue;
+pub mod future_mutex;
