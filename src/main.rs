@@ -335,8 +335,6 @@ fn run() -> ! {
                 }
             };
 
-            i2c_3_mutex.force_lock();
-
             let mut executor = task_runtime::Executor::new();
             executor.spawn_local(future_runtime::from_generator(print_y_loop)).unwrap();
             executor.spawn_local(future_runtime::from_generator(print_123456789)).unwrap();
@@ -353,15 +351,8 @@ fn run() -> ! {
 
             executor.set_idle_task(future_runtime::from_generator(idle));
 
-            let ticks = system_clock::ticks();
-            let delay = system_clock::ms_to_ticks(20*1000);
-            let mut done = false;
             loop {
                 executor.run();
-                if !done && system_clock::ticks() > ticks + delay {
-                    i2c_3_mutex.force_unlock();
-                    done = true;
-                }
             }
         },
     );

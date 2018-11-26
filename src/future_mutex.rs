@@ -41,27 +41,6 @@ impl<T> FutureMutex<T> {
             waker_queue: &self.waker_queue,
         }
     }
-
-    pub fn force_lock(&self) {
-        println!("force lock");
-        ::core::mem::forget(self.mutex.lock())
-    }
-
-    pub fn force_unlock(&self) {
-        println!("force unlock");
-        loop {
-            match self.waker_queue.pop() {
-                PopResult::Data(waker) => {
-                    waker.wake();
-                    println!("force unlock: wake");
-                }
-                PopResult::Empty => break,
-                PopResult::Inconsistent => panic!("woken_tasks queue is inconsistent"),
-            }
-        }
-        unsafe { self.mutex.force_unlock() }
-        println!("force unlock done");
-    }
 }
 
 #[must_use = "futures do nothing unless polled"]
