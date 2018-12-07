@@ -87,7 +87,7 @@ where
 
 
 #[macro_export]
-macro_rules! await {
+macro_rules! r#await {
     ($e:expr) => { {
         let mut pinned = $e;
         loop {

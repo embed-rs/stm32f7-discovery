@@ -17,7 +17,7 @@ use futures::{
     task::{Poll, Spawn, LocalSpawn, SpawnError},
     channel::mpsc,
 };
-use mpsc_queue::{Queue, PopResult};
+use crate::mpsc_queue::{Queue, PopResult};
 
 pub struct FutureMutex<T> {
     mutex: Mutex<T>,

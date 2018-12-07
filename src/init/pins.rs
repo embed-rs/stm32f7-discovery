@@ -1,5 +1,5 @@
 use self::pin_wrapper::PortPins;
-use gpio::{
+use crate::gpio::{
     AlternateFunction, GpioPort, InputPin, OutputPin, OutputSpeed, OutputType, RegisterBlockA,
     RegisterBlockB, RegisterBlockD, Resistor,
 };
@@ -60,7 +60,7 @@ pub fn init<'a>(
     let button = gpio_i
         .to_input(gpio_i_pins.pin_11.pin(), Resistor::NoPull)
         .expect("Pin I-11 already in use");
-    let lcd_int = gpio_i
+    let _lcd_int = gpio_i
         .to_input(gpio_i_pins.pin_13.pin(), Resistor::NoPull)
         .expect("Pin I-13 already in use");
 
@@ -376,7 +376,7 @@ pub fn init<'a>(
 
 /// Helper structs for catching double uses of pins at compile time.
 mod pin_wrapper {
-    use gpio::PinNumber;
+    use crate::gpio::PinNumber;
 
     #[allow(dead_code)]
     pub(super) struct PortPins {
@@ -400,7 +400,7 @@ mod pin_wrapper {
 
     impl PortPins {
         pub(super) fn new() -> PortPins {
-            use gpio::PinNumber::*;
+            use crate::gpio::PinNumber::*;
 
             PortPins {
                 pin_0: PinWrapper(Pin0),

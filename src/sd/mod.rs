@@ -9,7 +9,7 @@ mod sdmmc_cmd;
 use self::error::*;
 use alloc::vec::Vec;
 use core::cmp::min;
-use gpio::InputPin;
+use crate::gpio::InputPin;
 use stm32f7::stm32f7x6::{RCC, SDMMC1};
 
 /// SD handle.
@@ -211,8 +211,8 @@ impl<'a, PresentPin: InputPin> Sd<'a, PresentPin> {
 
         // Read data from the SD Card, until dataend is reached or an error occurs
         let mut data = vec![];
-        let timeout = ::system_clock::ms() as u32 + timeout;
-        while (::system_clock::ms() as u32) < timeout
+        let timeout = crate::system_clock::ms() as u32 + timeout;
+        while (crate::system_clock::ms() as u32) < timeout
             && self.sdmmc.sta.read().rxoverr().bit_is_clear()
             && self.sdmmc.sta.read().dcrcfail().bit_is_clear()
             && self.sdmmc.sta.read().dtimeout().bit_is_clear()
@@ -225,7 +225,7 @@ impl<'a, PresentPin: InputPin> Sd<'a, PresentPin> {
             }
         }
 
-        if (::system_clock::ms() as u32) >= timeout {
+        if (crate::system_clock::ms() as u32) >= timeout {
             return Err(Error::Timeout);
         }
 
@@ -255,12 +255,12 @@ impl<'a, PresentPin: InputPin> Sd<'a, PresentPin> {
         }
 
         // If there is still valid data in the FIFO, empty the FIFO
-        while (::system_clock::ms() as u32) < timeout && self.sdmmc.sta.read().rxdavl().bit_is_set()
+        while (crate::system_clock::ms() as u32) < timeout && self.sdmmc.sta.read().rxdavl().bit_is_set()
         {
             data.push(self.sdmmc.fifo.read().fifodata().bits());
         }
 
-        if (::system_clock::ms() as u32) >= timeout {
+        if (crate::system_clock::ms() as u32) >= timeout {
             return Err(Error::Timeout);
         }
 
@@ -328,8 +328,8 @@ impl<'a, PresentPin: InputPin> Sd<'a, PresentPin> {
 
         // Write data to the SD Card, until dataend is reached or an error occurs
         let mut data_counter = 0;
-        let timeout = ::system_clock::ms() as u32 + timeout;
-        while (::system_clock::ms() as u32) < timeout
+        let timeout = crate::system_clock::ms() as u32 + timeout;
+        while (crate::system_clock::ms() as u32) < timeout
             && self.sdmmc.sta.read().txunderr().bit_is_clear()
             && self.sdmmc.sta.read().dcrcfail().bit_is_clear()
             && self.sdmmc.sta.read().dtimeout().bit_is_clear()
@@ -351,7 +351,7 @@ impl<'a, PresentPin: InputPin> Sd<'a, PresentPin> {
             }
         }
 
-        if (::system_clock::ms() as u32) >= timeout {
+        if (crate::system_clock::ms() as u32) >= timeout {
             return Err(Error::Timeout);
         }
 
@@ -361,8 +361,8 @@ impl<'a, PresentPin: InputPin> Sd<'a, PresentPin> {
         }
 
         // Wait a bit for the controller to end the write process.
-        let wait = ::system_clock::ms() + 100;
-        while ::system_clock::ms() < wait {}
+        let wait = crate::system_clock::ms() + 100;
+        while crate::system_clock::ms() < wait {}
 
         // Check for errors
         if self.sdmmc.sta.read().dtimeout().bit_is_set() {

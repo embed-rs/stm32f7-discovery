@@ -429,7 +429,7 @@ pub fn init<'a>(i2c: &'a RegisterBlock, rcc: &mut RCC) -> I2C<'a> {
         w
     });
     // wait that init can finish
-    ::system_clock::wait_ms(50);
+    crate::system_clock::wait_ms(50);
 
     I2C(i2c)
 }

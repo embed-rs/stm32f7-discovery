@@ -1,7 +1,7 @@
-use i2c::{self, I2C};
-use lcd::{self, Lcd};
+use crate::i2c::{self, I2C};
+use crate::lcd::{self, Lcd};
 use stm32f7::stm32f7x6::{i2c1, FLASH, FMC, LTDC, PWR, RCC, SAI2, SYST};
-use system_clock;
+use crate::system_clock;
 
 pub use self::pins::init as pins;
 
