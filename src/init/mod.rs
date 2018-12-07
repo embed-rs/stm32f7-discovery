@@ -474,6 +474,23 @@ pub fn init_sai_2(sai: &mut SAI2, rcc: &mut RCC) {
         w
     });
 
+    // enable receive interrupts
+    /*
+    sai.aim.modify(|_, w| {
+        w.ovrudrie().set_bit();
+        w.freqie().set_bit();
+        w.wckcfg().set_bit();
+        w
+    });
+    sai.bim.modify(|_, w| {
+        w.ovrudrie().set_bit();
+        w.freqie().set_bit();
+        w.afsdetie().set_bit();
+        w.lfsdetie().set_bit();
+        w
+    });
+    */
+
     // Enable SAI peripheral block a to generate MCLK
     sai.acr1.modify(|_, w| w.saiaen().set_bit()); // audio_block_enable
 

@@ -215,6 +215,14 @@ fn run() -> ! {
             // unmask exti13 line
             exti.imr.modify(|_, w| w.mr13().set_bit());
 
+            // choose pin H-15 for exti15 line
+            syscfg.exticr4.modify(|_, w| unsafe { w.exti15().bits(0b0111) });
+            // trigger exti15 on rising
+            exti.rtsr.modify(|_, w| w.tr15().set_bit());
+            // unmask exti15 line
+            exti.imr.modify(|_, w| w.mr15().set_bit());
+
+
             interrupt_table.register(InterruptRequest::EXTI15_10, Priority::P1, move || {
                 exti.pr.modify(|r, w| {
                     if r.pr11().bit_is_set() {
@@ -229,6 +237,12 @@ fn run() -> ! {
                     w
                 });
             }).expect("registering exti15_10 interrupt failed");
+
+
+
+            interrupt_table.register(InterruptRequest::EXTI9_5, Priority::P1, move || {
+                panic!("unknown exti9_5 interrupt");
+            }).expect("registering exti9_5 interrupt failed");
 
             // tasks
 
@@ -370,6 +384,9 @@ fn run() -> ! {
 
             loop {
                 executor.run();
+                if pins.audio_in.get() == false {
+                    println!("audio pin false");
+                }
             }
         },
     );
