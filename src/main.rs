@@ -91,6 +91,7 @@ fn run() -> ! {
 
     init::init_system_clock_216mhz(&mut rcc, &mut pwr, &mut flash);
     init::enable_gpio_ports(&mut rcc);
+    init::enable_syscfg(&mut rcc);
 
     let gpio_a = GpioPort::new_a(&peripherals.GPIOA);
     let gpio_b = GpioPort::new_b(&peripherals.GPIOB);

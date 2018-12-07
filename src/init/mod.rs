@@ -128,6 +128,13 @@ pub fn enable_gpio_ports(rcc: &mut RCC) {
     }
 }
 
+pub fn enable_syscfg(rcc: &mut RCC) {
+    // enable syscfg clock
+    rcc.apb2enr.modify(|_, w| w.syscfgen().set_bit());
+    // delay
+    let _unused = rcc.apb2enr.read();
+}
+
 pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) {
     #[allow(dead_code)]
     #[derive(Debug, Clone, Copy)]
