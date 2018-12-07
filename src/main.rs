@@ -3,6 +3,7 @@
 #![feature(generators, generator_trait)]
 #![feature(pin, futures_api)]
 #![feature(arbitrary_self_types)]
+#![feature(async_await)]
 #![no_main]
 #![no_std]
 
