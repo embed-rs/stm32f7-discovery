@@ -38,7 +38,7 @@ use smoltcp::{
     time::Instant,
     wire::{EthernetAddress, IpAddress, IpEndpoint, Ipv4Address},
 };
-use stm32f7::stm32f7x6::{CorePeripherals, Interrupt, Peripherals};
+use stm32f7::stm32f7x6::{self, CorePeripherals, Interrupt, Peripherals};
 use stm32f7_discovery::{
     ethernet,
     gpio::{GpioPort, InputPin, OutputPin},
@@ -156,49 +156,6 @@ fn run() -> ! {
     }
     println!("");
 
-    // ethernet
-    let mut ethernet_interface = ethernet::EthernetDevice::new(
-        Default::default(),
-        Default::default(),
-        &mut rcc,
-        &mut syscfg,
-        &mut ethernet_mac,
-        &mut ethernet_dma,
-        ETH_ADDR,
-    )
-    .map(|device| device.into_interface(IP_ADDR));
-    if let Err(e) = ethernet_interface {
-        println!("ethernet init failed: {:?}", e);
-    };
-
-    let mut sockets = SocketSet::new(Vec::new());
-
-    if ethernet_interface.is_ok() {
-        let endpoint = IpEndpoint::new(IpAddress::Ipv4(IP_ADDR), 15);
-        let udp_rx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 3], vec![0u8; 256]);
-        let udp_tx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 1], vec![0u8; 128]);
-        let mut example_udp_socket = UdpSocket::new(udp_rx_buffer, udp_tx_buffer);
-        example_udp_socket.bind(endpoint).unwrap();
-        sockets.add(example_udp_socket);
-
-        let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
-        let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
-        let mut example_tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
-        example_tcp_socket.listen(endpoint).unwrap();
-        sockets.add(example_tcp_socket);
-    }
-
-    let mut audio_task = move || {
-        loop {
-            // poll for new audio data
-            while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
-            let data0 = sai_2.bdr.read().data().bits();
-            while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
-            let data1 = sai_2.bdr.read().data().bits();
-            yield (data0, data1);
-        }
-    };
-
     use spin::Mutex;
     use alloc::sync::Arc;
     use alloc::collections::VecDeque;
@@ -220,7 +177,6 @@ fn run() -> ! {
     tim6.dier.modify(|_, w| w.uie().set_bit());
     // start the timer counter
     tim6.cr1.modify(|_, w| w.cen().set_bit());
-
 
     interrupts::scope(
         &mut nvic,
@@ -276,14 +232,14 @@ fn run() -> ! {
 
             // tasks
 
-            let mut idle_stream = task_runtime::IdleStream::new(idle_waker_sink.clone());
+            let mut count_task_idle_stream = task_runtime::IdleStream::new(idle_waker_sink.clone());
             let count_up_on_idle = static move || {
                 use core::sync::atomic::{AtomicUsize, Ordering};
 
                 static NUMBER: AtomicUsize = AtomicUsize::new(0);
 
                 loop {
-                    await!(idle_stream.next()).expect("idle stream closed");
+                    await!(count_task_idle_stream.next()).expect("idle stream closed");
                     let number = NUMBER.fetch_add(1, Ordering::SeqCst);
                     if number % 100000 == 0 {
                         print!(" idle({}) ", number);
@@ -304,6 +260,64 @@ fn run() -> ! {
                     let next = await!(button_stream.next());
                     assert!(next.is_some(), "button channel closed");
                     print!("{}", i);
+                }
+            };
+
+            // ethernet
+            let mut ethernet_task_idle_stream = task_runtime::IdleStream::new(idle_waker_sink.clone());
+            let ethernet_task = static move || {
+                let mut ethernet_interface = ethernet::EthernetDevice::new(
+                    Default::default(),
+                    Default::default(),
+                    &mut rcc,
+                    &mut syscfg,
+                    &mut ethernet_mac,
+                    &mut ethernet_dma,
+                    ETH_ADDR,
+                )
+                .map(|device| device.into_interface(IP_ADDR));
+                if let Err(e) = ethernet_interface {
+                    println!("ethernet init failed: {:?}", e);
+                };
+
+                let mut sockets = SocketSet::new(Vec::new());
+
+                if ethernet_interface.is_ok() {
+                    let endpoint = IpEndpoint::new(IpAddress::Ipv4(IP_ADDR), 15);
+                    let udp_rx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 3], vec![0u8; 256]);
+                    let udp_tx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 1], vec![0u8; 128]);
+                    let mut example_udp_socket = UdpSocket::new(udp_rx_buffer, udp_tx_buffer);
+                    example_udp_socket.bind(endpoint).unwrap();
+                    sockets.add(example_udp_socket);
+
+                    let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
+                    let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
+                    let mut example_tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
+                    example_tcp_socket.listen(endpoint).unwrap();
+                    sockets.add(example_tcp_socket);
+                }
+
+                // handle new ethernet packets
+                if let Ok(ref mut eth) = ethernet_interface {
+                    loop {
+                        match eth.poll(
+                            &mut sockets,
+                            Instant::from_millis(system_clock::ms() as i64),
+                        ) {
+                            Err(::smoltcp::Error::Exhausted) => {
+                                await!(ethernet_task_idle_stream.next()).expect("idle stream closed");
+                            },
+                            Err(::smoltcp::Error::Unrecognized) => {}
+                            Err(e) => println!("Network error: {:?}", e),
+                            Ok(socket_changed) => {
+                                if socket_changed {
+                                    for mut socket in sockets.iter_mut() {
+                                        poll_socket(&mut socket).expect("socket poll failed");
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             };
 
@@ -342,6 +356,7 @@ fn run() -> ! {
             executor.spawn_local(future_runtime::from_generator(print_123456789)).unwrap();
             executor.spawn_local(future_runtime::from_generator(layer_1_task)).unwrap();
             executor.spawn_local(future_runtime::from_generator(count_up_on_idle)).unwrap();
+            //executor.spawn_local(future_runtime::from_generator(ethernet_task)).unwrap();
             //executor.spawn_local(print_x);
 
             let mut idle = static move || {
@@ -379,24 +394,6 @@ fn run() -> ! {
 
         //unsafe { audio_writer_task.resume() };
 
-        // handle new ethernet packets
-        if let Ok(ref mut eth) = ethernet_interface {
-            match eth.poll(
-                &mut sockets,
-                Instant::from_millis(system_clock::ms() as i64),
-            ) {
-                Err(::smoltcp::Error::Exhausted) => continue,
-                Err(::smoltcp::Error::Unrecognized) => {}
-                Err(e) => println!("Network error: {:?}", e),
-                Ok(socket_changed) => {
-                    if socket_changed {
-                        for mut socket in sockets.iter_mut() {
-                            poll_socket(&mut socket).expect("socket poll failed");
-                        }
-                    }
-                }
-            }
-        }
 
         // Initialize the SD Card on insert and deinitialize on extract.
         if sd.card_present() && !sd.card_initialized() {
