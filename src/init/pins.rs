@@ -10,12 +10,14 @@ pub struct Pins<
     DisplayEnable: OutputPin,
     Backlight: OutputPin,
     SdcardPresent: InputPin,
+    AudioIn: InputPin,
 > {
     pub led: Led,
     pub button: Button,
     pub display_enable: DisplayEnable,
     pub backlight: Backlight,
     pub sdcard_present: SdcardPresent,
+    pub audio_in: AudioIn,
 }
 
 pub fn init<'a>(
@@ -35,6 +37,7 @@ pub fn init<'a>(
     impl InputPin + 'a,
     impl OutputPin + 'a,
     impl OutputPin + 'a,
+    impl InputPin + 'a,
     impl InputPin + 'a,
 > {
     let gpio_a_pins = PortPins::new();
@@ -263,7 +266,7 @@ pub fn init<'a>(
     }
 
     // sai2 pins
-    {
+    let audio_in = {
         let alt_fn = AlternateFunction::AF10;
         let speed = OutputSpeed::High;
         let typ = OutputType::PushPull;
@@ -287,7 +290,15 @@ pub fn init<'a>(
         gpio_g
             .to_alternate_function_all(g_pins, alt_fn, typ, speed, res)
             .expect("Failed to reserve SAI2 GPIO G pins");
-    }
+        
+        let audio_in = gpio_h
+            .to_input(gpio_h_pins.pin_15.pin(), Resistor::NoPull,)
+                .expect("Failed to reserve SAI2 audio in pin");
+        /*let audio_in = gpio_d
+            .to_input(gpio_d_pins.pin_6.pin(), Resistor::NoPull,)
+                .expect("Failed to reserve SAI2 audio in pin");*/
+        audio_in
+    };
 
     // SD card pins
     let sdcard_present = {
@@ -371,6 +382,7 @@ pub fn init<'a>(
         display_enable,
         backlight,
         sdcard_present,
+        audio_in,
     }
 }
 
