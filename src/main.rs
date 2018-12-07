@@ -324,14 +324,14 @@ fn run() -> ! {
                             Color::from_hex(0xffff00),
                         );
                     }
+
+                    // poll for new audio data
                     /*
-                    match unsafe { audio_task.resume() } {
-                        GeneratorState::Complete(_) => unreachable!(),
-                        GeneratorState::Yielded((data0, data1)) => {
-                            audio_writer.set_next_col(data0, data1);
-                        }
-                    }
-                    yield;
+                    while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
+                    let data0 = sai_2.bdr.read().data().bits();
+                    while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
+                    let data1 = sai_2.bdr.read().data().bits();
+                    audio_writer.set_next_col(data0, data1);
                     */
                 }
             };
