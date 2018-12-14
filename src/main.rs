@@ -38,12 +38,12 @@ use smoltcp::{
     time::Instant,
     wire::{EthernetAddress, IpAddress, IpEndpoint, Ipv4Address},
 };
-use stm32f7::stm32f7x6::{self, CorePeripherals, Interrupt, Peripherals};
+use stm32f7::stm32f7x6::{self, CorePeripherals, Interrupt, Peripherals, SAI2};
 use stm32f7_discovery::{
     ethernet,
     gpio::{GpioPort, InputPin, OutputPin},
     init,
-    lcd::{self, Color},
+    lcd::{self, Color, Layer, Framebuffer, AudioWriter},
     random::Rng,
     sd,
     system_clock::{self, Hz},
@@ -52,9 +52,17 @@ use stm32f7_discovery::{
     task_runtime,
     interrupts::{self, InterruptRequest, Priority},
     future_mutex::FutureMutex,
+    i2c::I2C,
 };
 use core::ops::{Generator, GeneratorState};
 use core::future::Future;
+use futures::{Stream, StreamExt};
+use pin_utils::pin_mut;
+use spin::Mutex;
+use alloc::sync::Arc;
+use alloc::collections::VecDeque;
+use core::task::{Poll, LocalWaker};
+use core::pin::Pin;
 
 #[global_allocator]
 static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
@@ -156,12 +164,6 @@ fn run() -> ! {
     }
     println!("");
 
-    use spin::Mutex;
-    use alloc::sync::Arc;
-    use alloc::collections::VecDeque;
-    use core::task::{Poll, LocalWaker};
-    use core::pin::Pin;
-
     // enable timers
     rcc.apb1enr.modify(|_, w| w.tim6en().enabled());
 
@@ -246,36 +248,7 @@ fn run() -> ! {
 
             // tasks
 
-            let mut count_task_idle_stream = task_runtime::IdleStream::new(idle_waker_sink.clone());
-            let count_up_on_idle = static move || {
-                use core::sync::atomic::{AtomicUsize, Ordering};
-
-                static NUMBER: AtomicUsize = AtomicUsize::new(0);
-
-                loop {
-                    await!(count_task_idle_stream.next()).expect("idle stream closed");
-                    let number = NUMBER.fetch_add(1, Ordering::SeqCst);
-                    if number % 100000 == 0 {
-                        print!(" idle({}) ", number);
-                    }
-                }
-            };
-
-            let print_y_loop = static move || {
-                loop {
-                    let next = await!(tim6_stream.next());
-                    assert!(next.is_some(), "tim6 channel closed");
-                    print!("y");
-                }
-            };
-
-            let print_123456789 = static move || {
-                for i in 1usize.. {
-                    let next = await!(button_stream.next());
-                    assert!(next.is_some(), "button channel closed");
-                    print!("{}", i);
-                }
-            };
+            let idle_stream = task_runtime::IdleStream::new(idle_waker_sink.clone());
 
             // ethernet
             let mut ethernet_task_idle_stream = task_runtime::IdleStream::new(idle_waker_sink.clone());
@@ -336,40 +309,22 @@ fn run() -> ! {
             };
 
             let i2c_3_mutex = Arc::new(FutureMutex::new(i2c_3));
+            let layer_1_mutex = Arc::new(FutureMutex::new(layer_1));
 
-            let layer_1_task_i2c_3_mutex = i2c_3_mutex.clone();
-
-            let layer_1_task = static move || {
-                let i2c_3_mutex = layer_1_task_i2c_3_mutex;
-                layer_1.clear();
-                let mut audio_writer = layer_1.audio_writer();
-                loop {
-                    await!(touch_int_stream.next()).expect("touch channel closed");
-                    let touches = await!(i2c_3_mutex.with(|i2c_3| touch::touches(i2c_3))).unwrap();
-                    for touch in touches {
-                        audio_writer.layer().print_point_color_at(
-                            touch.x as usize,
-                            touch.y as usize,
-                            Color::from_hex(0xffff00),
-                        );
-                    }
-
-                    // poll for new audio data
-                    /*
-                    while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
-                    let data0 = sai_2.bdr.read().data().bits();
-                    while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
-                    let data1 = sai_2.bdr.read().data().bits();
-                    audio_writer.set_next_col(data0, data1);
-                    */
-                }
+            let touch_task = TouchTask {
+                touch_int_stream,
+                i2c_3_mutex: i2c_3_mutex.clone(),
+                layer_mutex: layer_1_mutex.clone(),
             };
 
+            let audio_task = AudioTask::new(layer_1_mutex.clone(), sai_2, idle_stream.clone());
+
             let mut executor = task_runtime::Executor::new();
-            executor.spawn_local(future_runtime::from_generator(print_y_loop)).unwrap();
-            executor.spawn_local(future_runtime::from_generator(print_123456789)).unwrap();
-            executor.spawn_local(future_runtime::from_generator(layer_1_task)).unwrap();
-            executor.spawn_local(future_runtime::from_generator(count_up_on_idle)).unwrap();
+            executor.spawn_local(button_task(button_stream)).unwrap();
+            executor.spawn_local(tim6_task(tim6_stream)).unwrap();
+            executor.spawn_local(touch_task.run()).unwrap();
+            executor.spawn_local(count_up_on_idle_task(idle_stream.clone())).unwrap();
+            executor.spawn_local(audio_task.run()).unwrap();
             //executor.spawn_local(future_runtime::from_generator(ethernet_task)).unwrap();
             //executor.spawn_local(print_x);
 
@@ -421,6 +376,137 @@ fn run() -> ! {
             sd::de_init(&mut sd);
         }
     }
+}
+
+/*async*/ fn button_task(button_stream: impl Stream<Item=()>) -> impl Future<Output=()> {
+    // FIXME: remove generator as soon as the async transform is supported in libcore
+    let generator = static move || {
+        pin_mut!(button_stream);
+        for i in 1usize.. {
+            let next = await!(button_stream.next());
+            assert!(next.is_some(), "button channel closed");
+            print!("{}", i);
+        }
+    };
+    future_runtime::from_generator(generator)
+}
+
+/*async*/ fn tim6_task(tim6_stream: impl Stream<Item=()>) -> impl Future<Output=()> {
+    // FIXME: remove generator as soon as the async transform is supported in libcore
+    let generator = static move || {
+        pin_mut!(tim6_stream);
+        loop {
+            let next = await!(tim6_stream.next());
+            assert!(next.is_some(), "tim6 channel closed");
+            print!("y");
+        }
+    };
+    future_runtime::from_generator(generator)
+}
+
+struct TouchTask<S, F>
+    where S: Stream<Item=()>, F: Framebuffer,
+{
+    touch_int_stream: S,
+    i2c_3_mutex: Arc<FutureMutex<I2C<'static>>>,
+    layer_mutex: Arc<FutureMutex<Layer<F>>>,
+}
+
+impl<S, F> TouchTask<S, F> where S: Stream<Item=()>, F: Framebuffer, {
+    fn run(self) -> impl Future<Output=()> {
+        // FIXME: remove generator as soon as the async transform is supported in libcore
+        let generator = static move || {
+            let Self {touch_int_stream, i2c_3_mutex, layer_mutex} = self;
+            pin_mut!(touch_int_stream);
+            await!(layer_mutex.with(|l| l.clear()));
+            loop {
+                await!(touch_int_stream.next()).expect("touch channel closed");
+                let touches = await!(i2c_3_mutex.with(|i2c_3| touch::touches(i2c_3))).unwrap();
+                await!(layer_mutex.with(|layer| {
+                    for touch in touches {
+                        layer.print_point_color_at(
+                            touch.x as usize,
+                            touch.y as usize,
+                            Color::from_hex(0xffff00),
+                        );
+                    }
+                }))
+
+                // poll for new audio data
+                /*
+                while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
+                let data0 = sai_2.bdr.read().data().bits();
+                while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
+                let data1 = sai_2.bdr.read().data().bits();
+                audio_writer.set_next_col(data0, data1);
+                */
+            }
+        };
+        future_runtime::from_generator(generator)
+    }
+}
+
+struct AudioTask<F, S> where F: Framebuffer, S: Stream<Item=()> {
+    sai_2: SAI2,
+    idle_stream: S,
+    audio_writer: AudioWriter<F>,
+}
+
+impl<F, S> AudioTask<F, S> where F: Framebuffer, S: Stream<Item=()> {
+    fn new(layer_mutex: Arc<FutureMutex<Layer<F>>>, sai_2: SAI2, idle_stream: S) -> Self {
+        Self {
+            sai_2,
+            idle_stream,
+            audio_writer: AudioWriter::new(layer_mutex),
+        }
+    }
+
+    fn run(mut self) -> impl Future<Output=()> {
+        // FIXME: remove generator as soon as the async transform is supported in libcore
+        let generator = static move || {
+            let idle_stream = self.idle_stream;
+            pin_mut!(idle_stream);
+
+            let mut data0_buffer = None;
+            loop {
+                // FIXME: replace with actual interrupt stream when we get audio interrupts working
+                await!(idle_stream.next());
+                
+                // poll for new audio data
+                if self.sai_2.bsr.read().freq().bit_is_set() {
+                    // fifo_request_flag is set -> new data available
+                    let data = self.sai_2.bdr.read().data().bits();
+                    match data0_buffer {
+                        None => {
+                            data0_buffer = Some(data);
+                        },
+                        Some(data0) => {
+                            let data1 = data;
+                            await!(self.audio_writer.set_next_col(data0, data1));
+                            data0_buffer = None;
+                        }
+                    }
+                }
+            }
+        };
+        future_runtime::from_generator(generator)
+    }
+}
+
+/*async*/ fn count_up_on_idle_task(idle_stream: impl Stream<Item=()>) -> impl Future<Output=()> {
+    // FIXME: remove generator as soon as the async transform is supported in libcore
+    let generator = static move || {
+        pin_mut!(idle_stream);
+        let mut number = 0;
+        loop {
+            await!(idle_stream.next()).expect("idle stream closed");
+            number += 1;
+            if number % 100000 == 0 {
+                print!(" idle({}) ", number);
+            }
+        }
+    };
+    future_runtime::from_generator(generator)
 }
 
 fn poll_socket(socket: &mut Socket) -> Result<(), smoltcp::Error> {

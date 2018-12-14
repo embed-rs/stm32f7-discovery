@@ -75,7 +75,7 @@ impl Executor {
                 }
             }
             PopResult::Empty => {}
-            PopResult::Inconsistent => panic!("woken_tasks queue is inconsistent"),
+            PopResult::Inconsistent => {} // println!("woken_tasks queue is inconsistent"),
         }
         if let Some(ref mut idle_task) = self.idle_task {
             idle_task.as_mut().poll(&local_waker_from_nonlocal(Arc::new(NoOpWaker)));
@@ -118,6 +118,7 @@ impl Wake for NoOpWaker {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct IdleStream {
     idle: bool,
     idle_waker_sink: mpsc::UnboundedSender<LocalWaker>,

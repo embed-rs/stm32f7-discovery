@@ -9,6 +9,8 @@
 #![feature(arbitrary_self_types)]
 #![feature(drain_filter)]
 #![feature(never_type)]
+#![feature(generators)]
+#![feature(async_await)]
 
 #[macro_use]
 extern crate alloc;
@@ -29,6 +31,8 @@ extern crate embedded_hal;
 extern crate futures;
 
 #[macro_use]
+pub mod future_runtime;
+#[macro_use]
 pub mod lcd;
 pub mod ethernet;
 pub mod gpio;
@@ -39,7 +43,6 @@ pub mod random;
 pub mod sd;
 pub mod system_clock;
 pub mod touch;
-pub mod future_runtime;
 pub mod task_runtime;
 pub mod mpsc_queue;
 pub mod future_mutex;

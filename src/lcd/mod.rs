@@ -4,6 +4,10 @@ pub use self::stdout::init as init_stdout;
 
 use core::{fmt, ptr};
 use stm32f7::stm32f7x6::LTDC;
+use alloc::sync::Arc;
+use futures::Future;
+use crate::future_mutex::FutureMutex;
+use crate::future_runtime;
 
 #[macro_use]
 pub mod stdout;
@@ -162,15 +166,6 @@ impl<T: Framebuffer> Layer<T> {
         self.framebuffer.set_pixel(x, y, color);
     }
 
-    pub fn audio_writer(&mut self) -> AudioWriter<T> {
-        AudioWriter {
-            layer: self,
-            next_pixel: 0,
-            next_col: 0,
-            prev_value: (0, 0),
-        }
-    }
-
     pub fn text_writer(&mut self) -> TextWriter<T> {
         TextWriter {
             layer: self,
@@ -180,62 +175,82 @@ impl<T: Framebuffer> Layer<T> {
     }
 }
 
-pub struct AudioWriter<'a, T: Framebuffer + 'a> {
-    layer: &'a mut Layer<T>,
+pub struct AudioWriter<T: Framebuffer> {
+    layer: Arc<FutureMutex<Layer<T>>>,
     next_pixel: usize,
     next_col: usize,
     prev_value: (usize, usize),
 }
 
-impl<'a, T: Framebuffer + 'a> AudioWriter<'a, T> {
-    pub fn set_next_pixel(&mut self, color: Color) {
-        self.layer
-            .print_point_color_at(self.next_pixel % WIDTH, self.next_pixel / WIDTH, color);
-        self.next_pixel = (self.next_pixel + 1) % (HEIGHT * WIDTH);
+impl<T: Framebuffer> AudioWriter<T> {
+    pub fn new(layer: Arc<FutureMutex<Layer<T>>>) -> Self {
+        AudioWriter {
+            layer,
+            next_pixel: 0,
+            next_col: 0,
+            prev_value: (0, 0),
+        }
     }
 
-    pub fn layer(&mut self) -> &mut Layer<T> {
-        &mut self.layer
+    pub /*async*/ fn set_next_pixel(&mut self, color: Color) -> impl Future<Output=()> + '_ {
+        // FIXME: remove generator as soon as the async transform is supported in libcore
+        let generator = static move || {
+            await!(self.layer.with(|l| {
+                l.print_point_color_at(self.next_pixel % WIDTH, self.next_pixel / WIDTH, color);
+            }));
+            self.next_pixel = (self.next_pixel + 1) % (HEIGHT * WIDTH);
+        };
+        future_runtime::from_generator(generator)
     }
 
-    pub fn set_next_col(&mut self, value0: u32, value1: u32) {
-        let value0 = value0 + 2u32.pow(15);
-        let value0 = value0 as u16 as usize;
-        let value0 = value0 / 241;
+    pub fn layer(&self) -> &Arc<FutureMutex<Layer<T>>> {
+        &self.layer
+    }
 
-        let value1 = value1 + 2u32.pow(15);
-        let value1 = value1 as u16 as usize;
-        let value1 = value1 / 241;
+    pub /*async*/ fn set_next_col(&mut self, value0: u32, value1: u32) -> impl Future<Output=()> + '_ {
+        // FIXME: remove generator as soon as the async transform is supported in libcore
+        let generator = static move || {
+            let value0 = value0 + 2u32.pow(15);
+            let value0 = value0 as u16 as usize;
+            let value0 = value0 / 241;
 
-        for i in 0..HEIGHT {
-            let mut color = Color::from_argb8888(0);
+            let value1 = value1 + 2u32.pow(15);
+            let value1 = value1 as u16 as usize;
+            let value1 = value1 / 241;
 
-            if value0 >= self.prev_value.0 {
-                if i >= self.prev_value.0 && i <= value0 {
+            for i in 0..HEIGHT {
+                let mut color = Color::from_argb8888(0);
+
+                if value0 >= self.prev_value.0 {
+                    if i >= self.prev_value.0 && i <= value0 {
+                        color.red = 0xff;
+                        color.alpha = 0xff;
+                    }
+                } else if i <= self.prev_value.0 && i >= value0 {
                     color.red = 0xff;
                     color.alpha = 0xff;
                 }
-            } else if i <= self.prev_value.0 && i >= value0 {
-                color.red = 0xff;
-                color.alpha = 0xff;
-            }
 
-            if value1 >= self.prev_value.1 {
-                if i >= self.prev_value.0 && i <= value1 {
+                if value1 >= self.prev_value.1 {
+                    if i >= self.prev_value.0 && i <= value1 {
+                        color.green = 0xff;
+                        color.alpha = 0xff;
+                    }
+                } else if i <= self.prev_value.0 && i >= value1 {
                     color.green = 0xff;
                     color.alpha = 0xff;
                 }
-            } else if i <= self.prev_value.0 && i >= value1 {
-                color.green = 0xff;
-                color.alpha = 0xff;
+
+                let i = i as usize;
+                await!(self.layer.with(|l| {
+                    l.print_point_color_at(self.next_col, i, color);
+                }));
             }
 
-            let i = i as usize;
-            self.layer.print_point_color_at(self.next_col, i, color);
-        }
-
-        self.next_col = (self.next_col + 1) % WIDTH;
-        self.prev_value = (value0, value1);
+            self.next_col = (self.next_col + 1) % WIDTH;
+            self.prev_value = (value0, value1);
+        };
+        future_runtime::from_generator(generator)
     }
 }
 

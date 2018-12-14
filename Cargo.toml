@@ -17,6 +17,7 @@ volatile = "0.2.4"
 bit_field = "0.9.0"
 bare-metal = "0.2.3"
 embedded-hal = "0.2.1"
+pin-utils = "0.1.0-alpha"
 
 [dependencies.stm32f7]
 version = "0.3.2"

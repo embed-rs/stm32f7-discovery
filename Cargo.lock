@@ -279,6 +279,7 @@ dependencies = [
  "embedded-hal 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "font8x8 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-preview 0.3.0-alpha.9 (git+https://github.com/phil-opp/futures-rs.git?branch=alloc)",
+ "pin-utils 0.1.0-alpha.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp.git)",
  "spin 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "stm32f7 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
