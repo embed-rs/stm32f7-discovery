@@ -128,6 +128,7 @@ fn run() -> ! {
     // Initialize the allocator BEFORE you use it
     unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }
 
+    lcd.set_background_color(Color::from_hex(0x006600));
     let mut layer_1 = lcd.layer_1().unwrap();
     let mut layer_2 = lcd.layer_2().unwrap();
 
