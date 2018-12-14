@@ -105,7 +105,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "futures-channel-preview"
 version = "0.3.0-alpha.9"
-source = "git+https://github.com/phil-opp/futures-rs.git?branch=alloc#eb6e3305ae7b08e2c90682b51d6b038f401f9250"
+source = "git+https://github.com/phil-opp/futures-rs.git?branch=alloc#420edae8d23c98f647ee44f16074a1c9cfa22031"
 dependencies = [
  "futures-core-preview 0.3.0-alpha.9 (git+https://github.com/phil-opp/futures-rs.git?branch=alloc)",
  "spin 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -114,12 +114,12 @@ dependencies = [
 [[package]]
 name = "futures-core-preview"
 version = "0.3.0-alpha.9"
-source = "git+https://github.com/phil-opp/futures-rs.git?branch=alloc#eb6e3305ae7b08e2c90682b51d6b038f401f9250"
+source = "git+https://github.com/phil-opp/futures-rs.git?branch=alloc#420edae8d23c98f647ee44f16074a1c9cfa22031"
 
 [[package]]
 name = "futures-executor-preview"
 version = "0.3.0-alpha.9"
-source = "git+https://github.com/phil-opp/futures-rs.git?branch=alloc#eb6e3305ae7b08e2c90682b51d6b038f401f9250"
+source = "git+https://github.com/phil-opp/futures-rs.git?branch=alloc#420edae8d23c98f647ee44f16074a1c9cfa22031"
 dependencies = [
  "futures-channel-preview 0.3.0-alpha.9 (git+https://github.com/phil-opp/futures-rs.git?branch=alloc)",
  "futures-core-preview 0.3.0-alpha.9 (git+https://github.com/phil-opp/futures-rs.git?branch=alloc)",
@@ -130,7 +130,7 @@ dependencies = [
 [[package]]
 name = "futures-io-preview"
 version = "0.3.0-alpha.9"
-source = "git+https://github.com/phil-opp/futures-rs.git?branch=alloc#eb6e3305ae7b08e2c90682b51d6b038f401f9250"
+source = "git+https://github.com/phil-opp/futures-rs.git?branch=alloc#420edae8d23c98f647ee44f16074a1c9cfa22031"
 dependencies = [
  "futures-core-preview 0.3.0-alpha.9 (git+https://github.com/phil-opp/futures-rs.git?branch=alloc)",
 ]
@@ -138,7 +138,7 @@ dependencies = [
 [[package]]
 name = "futures-preview"
 version = "0.3.0-alpha.9"
-source = "git+https://github.com/phil-opp/futures-rs.git?branch=alloc#eb6e3305ae7b08e2c90682b51d6b038f401f9250"
+source = "git+https://github.com/phil-opp/futures-rs.git?branch=alloc#420edae8d23c98f647ee44f16074a1c9cfa22031"
 dependencies = [
  "futures-channel-preview 0.3.0-alpha.9 (git+https://github.com/phil-opp/futures-rs.git?branch=alloc)",
  "futures-core-preview 0.3.0-alpha.9 (git+https://github.com/phil-opp/futures-rs.git?branch=alloc)",
@@ -151,7 +151,7 @@ dependencies = [
 [[package]]
 name = "futures-sink-preview"
 version = "0.3.0-alpha.9"
-source = "git+https://github.com/phil-opp/futures-rs.git?branch=alloc#eb6e3305ae7b08e2c90682b51d6b038f401f9250"
+source = "git+https://github.com/phil-opp/futures-rs.git?branch=alloc#420edae8d23c98f647ee44f16074a1c9cfa22031"
 dependencies = [
  "futures-channel-preview 0.3.0-alpha.9 (git+https://github.com/phil-opp/futures-rs.git?branch=alloc)",
  "futures-core-preview 0.3.0-alpha.9 (git+https://github.com/phil-opp/futures-rs.git?branch=alloc)",
@@ -160,7 +160,7 @@ dependencies = [
 [[package]]
 name = "futures-util-preview"
 version = "0.3.0-alpha.9"
-source = "git+https://github.com/phil-opp/futures-rs.git?branch=alloc#eb6e3305ae7b08e2c90682b51d6b038f401f9250"
+source = "git+https://github.com/phil-opp/futures-rs.git?branch=alloc#420edae8d23c98f647ee44f16074a1c9cfa22031"
 dependencies = [
  "either 1.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-channel-preview 0.3.0-alpha.9 (git+https://github.com/phil-opp/futures-rs.git?branch=alloc)",
