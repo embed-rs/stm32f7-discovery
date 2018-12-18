@@ -6,5 +6,5 @@ runner = "sh gdb.sh"
 rustflags = [
   "-C", "link-arg=-Tlink.x",
   "-C", "linker=rust-lld",
-  "-Z", "linker-flavor=ld.lld",
+  "-C", "linker-flavor=ld.lld",
 ]
