@@ -423,7 +423,8 @@ impl<S, F> TouchTask<S, F> where S: Stream<Item=()>, F: Framebuffer, {
 struct AudioTask<F, S> where F: Framebuffer, S: Stream<Item=()> {
     sai_2: SAI2,
     idle_stream: S,
-    audio_writer: AudioWriter<F>,
+    layer_mutex: Arc<FutureMutex<Layer<F>>>,
+    audio_writer: AudioWriter,
 }
 
 impl<F, S> AudioTask<F, S> where F: Framebuffer, S: Stream<Item=()> {
@@ -431,12 +432,13 @@ impl<F, S> AudioTask<F, S> where F: Framebuffer, S: Stream<Item=()> {
         Self {
             sai_2,
             idle_stream,
-            audio_writer: AudioWriter::new(layer_mutex),
+            layer_mutex,
+            audio_writer: AudioWriter::new(),
         }
     }
 
-    async fn run(mut self) {
-        let idle_stream = self.idle_stream;
+    async fn run(self) {
+        let Self {idle_stream, layer_mutex, mut audio_writer, sai_2} = self;
         pin_mut!(idle_stream);
 
         let mut data0_buffer = None;
@@ -445,16 +447,18 @@ impl<F, S> AudioTask<F, S> where F: Framebuffer, S: Stream<Item=()> {
             await!(idle_stream.next());
 
             // poll for new audio data
-            if self.sai_2.bsr.read().freq().bit_is_set() {
+            if sai_2.bsr.read().freq().bit_is_set() {
                 // fifo_request_flag is set -> new data available
-                let data = self.sai_2.bdr.read().data().bits();
+                let data = sai_2.bdr.read().data().bits();
                 match data0_buffer {
                     None => {
                         data0_buffer = Some(data);
                     },
                     Some(data0) => {
                         let data1 = data;
-                        await!(self.audio_writer.set_next_col(data0, data1));
+                        await!(layer_mutex.with(|l| {
+                            audio_writer.set_next_col(l,data0, data1)
+                        }));
                         data0_buffer = None;
                     }
                 }

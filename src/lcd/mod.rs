@@ -4,8 +4,6 @@ pub use self::stdout::init as init_stdout;
 
 use core::{fmt, ptr};
 use stm32f7::stm32f7x6::LTDC;
-use alloc::sync::Arc;
-use crate::future_mutex::FutureMutex;
 
 #[macro_use]
 pub mod stdout;
@@ -173,35 +171,27 @@ impl<T: Framebuffer> Layer<T> {
     }
 }
 
-pub struct AudioWriter<T: Framebuffer> {
-    layer: Arc<FutureMutex<Layer<T>>>,
+pub struct AudioWriter {
     next_pixel: usize,
     next_col: usize,
     prev_value: (usize, usize),
 }
 
-impl<T: Framebuffer> AudioWriter<T> {
-    pub fn new(layer: Arc<FutureMutex<Layer<T>>>) -> Self {
+impl AudioWriter {
+    pub fn new() -> Self {
         AudioWriter {
-            layer,
             next_pixel: 0,
             next_col: 0,
             prev_value: (0, 0),
         }
     }
 
-    pub async fn set_next_pixel(&mut self, color: Color) {
-        await!(self.layer.with(|l| {
-            l.print_point_color_at(self.next_pixel % WIDTH, self.next_pixel / WIDTH, color);
-        }));
+    pub fn set_next_pixel<F: Framebuffer>(&mut self, layer: &mut Layer<F>, color: Color) {
+        layer.print_point_color_at(self.next_pixel % WIDTH, self.next_pixel / WIDTH, color);
         self.next_pixel = (self.next_pixel + 1) % (HEIGHT * WIDTH);
     }
 
-    pub fn layer(&self) -> &Arc<FutureMutex<Layer<T>>> {
-        &self.layer
-    }
-
-    pub async fn set_next_col(&mut self, value0: u32, value1: u32) {
+    pub fn set_next_col<F: Framebuffer>(&mut self, layer: &mut Layer<F>, value0: u32, value1: u32) {
         let value0 = value0 + 2u32.pow(15);
         let value0 = value0 as u16 as usize;
         let value0 = value0 / 241;
@@ -234,9 +224,7 @@ impl<T: Framebuffer> AudioWriter<T> {
             }
 
             let i = i as usize;
-            await!(self.layer.with(|l| {
-                l.print_point_color_at(self.next_col, i, color);
-            }));
+            layer.print_point_color_at(self.next_col, i, color);
         }
 
         self.next_col = (self.next_col + 1) % WIDTH;
