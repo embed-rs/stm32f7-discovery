@@ -53,5 +53,5 @@ debug = true
 lto = true # better optimizations
 
 [patch.crates-io.futures-preview]
-git = "https://github.com/phil-opp/futures-rs.git"
+git = "https://github.com/embed-rs/futures-rs.git"
 branch = "alloc"
