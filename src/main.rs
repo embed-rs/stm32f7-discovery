@@ -48,7 +48,6 @@ use stm32f7_discovery::{
     sd,
     system_clock::{self, Hz},
     touch,
-    future_runtime,
     task_runtime,
     interrupts::{self, InterruptRequest, Priority},
     future_mutex::FutureMutex,
@@ -253,7 +252,7 @@ fn run() -> ! {
 
             // ethernet
             let mut ethernet_task_idle_stream = task_runtime::IdleStream::new(idle_waker_sink.clone());
-            let ethernet_task = static move || {
+            let ethernet_task = async move || {
                 let mut ethernet_interface = ethernet::EthernetDevice::new(
                     Default::default(),
                     Default::default(),
@@ -326,17 +325,17 @@ fn run() -> ! {
             executor.spawn_local(touch_task.run()).unwrap();
             executor.spawn_local(count_up_on_idle_task(idle_stream.clone())).unwrap();
             executor.spawn_local(audio_task.run()).unwrap();
-            //executor.spawn_local(future_runtime::from_generator(ethernet_task)).unwrap();
+            //executor.spawn_local(ethernet_task).unwrap();
             //executor.spawn_local(print_x);
 
-            let mut idle = static move || {
+            let mut idle = async move {
                 loop {
                     let next_waker = await!(idle_waker_stream.next()).expect("idle channel closed");
                     next_waker.wake();
                 }
             };
 
-            executor.set_idle_task(future_runtime::from_generator(idle));
+            executor.set_idle_task(idle);
 
             loop {
                 executor.run();
@@ -379,30 +378,23 @@ fn run() -> ! {
     }
 }
 
-/*async*/ fn button_task(button_stream: impl Stream<Item=()>) -> impl Future<Output=()> {
-    // FIXME: remove generator as soon as the async transform is supported in libcore
-    let generator = static move || {
-        pin_mut!(button_stream);
-        for i in 1usize.. {
-            let next = await!(button_stream.next());
-            assert!(next.is_some(), "button channel closed");
-            print!("{}", i);
-        }
-    };
-    future_runtime::from_generator(generator)
+
+async fn button_task(button_stream: impl Stream<Item=()>) {
+    pin_mut!(button_stream);
+    for i in 1usize.. {
+        let next = await!(button_stream.next());
+        assert!(next.is_some(), "button channel closed");
+        print!("{}", i);
+    }
 }
 
-/*async*/ fn tim6_task(tim6_stream: impl Stream<Item=()>) -> impl Future<Output=()> {
-    // FIXME: remove generator as soon as the async transform is supported in libcore
-    let generator = static move || {
-        pin_mut!(tim6_stream);
-        loop {
-            let next = await!(tim6_stream.next());
-            assert!(next.is_some(), "tim6 channel closed");
-            print!("y");
-        }
-    };
-    future_runtime::from_generator(generator)
+async fn tim6_task(tim6_stream: impl Stream<Item=()>) {
+    pin_mut!(tim6_stream);
+    loop {
+        let next = await!(tim6_stream.next());
+        assert!(next.is_some(), "tim6 channel closed");
+        print!("y");
+    }
 }
 
 struct TouchTask<S, F>
@@ -414,36 +406,23 @@ struct TouchTask<S, F>
 }
 
 impl<S, F> TouchTask<S, F> where S: Stream<Item=()>, F: Framebuffer, {
-    fn run(self) -> impl Future<Output=()> {
-        // FIXME: remove generator as soon as the async transform is supported in libcore
-        let generator = static move || {
-            let Self {touch_int_stream, i2c_3_mutex, layer_mutex} = self;
-            pin_mut!(touch_int_stream);
-            await!(layer_mutex.with(|l| l.clear()));
-            loop {
-                await!(touch_int_stream.next()).expect("touch channel closed");
-                let touches = await!(i2c_3_mutex.with(|i2c_3| touch::touches(i2c_3))).unwrap();
-                await!(layer_mutex.with(|layer| {
-                    for touch in touches {
-                        layer.print_point_color_at(
-                            touch.x as usize,
-                            touch.y as usize,
-                            Color::from_hex(0xffff00),
-                        );
-                    }
-                }))
-
-                // poll for new audio data
-                /*
-                while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
-                let data0 = sai_2.bdr.read().data().bits();
-                while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
-                let data1 = sai_2.bdr.read().data().bits();
-                audio_writer.set_next_col(data0, data1);
-                */
-            }
-        };
-        future_runtime::from_generator(generator)
+    async fn run(self) {
+        let Self {touch_int_stream, i2c_3_mutex, layer_mutex} = self;
+        pin_mut!(touch_int_stream);
+        await!(layer_mutex.with(|l| l.clear()));
+        loop {
+            await!(touch_int_stream.next()).expect("touch channel closed");
+            let touches = await!(i2c_3_mutex.with(|i2c_3| touch::touches(i2c_3))).unwrap();
+            await!(layer_mutex.with(|layer| {
+                for touch in touches {
+                    layer.print_point_color_at(
+                        touch.x as usize,
+                        touch.y as usize,
+                        Color::from_hex(0xffff00),
+                    );
+                }
+            }))
+        }
     }
 }
 
@@ -462,52 +441,44 @@ impl<F, S> AudioTask<F, S> where F: Framebuffer, S: Stream<Item=()> {
         }
     }
 
-    fn run(mut self) -> impl Future<Output=()> {
-        // FIXME: remove generator as soon as the async transform is supported in libcore
-        let generator = static move || {
-            let idle_stream = self.idle_stream;
-            pin_mut!(idle_stream);
+    async fn run(mut self) {
+        let idle_stream = self.idle_stream;
+        pin_mut!(idle_stream);
 
-            let mut data0_buffer = None;
-            loop {
-                // FIXME: replace with actual interrupt stream when we get audio interrupts working
-                await!(idle_stream.next());
-                
-                // poll for new audio data
-                if self.sai_2.bsr.read().freq().bit_is_set() {
-                    // fifo_request_flag is set -> new data available
-                    let data = self.sai_2.bdr.read().data().bits();
-                    match data0_buffer {
-                        None => {
-                            data0_buffer = Some(data);
-                        },
-                        Some(data0) => {
-                            let data1 = data;
-                            await!(self.audio_writer.set_next_col(data0, data1));
-                            data0_buffer = None;
-                        }
+        let mut data0_buffer = None;
+        loop {
+            // FIXME: replace with actual interrupt stream when we get audio interrupts working
+            await!(idle_stream.next());
+
+            // poll for new audio data
+            if self.sai_2.bsr.read().freq().bit_is_set() {
+                // fifo_request_flag is set -> new data available
+                let data = self.sai_2.bdr.read().data().bits();
+                match data0_buffer {
+                    None => {
+                        data0_buffer = Some(data);
+                    },
+                    Some(data0) => {
+                        let data1 = data;
+                        await!(self.audio_writer.set_next_col(data0, data1));
+                        data0_buffer = None;
                     }
                 }
             }
-        };
-        future_runtime::from_generator(generator)
+        }
     }
 }
 
-/*async*/ fn count_up_on_idle_task(idle_stream: impl Stream<Item=()>) -> impl Future<Output=()> {
-    // FIXME: remove generator as soon as the async transform is supported in libcore
-    let generator = static move || {
-        pin_mut!(idle_stream);
-        let mut number = 0;
-        loop {
-            await!(idle_stream.next()).expect("idle stream closed");
-            number += 1;
-            if number % 100000 == 0 {
-                print!(" idle({}) ", number);
-            }
+async fn count_up_on_idle_task(idle_stream: impl Stream<Item=()>) {
+    pin_mut!(idle_stream);
+    let mut number = 0;
+    loop {
+        await!(idle_stream.next()).expect("idle stream closed");
+        number += 1;
+        if number % 100000 == 0 {
+            print!(" idle({}) ", number);
         }
-    };
-    future_runtime::from_generator(generator)
+    }
 }
 
 fn poll_socket(socket: &mut Socket) -> Result<(), smoltcp::Error> {

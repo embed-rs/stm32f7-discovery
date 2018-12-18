@@ -31,8 +31,6 @@ extern crate embedded_hal;
 extern crate futures;
 
 #[macro_use]
-pub mod future_runtime;
-#[macro_use]
 pub mod lcd;
 pub mod ethernet;
 pub mod gpio;
