@@ -41,6 +41,10 @@ version = "1.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "core"
+version = "0.1.0"
+
+[[package]]
 name = "cortex-m"
 version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -60,27 +64,32 @@ dependencies = [
 
 [[package]]
 name = "cortex-m-rt"
-version = "0.6.4"
+version = "0.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "cortex-m-rt-macros 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cortex-m-rt-macros 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "r0 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "cortex-m-rt-macros"
-version = "0.1.2"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "proc-macro2 0.4.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 0.6.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "syn 0.15.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syn 0.15.22 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "cortex-m-semihosting"
 version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "either"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -96,6 +105,74 @@ dependencies = [
 name = "font8x8"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "futures-channel-preview"
+version = "0.3.0-alpha.9"
+source = "git+https://github.com/embed-rs/futures-rs.git?branch=alloc#420edae8d23c98f647ee44f16074a1c9cfa22031"
+dependencies = [
+ "futures-core-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)",
+ "spin 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "futures-core-preview"
+version = "0.3.0-alpha.9"
+source = "git+https://github.com/embed-rs/futures-rs.git?branch=alloc#420edae8d23c98f647ee44f16074a1c9cfa22031"
+
+[[package]]
+name = "futures-executor-preview"
+version = "0.3.0-alpha.9"
+source = "git+https://github.com/embed-rs/futures-rs.git?branch=alloc#420edae8d23c98f647ee44f16074a1c9cfa22031"
+dependencies = [
+ "futures-channel-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)",
+ "futures-core-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)",
+ "futures-util-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)",
+ "pin-utils 0.1.0-alpha.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "futures-io-preview"
+version = "0.3.0-alpha.9"
+source = "git+https://github.com/embed-rs/futures-rs.git?branch=alloc#420edae8d23c98f647ee44f16074a1c9cfa22031"
+dependencies = [
+ "futures-core-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)",
+]
+
+[[package]]
+name = "futures-preview"
+version = "0.3.0-alpha.9"
+source = "git+https://github.com/embed-rs/futures-rs.git?branch=alloc#420edae8d23c98f647ee44f16074a1c9cfa22031"
+dependencies = [
+ "futures-channel-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)",
+ "futures-core-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)",
+ "futures-executor-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)",
+ "futures-io-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)",
+ "futures-sink-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)",
+ "futures-util-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)",
+]
+
+[[package]]
+name = "futures-sink-preview"
+version = "0.3.0-alpha.9"
+source = "git+https://github.com/embed-rs/futures-rs.git?branch=alloc#420edae8d23c98f647ee44f16074a1c9cfa22031"
+dependencies = [
+ "futures-channel-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)",
+ "futures-core-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)",
+]
+
+[[package]]
+name = "futures-util-preview"
+version = "0.3.0-alpha.9"
+source = "git+https://github.com/embed-rs/futures-rs.git?branch=alloc#420edae8d23c98f647ee44f16074a1c9cfa22031"
+dependencies = [
+ "either 1.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures-channel-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)",
+ "futures-core-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)",
+ "futures-io-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)",
+ "futures-sink-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)",
+ "pin-utils 0.1.0-alpha.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "linked_list_allocator"
@@ -115,6 +192,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "nodrop"
 version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "pin-utils"
+version = "0.1.0-alpha.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -161,8 +243,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "smoltcp"
-version = "0.4.0"
-source = "git+https://github.com/m-labs/smoltcp.git#ef014b118b19d2c4e9218be6ab52ffe4c2aecff3"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitflags 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -171,7 +253,7 @@ dependencies = [
 
 [[package]]
 name = "spin"
-version = "0.4.9"
+version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -181,7 +263,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bare-metal 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m 0.5.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "cortex-m-rt 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cortex-m-rt 0.6.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "vcell 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -195,20 +277,23 @@ dependencies = [
  "bit_field 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bitflags 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "core 0.1.0",
  "cortex-m 0.5.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "cortex-m-rt 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cortex-m-rt 0.6.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m-semihosting 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "embedded-hal 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "font8x8 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp.git)",
- "spin 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)",
+ "pin-utils 0.1.0-alpha.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smoltcp 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spin 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "stm32f7 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "volatile 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "syn"
-version = "0.15.9"
+version = "0.15.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "proc-macro2 0.4.20 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -259,25 +344,34 @@ dependencies = [
 "checksum byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "90492c5858dd7d2e78691cfb89f90d273a2800fc11d98f60786e5d87e2f83781"
 "checksum cortex-m 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "3df5de9a9829f2ccb7defa8945fa020c6614cd2f6ba9b5f33db9241dcc01985e"
 "checksum cortex-m 0.5.7 (registry+https://github.com/rust-lang/crates.io-index)" = "4573199c5b1e9b0eeae418b46f7c0af5fdf11b3057f83880810dfef68dd1dcb5"
-"checksum cortex-m-rt 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)" = "d86cfa89fa220d3cb7a41133693e2d302d18e9a632298ffb3738f175c8c12325"
-"checksum cortex-m-rt-macros 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "3139fdadccaa0db6fa96637678ced9b0b97e4f10047c9ab603d125048e107d1a"
+"checksum cortex-m-rt 0.6.7 (registry+https://github.com/rust-lang/crates.io-index)" = "f69d2beca37acc3776c17201c9d1f8904fb9139fa3a4d2cf28c8436a07b21a88"
+"checksum cortex-m-rt-macros 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "d7ae692573e0acccb1579fef1abf5a5bf1d2f3f0149a22b16870ec9309aee25f"
 "checksum cortex-m-semihosting 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "54d46ec4730314a01de4504328ef4ed6b2c51b63815caac4847ac9e70f88c9e5"
+"checksum either 1.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3be565ca5c557d7f59e7cfcf1844f9e3033650c929c6566f511e8005f205c1d0"
 "checksum embedded-hal 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "26944677e4934eb5fb4025501dc0d6cdbcf6bfabd6200fcfee2e7e8eef8c0362"
 "checksum font8x8 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)" = "b81d84c3c978af7d05d31a2198af4b9ba956d819d15d8f6d58fc150e33f8dc1f"
+"checksum futures-channel-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)" = "<none>"
+"checksum futures-core-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)" = "<none>"
+"checksum futures-executor-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)" = "<none>"
+"checksum futures-io-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)" = "<none>"
+"checksum futures-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)" = "<none>"
+"checksum futures-sink-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)" = "<none>"
+"checksum futures-util-preview 0.3.0-alpha.9 (git+https://github.com/embed-rs/futures-rs.git?branch=alloc)" = "<none>"
 "checksum linked_list_allocator 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)" = "655d57c71827fe0891ce72231b6aa5e14033dae3f604609e6a6f807267c1678d"
 "checksum managed 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)" = "fdcec5e97041c7f0f1c5b7d93f12e57293c831c646f4cc7a5db59460c7ea8de6"
 "checksum nb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "69f380b5fe9fab8c0d7a6a99cda23e2cc0463bedb2cbc3aada0813b98496ecdc"
 "checksum nodrop 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)" = "9a2228dca57108069a5262f2ed8bd2e82496d2e074a06d1ccc7ce1687b6ae0a2"
+"checksum pin-utils 0.1.0-alpha.3 (registry+https://github.com/rust-lang/crates.io-index)" = "42d42579e40cc2de14252a729e9727439657cf68a4997593aafe63728544ecb3"
 "checksum proc-macro2 0.4.20 (registry+https://github.com/rust-lang/crates.io-index)" = "3d7b7eaaa90b4a90a932a9ea6666c95a389e424eff347f0f793979289429feee"
 "checksum quote 0.6.8 (registry+https://github.com/rust-lang/crates.io-index)" = "dd636425967c33af890042c483632d33fa7a18f19ad1d7ea72e8998c6ef8dea5"
 "checksum r0 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e2a38df5b15c8d5c7e8654189744d8e396bddc18ad48041a500ce52d6948941f"
 "checksum rand 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)" = "e464cd887e869cddcae8792a4ee31d23c7edd516700695608f5b98c67ee0131c"
 "checksum rand_core 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1961a422c4d189dfb50ffa9320bf1f2a9bd54ecb92792fb9477f99a1045f3372"
 "checksum rand_core 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0905b6b7079ec73b314d4c748701f6931eb79fd97c668caa3f1899b22b32c6db"
-"checksum smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp.git)" = "<none>"
-"checksum spin 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)" = "37b5646825922b96b5d7d676b5bb3458a54498e96ed7b0ce09dc43a07038fea4"
+"checksum smoltcp 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fef582369edb298c6c41319a544ca9c4e83622f226055ccfcb35974fbb55ed34"
+"checksum spin 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)" = "ceac490aa12c567115b40b7b7fceca03a6c9d53d5defea066123debc83c5dc1f"
 "checksum stm32f7 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "d0cd6ef1ebfd3235d51c275008de5318505403cdbef9267516b2a82895b10e50"
-"checksum syn 0.15.9 (registry+https://github.com/rust-lang/crates.io-index)" = "b10ee269228fb723234fce98e9aac0eaed2bd5f1ad2f6930e8d5b93f04445a1a"
+"checksum syn 0.15.22 (registry+https://github.com/rust-lang/crates.io-index)" = "ae8b29eb5210bc5cf63ed6149cbf9adfc82ac0be023d8735c176ee74a2db4da7"
 "checksum unicode-xid 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fc72304796d0818e357ead4e000d19c9c174ab23dc11093ac919054d20a6a7fc"
 "checksum vcell 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "45c297f0afb6928cd08ab1ff9d95e99392595ea25ae1b5ecf822ff8764e57a0d"
 "checksum void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"

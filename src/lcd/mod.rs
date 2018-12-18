@@ -162,15 +162,6 @@ impl<T: Framebuffer> Layer<T> {
         self.framebuffer.set_pixel(x, y, color);
     }
 
-    pub fn audio_writer(&mut self) -> AudioWriter<T> {
-        AudioWriter {
-            layer: self,
-            next_pixel: 0,
-            next_col: 0,
-            prev_value: (0, 0),
-        }
-    }
-
     pub fn text_writer(&mut self) -> TextWriter<T> {
         TextWriter {
             layer: self,
@@ -180,25 +171,27 @@ impl<T: Framebuffer> Layer<T> {
     }
 }
 
-pub struct AudioWriter<'a, T: Framebuffer + 'a> {
-    layer: &'a mut Layer<T>,
+pub struct AudioWriter {
     next_pixel: usize,
     next_col: usize,
     prev_value: (usize, usize),
 }
 
-impl<'a, T: Framebuffer + 'a> AudioWriter<'a, T> {
-    pub fn set_next_pixel(&mut self, color: Color) {
-        self.layer
-            .print_point_color_at(self.next_pixel % WIDTH, self.next_pixel / WIDTH, color);
+impl AudioWriter {
+    pub fn new() -> Self {
+        AudioWriter {
+            next_pixel: 0,
+            next_col: 0,
+            prev_value: (0, 0),
+        }
+    }
+
+    pub fn set_next_pixel<F: Framebuffer>(&mut self, layer: &mut Layer<F>, color: Color) {
+        layer.print_point_color_at(self.next_pixel % WIDTH, self.next_pixel / WIDTH, color);
         self.next_pixel = (self.next_pixel + 1) % (HEIGHT * WIDTH);
     }
 
-    pub fn layer(&mut self) -> &mut Layer<T> {
-        &mut self.layer
-    }
-
-    pub fn set_next_col(&mut self, value0: u32, value1: u32) {
+    pub fn set_next_col<F: Framebuffer>(&mut self, layer: &mut Layer<F>, value0: u32, value1: u32) {
         let value0 = value0 + 2u32.pow(15);
         let value0 = value0 as u16 as usize;
         let value0 = value0 / 241;
@@ -231,7 +224,7 @@ impl<'a, T: Framebuffer + 'a> AudioWriter<'a, T> {
             }
 
             let i = i as usize;
-            self.layer.print_point_color_at(self.next_col, i, color);
+            layer.print_point_color_at(self.next_col, i, color);
         }
 
         self.next_col = (self.next_col + 1) % WIDTH;

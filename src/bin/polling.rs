@@ -41,6 +41,7 @@ use stm32f7_discovery::{
     sd,
     system_clock::{self, Hz},
     touch,
+    lcd::AudioWriter,
 };
 
 #[global_allocator]
@@ -100,7 +101,6 @@ fn main() -> ! {
     let mut layer_2 = lcd.layer_2().unwrap();
 
     layer_1.clear();
-    let mut audio_writer = layer_1.audio_writer();
     layer_2.clear();
     lcd::init_stdout(layer_2);
 
@@ -109,7 +109,7 @@ fn main() -> ! {
     // Initialize the allocator BEFORE you use it
     unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }
 
-    let xs = vec![1, 2, 3];
+    let _xs = vec![1, 2, 3];
 
     let mut i2c_3 = init::init_i2c_3(&peripherals.I2C3, &mut rcc);
     i2c_3.test_1();
@@ -169,6 +169,7 @@ fn main() -> ! {
     }
 
     let mut previous_button_state = pins.button.get();
+    let mut audio_writer = AudioWriter::new();
     loop {
         // poll button state
         let current_button_state = pins.button.get();
@@ -185,7 +186,7 @@ fn main() -> ! {
 
         // poll for new touch data
         for touch in &touch::touches(&mut i2c_3).unwrap() {
-            audio_writer.layer().print_point_color_at(
+            layer_1.print_point_color_at(
                 touch.x as usize,
                 touch.y as usize,
                 Color::from_hex(0xffff00),
@@ -198,7 +199,7 @@ fn main() -> ! {
         while sai_2.bsr.read().freq().bit_is_clear() {} // fifo_request_flag
         let data1 = sai_2.bdr.read().data().bits();
 
-        audio_writer.set_next_col(data0, data1);
+        audio_writer.set_next_col(&mut layer_1, data0, data1);
 
         // handle new ethernet packets
         if let Ok(ref mut eth) = ethernet_interface {

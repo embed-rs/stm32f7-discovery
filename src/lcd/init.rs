@@ -2,7 +2,7 @@ use super::Lcd;
 use stm32f7::stm32f7x6::{LTDC, RCC};
 
 pub fn init<'a>(ltdc: &'a mut LTDC, rcc: &mut RCC) -> Lcd<'a> {
-    use lcd::{self, LAYER_1_START, LAYER_2_START};
+    use crate::lcd::{self, LAYER_1_START, LAYER_2_START};
     const HEIGHT: u16 = lcd::HEIGHT as u16;
     const WIDTH: u16 = lcd::WIDTH as u16;
     const LAYER_1_OCTETS_PER_PIXEL: u16 = lcd::LAYER_1_OCTETS_PER_PIXEL as u16;

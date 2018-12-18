@@ -1,7 +1,7 @@
-use i2c::{self, I2C};
-use lcd::{self, Lcd};
+use crate::i2c::{self, I2C};
+use crate::lcd::{self, Lcd};
 use stm32f7::stm32f7x6::{i2c1, FLASH, FMC, LTDC, PWR, RCC, SAI2, SYST};
-use system_clock;
+use crate::system_clock;
 
 pub use self::pins::init as pins;
 
@@ -126,6 +126,13 @@ pub fn enable_gpio_ports(rcc: &mut RCC) {
             break;
         }
     }
+}
+
+pub fn enable_syscfg(rcc: &mut RCC) {
+    // enable syscfg clock
+    rcc.apb2enr.modify(|_, w| w.syscfgen().set_bit());
+    // delay
+    let _unused = rcc.apb2enr.read();
 }
 
 pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) {
@@ -466,6 +473,23 @@ pub fn init_sai_2(sai: &mut SAI2, rcc: &mut RCC) {
         w.sloten().bits(1 << 1 | 1 << 3); // enable_slots
         w
     });
+
+    // enable receive interrupts
+    /*
+    sai.aim.modify(|_, w| {
+        w.ovrudrie().set_bit();
+        w.freqie().set_bit();
+        w.wckcfg().set_bit();
+        w
+    });
+    sai.bim.modify(|_, w| {
+        w.ovrudrie().set_bit();
+        w.freqie().set_bit();
+        w.afsdetie().set_bit();
+        w.lfsdetie().set_bit();
+        w
+    });
+    */
 
     // Enable SAI peripheral block a to generate MCLK
     sai.acr1.modify(|_, w| w.saiaen().set_bit()); // audio_block_enable

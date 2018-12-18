@@ -22,7 +22,7 @@ use core::convert::{TryFrom, TryInto};
 use core::intrinsics::transmute;
 use core::marker::PhantomData;
 use core::{fmt, ptr};
-use rt::exception;
+use crate::rt::exception;
 use stm32f7::stm32f7x6::{NVIC, NVIC_STIR};
 pub use stm32f7::stm32f7x6::Interrupt as InterruptRequest;
 

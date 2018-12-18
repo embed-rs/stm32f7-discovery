@@ -6,10 +6,10 @@ use stm32f7::stm32f7x6::SDMMC1;
 pub fn idle(sdmmc: &mut SDMMC1, timeout: u32) -> Result<(), Error> {
     send_cmd(sdmmc, 0, 0x00, true, false, 0x00);
 
-    let timeout = ::system_clock::ms() as u32 + timeout;
-    while (::system_clock::ms() as u32) < timeout && sdmmc.sta.read().cmdsent().bit_is_clear() {}
+    let timeout = crate::system_clock::ms() as u32 + timeout;
+    while (crate::system_clock::ms() as u32) < timeout && sdmmc.sta.read().cmdsent().bit_is_clear() {}
 
-    if (::system_clock::ms() as u32) >= timeout {
+    if (crate::system_clock::ms() as u32) >= timeout {
         return Err(Error::Timeout);
     }
 
@@ -228,14 +228,14 @@ fn get_cmd_resp6(sdmmc: &mut SDMMC1, cmd_idx: u8, timeout: u32) -> Result<u16, E
 
 // Wait for the Controller to respond to a command.
 fn wait_resp(sdmmc: &mut SDMMC1, timeout: u32) -> Result<(), Error> {
-    let timeout = ::system_clock::ms() as u32 + timeout;
-    while (::system_clock::ms() as u32) < timeout
+    let timeout = crate::system_clock::ms() as u32 + timeout;
+    while (crate::system_clock::ms() as u32) < timeout
         && sdmmc.sta.read().cmdrend().bit_is_clear()
         && sdmmc.sta.read().ccrcfail().bit_is_clear()
         && sdmmc.sta.read().ctimeout().bit_is_clear()
     {}
 
-    if (::system_clock::ms() as u32) >= timeout {
+    if (crate::system_clock::ms() as u32) >= timeout {
         return Err(Error::Timeout);
     }
 
