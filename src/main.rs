@@ -38,7 +38,7 @@ use smoltcp::{
     time::Instant,
     wire::{EthernetAddress, IpAddress, IpEndpoint, Ipv4Address},
 };
-use stm32f7::stm32f7x6::{self, CorePeripherals, Interrupt, Peripherals, SAI2};
+use stm32f7::stm32f7x6::{CorePeripherals, Interrupt, Peripherals, SAI2};
 use stm32f7_discovery::{
     ethernet,
     gpio::{GpioPort, InputPin, OutputPin},
@@ -53,15 +53,9 @@ use stm32f7_discovery::{
     future_mutex::FutureMutex,
     i2c::I2C,
 };
-use core::ops::{Generator, GeneratorState};
-use core::future::Future;
 use futures::{Stream, StreamExt};
 use pin_utils::pin_mut;
-use spin::Mutex;
 use alloc::sync::Arc;
-use alloc::collections::VecDeque;
-use core::task::{Poll, LocalWaker};
-use core::pin::Pin;
 
 #[global_allocator]
 static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
@@ -94,7 +88,7 @@ fn run() -> ! {
     let mut ethernet_dma = peripherals.ETHERNET_DMA;
     let mut nvic_stir = peripherals.NVIC_STIR;
     let mut tim6 = peripherals.TIM6;
-    let mut exti = peripherals.EXTI;
+    let exti = peripherals.EXTI;
 
     init::init_system_clock_216mhz(&mut rcc, &mut pwr, &mut flash);
     init::enable_gpio_ports(&mut rcc);
@@ -128,7 +122,7 @@ fn run() -> ! {
     unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }
 
     lcd.set_background_color(Color::from_hex(0x006600));
-    let mut layer_1 = lcd.layer_1().unwrap();
+    let layer_1 = lcd.layer_1().unwrap();
     let mut layer_2 = lcd.layer_2().unwrap();
 
     layer_2.clear();
@@ -137,7 +131,7 @@ fn run() -> ! {
     println!("Hello World");
 
 
-    let xs = vec![1, 2, 3];
+    let _xs = vec![1, 2, 3];
 
     let mut i2c_3 = init::init_i2c_3(Box::leak(Box::new(peripherals.I2C3)), &mut rcc);
     i2c_3.test_1();
@@ -192,9 +186,9 @@ fn run() -> ! {
             };
 
             let (idle_waker_sink, mut idle_waker_stream) = mpsc::unbounded();
-            let (tim6_sink, mut tim6_stream) = mpsc::unbounded();
-            let (button_sink, mut button_stream) = mpsc::unbounded();
-            let (touch_int_sink, mut touch_int_stream) = mpsc::unbounded();
+            let (tim6_sink, tim6_stream) = mpsc::unbounded();
+            let (button_sink, button_stream) = mpsc::unbounded();
+            let (touch_int_sink, touch_int_stream) = mpsc::unbounded();
 
             interrupt_table.register(InterruptRequest::TIM6_DAC, Priority::P1, move || {
                 tim6_sink.unbounded_send(()).expect("sending on tim6 channel failed");
@@ -252,7 +246,7 @@ fn run() -> ! {
 
             // ethernet
             let mut ethernet_task_idle_stream = task_runtime::IdleStream::new(idle_waker_sink.clone());
-            let ethernet_task = async move || {
+            let _ethernet_task = async move || {
                 let mut ethernet_interface = ethernet::EthernetDevice::new(
                     Default::default(),
                     Default::default(),
@@ -328,7 +322,7 @@ fn run() -> ! {
             //executor.spawn_local(ethernet_task).unwrap();
             //executor.spawn_local(print_x);
 
-            let mut idle = async move {
+            let idle = async move {
                 loop {
                     let next_waker = await!(idle_waker_stream.next()).expect("idle channel closed");
                     next_waker.wake();

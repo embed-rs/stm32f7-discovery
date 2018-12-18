@@ -1,22 +1,11 @@
-use spin::{Mutex, MutexGuard};
+use spin::Mutex;
 use core::{
     future::Future,
-    sync::atomic::AtomicBool,
     pin::{Pin, Unpin},
     mem,
 };
-use alloc::{
-    prelude::*,
-    sync::Arc,
-    task::{Wake, LocalWaker, local_waker_from_nonlocal},
-    collections::{BTreeMap, BTreeSet},
-};
-use futures::{
-    prelude::*,
-    future::{FutureObj, LocalFutureObj, UnsafeFutureObj},
-    task::{Poll, Spawn, LocalSpawn, SpawnError},
-    channel::mpsc,
-};
+use alloc::task::LocalWaker;
+use futures::task::Poll;
 use crate::mpsc_queue::{Queue, PopResult};
 
 pub struct FutureMutex<T> {
@@ -60,7 +49,7 @@ impl<'a, T, R, F> Future for FutureMutexResult<'a, T, R, F> where F: FnOnce(&mut
                 Poll::Pending
             },
             Some(mut guard) => {
-                let mut f = self.f.take().unwrap();
+                let f = self.f.take().unwrap();
                 let ret = f(&mut guard);
                 loop {
                     match self.waker_queue.pop() {

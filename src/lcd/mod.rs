@@ -5,7 +5,6 @@ pub use self::stdout::init as init_stdout;
 use core::{fmt, ptr};
 use stm32f7::stm32f7x6::LTDC;
 use alloc::sync::Arc;
-use futures::Future;
 use crate::future_mutex::FutureMutex;
 
 #[macro_use]

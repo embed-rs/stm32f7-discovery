@@ -4,11 +4,11 @@ use alloc::{
     prelude::*,
     sync::Arc,
     task::{Wake, LocalWaker, local_waker_from_nonlocal},
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
 };
 use futures::{
     prelude::*,
-    future::{FutureObj, LocalFutureObj, UnsafeFutureObj},
+    future::{FutureObj, LocalFutureObj},
     task::{Poll, Spawn, LocalSpawn, SpawnError},
     channel::mpsc,
 };
