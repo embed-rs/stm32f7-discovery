@@ -33,7 +33,7 @@ version = "1.0"
 default-features = false
 
 [dependencies.smoltcp]
-git = "https://github.com/m-labs/smoltcp.git"
+version = "0.5.0"
 default-features = false
 features = ["alloc", "socket-raw", "socket-udp", "socket-tcp", "socket-icmp", "proto-ipv4"]
 
