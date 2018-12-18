@@ -43,7 +43,8 @@ default-features = false
 features = ["unicode"]
 
 [dependencies.futures-preview]
-version = "0.3.0-alpha"
+git = "https://github.com/embed-rs/futures-rs.git"
+branch = "alloc"
 default-features = false
 features = ["alloc"]
 
@@ -51,7 +52,3 @@ features = ["alloc"]
 codegen-units = 1 # better optimizations
 debug = true
 lto = true # better optimizations
-
-[patch.crates-io.futures-preview]
-git = "https://github.com/embed-rs/futures-rs.git"
-branch = "alloc"
