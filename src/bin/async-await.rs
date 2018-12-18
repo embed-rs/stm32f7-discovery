@@ -269,6 +269,7 @@ fn run() -> ! {
             //executor.spawn_local(print_x);
 
             // FIXME: Causes link error: no memory region specified for section '.ARM.extab'
+            // see https://github.com/rust-embedded/cortex-m-rt/issues/157
             //executor.spawn_local(_ethernet_task.run()).unwrap();
 
             // FIXME: Does not work currently due to borrowing errors
