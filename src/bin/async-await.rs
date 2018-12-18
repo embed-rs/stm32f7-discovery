@@ -38,7 +38,8 @@ use smoltcp::{
     time::Instant,
     wire::{EthernetAddress, IpAddress, IpEndpoint, Ipv4Address},
 };
-use stm32f7::stm32f7x6::{CorePeripherals, Interrupt, Peripherals, SAI2};
+use stm32f7::stm32f7x6::{CorePeripherals, Interrupt, Peripherals, SAI2, RCC, SYSCFG,
+    ETHERNET_DMA, ETHERNET_MAC};
 use stm32f7_discovery::{
     ethernet,
     gpio::{GpioPort, InputPin, OutputPin},
@@ -245,62 +246,7 @@ fn run() -> ! {
             let idle_stream = task_runtime::IdleStream::new(idle_waker_sink.clone());
 
             // ethernet
-            let mut ethernet_task_idle_stream = task_runtime::IdleStream::new(idle_waker_sink.clone());
-            let _ethernet_task = async move || {
-                let mut ethernet_interface = ethernet::EthernetDevice::new(
-                    Default::default(),
-                    Default::default(),
-                    &mut rcc,
-                    &mut syscfg,
-                    &mut ethernet_mac,
-                    &mut ethernet_dma,
-                    ETH_ADDR,
-                )
-                .map(|device| device.into_interface(IP_ADDR));
-                if let Err(e) = ethernet_interface {
-                    println!("ethernet init failed: {:?}", e);
-                };
-
-                let mut sockets = SocketSet::new(Vec::new());
-
-                if ethernet_interface.is_ok() {
-                    let endpoint = IpEndpoint::new(IpAddress::Ipv4(IP_ADDR), 15);
-                    let udp_rx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 3], vec![0u8; 256]);
-                    let udp_tx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 1], vec![0u8; 128]);
-                    let mut example_udp_socket = UdpSocket::new(udp_rx_buffer, udp_tx_buffer);
-                    example_udp_socket.bind(endpoint).unwrap();
-                    sockets.add(example_udp_socket);
-
-                    let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
-                    let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
-                    let mut example_tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
-                    example_tcp_socket.listen(endpoint).unwrap();
-                    sockets.add(example_tcp_socket);
-                }
-
-                // handle new ethernet packets
-                if let Ok(ref mut eth) = ethernet_interface {
-                    loop {
-                        match eth.poll(
-                            &mut sockets,
-                            Instant::from_millis(system_clock::ms() as i64),
-                        ) {
-                            Err(::smoltcp::Error::Exhausted) => {
-                                await!(ethernet_task_idle_stream.next()).expect("idle stream closed");
-                            },
-                            Err(::smoltcp::Error::Unrecognized) => {}
-                            Err(e) => println!("Network error: {:?}", e),
-                            Ok(socket_changed) => {
-                                if socket_changed {
-                                    for mut socket in sockets.iter_mut() {
-                                        poll_socket(&mut socket).expect("socket poll failed");
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            };
+            let ethernet_task = EthernetTask::new(idle_stream.clone(), rcc, syscfg, ethernet_mac, ethernet_dma);
 
             let i2c_3_mutex = Arc::new(FutureMutex::new(i2c_3));
             let layer_1_mutex = Arc::new(FutureMutex::new(layer_1));
@@ -319,8 +265,14 @@ fn run() -> ! {
             executor.spawn_local(touch_task.run()).unwrap();
             executor.spawn_local(count_up_on_idle_task(idle_stream.clone())).unwrap();
             executor.spawn_local(audio_task.run()).unwrap();
-            //executor.spawn_local(ethernet_task).unwrap();
+
             //executor.spawn_local(print_x);
+
+            // FIXME: Causes link error: no memory region specified for section '.ARM.extab'
+            //executor.spawn_local(_ethernet_task.run()).unwrap();
+
+            // FIXME: Does not work currently due to borrowing errors
+            // executor.spawn_local(sd_card_task(sd, idle_stream.clone())).unwrap();
 
             let idle = async move {
                 loop {
@@ -338,38 +290,7 @@ fn run() -> ! {
                 }
             }
         },
-    );
-
-
-    //let mut previous_button_state = pins.button.get();
-    loop {
-        /*
-        // poll button state
-        let current_button_state = pins.button.get();
-        if current_button_state != previous_button_state {
-            if current_button_state {
-                pins.led.toggle();
-
-                // trigger the `EXTI0` interrupt
-                nvic.set_pending(Interrupt::EXTI0);
-            }
-
-            previous_button_state = current_button_state;
-        }
-        */
-
-        //unsafe { audio_writer_task.resume() };
-
-
-        // Initialize the SD Card on insert and deinitialize on extract.
-        if sd.card_present() && !sd.card_initialized() {
-            if let Some(i_err) = sd::init(&mut sd).err() {
-                println!("{:?}", i_err);
-            }
-        } else if !sd.card_present() && sd.card_initialized() {
-            sd::de_init(&mut sd);
-        }
-    }
+    )
 }
 
 
@@ -479,50 +400,146 @@ async fn count_up_on_idle_task(idle_stream: impl Stream<Item=()>) {
     }
 }
 
-fn poll_socket(socket: &mut Socket) -> Result<(), smoltcp::Error> {
-    match socket {
-        &mut Socket::Udp(ref mut socket) => match socket.endpoint().port {
-            15 => loop {
-                let reply;
-                match socket.recv() {
-                    Ok((data, remote_endpoint)) => {
-                        let mut data = Vec::from(data);
-                        let len = data.len() - 1;
-                        data[..len].reverse();
-                        reply = (data, remote_endpoint);
+async fn sd_card_task<S, P>(mut sd: sd::Sd<'static, P>, idle_stream: S) where S: Stream<Item=()>, P: InputPin {
+    pin_mut!(idle_stream);
+    // Initialize the SD Card on insert and deinitialize on extract.
+    loop {
+        await!(idle_stream.next());
+        if sd.card_present() && !sd.card_initialized() {
+            if let Some(i_err) = sd::init(&mut sd).err() {
+                println!("{:?}", i_err);
+            }
+        } else if !sd.card_present() && sd.card_initialized() {
+            sd::de_init(&mut sd);
+        }
+    }
+}
+
+struct EthernetTask<S> where S: Stream<Item=()> {
+    idle_stream: S,
+    rcc: RCC,
+    syscfg: SYSCFG,
+    ethernet_mac: ETHERNET_MAC,
+    ethernet_dma: ETHERNET_DMA,
+}
+
+impl<S> EthernetTask<S> where S: Stream<Item=()> {
+    fn new(idle_stream: S, rcc: RCC, syscfg: SYSCFG, ethernet_mac: ETHERNET_MAC,
+        ethernet_dma: ETHERNET_DMA) -> Self
+    {
+        Self {
+            idle_stream,
+            rcc,
+            syscfg,
+            ethernet_mac,
+            ethernet_dma,
+        }
+    }
+
+    async fn run(mut self) {
+        let mut ethernet_interface = ethernet::EthernetDevice::new(
+            Default::default(),
+            Default::default(),
+            &mut self.rcc,
+            &mut self.syscfg,
+            &mut self.ethernet_mac,
+            &mut self.ethernet_dma,
+            ETH_ADDR,
+        )
+        .map(|device| device.into_interface(IP_ADDR));
+        if let Err(e) = ethernet_interface {
+            println!("ethernet init failed: {:?}", e);
+        };
+
+        let idle_stream = self.idle_stream;
+        pin_mut!(idle_stream);
+
+        let mut sockets = SocketSet::new(Vec::new());
+
+        if ethernet_interface.is_ok() {
+            let endpoint = IpEndpoint::new(IpAddress::Ipv4(IP_ADDR), 15);
+            let udp_rx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 3], vec![0u8; 256]);
+            let udp_tx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 1], vec![0u8; 128]);
+            let mut example_udp_socket = UdpSocket::new(udp_rx_buffer, udp_tx_buffer);
+            example_udp_socket.bind(endpoint).unwrap();
+            sockets.add(example_udp_socket);
+
+            let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
+            let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
+            let mut example_tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
+            example_tcp_socket.listen(endpoint).unwrap();
+            sockets.add(example_tcp_socket);
+        }
+
+        // handle new ethernet packets
+        if let Ok(ref mut eth) = ethernet_interface {
+            loop {
+                match eth.poll(
+                    &mut sockets,
+                    Instant::from_millis(system_clock::ms() as i64),
+                ) {
+                    Err(::smoltcp::Error::Exhausted) => {
+                        await!(idle_stream.next()).expect("idle stream closed");
+                    },
+                    Err(::smoltcp::Error::Unrecognized) => {}
+                    Err(e) => println!("Network error: {:?}", e),
+                    Ok(socket_changed) => {
+                        if socket_changed {
+                            for mut socket in sockets.iter_mut() {
+                                Self::poll_socket(&mut socket).expect("socket poll failed");
+                            }
+                        }
                     }
-                    Err(smoltcp::Error::Exhausted) => break,
-                    Err(err) => return Err(err),
-                }
-                socket.send_slice(&reply.0, reply.1)?;
-            },
-            _ => {}
-        },
-        &mut Socket::Tcp(ref mut socket) => match socket.local_endpoint().port {
-            15 => {
-                if !socket.may_recv() {
-                    return Ok(());
-                }
-                let reply = socket.recv(|data| {
-                    if data.len() > 0 {
-                        let mut reply = Vec::from("tcp: ");
-                        let start_index = reply.len();
-                        reply.extend_from_slice(data);
-                        reply[start_index..(start_index + data.len() - 1)].reverse();
-                        (data.len(), Some(reply))
-                    } else {
-                        (data.len(), None)
-                    }
-                })?;
-                if let Some(reply) = reply {
-                    assert_eq!(socket.send_slice(&reply)?, reply.len());
                 }
             }
-            _ => {}
-        },
-        _ => {}
+        }
     }
-    Ok(())
+
+    fn poll_socket(socket: &mut Socket) -> Result<(), smoltcp::Error> {
+        match socket {
+            &mut Socket::Udp(ref mut socket) => match socket.endpoint().port {
+                15 => loop {
+                    let reply;
+                    match socket.recv() {
+                        Ok((data, remote_endpoint)) => {
+                            let mut data = Vec::from(data);
+                            let len = data.len() - 1;
+                            data[..len].reverse();
+                            reply = (data, remote_endpoint);
+                        }
+                        Err(smoltcp::Error::Exhausted) => break,
+                        Err(err) => return Err(err),
+                    }
+                    socket.send_slice(&reply.0, reply.1)?;
+                },
+                _ => {}
+            },
+            &mut Socket::Tcp(ref mut socket) => match socket.local_endpoint().port {
+                15 => {
+                    if !socket.may_recv() {
+                        return Ok(());
+                    }
+                    let reply = socket.recv(|data| {
+                        if data.len() > 0 {
+                            let mut reply = Vec::from("tcp: ");
+                            let start_index = reply.len();
+                            reply.extend_from_slice(data);
+                            reply[start_index..(start_index + data.len() - 1)].reverse();
+                            (data.len(), Some(reply))
+                        } else {
+                            (data.len(), None)
+                        }
+                    })?;
+                    if let Some(reply) = reply {
+                        assert_eq!(socket.send_slice(&reply)?, reply.len());
+                    }
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+        Ok(())
+    }
 }
 
 interrupt!(EXTI0, exti0, state: Option<HStdout> = None);
