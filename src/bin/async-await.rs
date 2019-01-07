@@ -1,7 +1,7 @@
 #![feature(alloc)]
 #![feature(alloc_error_handler)]
 #![feature(generators, generator_trait)]
-#![feature(pin, futures_api)]
+#![feature(futures_api)]
 #![feature(arbitrary_self_types)]
 #![feature(async_await)]
 #![no_main]

@@ -5,7 +5,6 @@
 #![feature(optin_builtin_traits)]
 #![feature(futures_api)]
 #![feature(generator_trait)]
-#![feature(pin)]
 #![feature(arbitrary_self_types)]
 #![feature(drain_filter)]
 #![feature(never_type)]

@@ -29,7 +29,7 @@ impl Spawn for Executor {
 
 impl LocalSpawn for Executor {
     fn spawn_local_obj(&mut self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
-        self.add_task(Box::pinned(future));
+        self.add_task(Box::pin(future));
         Ok(())
     }
 }
@@ -55,7 +55,7 @@ impl Executor {
     where
         Fut: Future<Output = !> + 'static,
     {
-        let future_obj = Box::pinned(LocalFutureObj::new(Box::new(future)));
+        let future_obj = Box::pin(LocalFutureObj::new(Box::new(future)));
         self.idle_task = Some(future_obj);
     }
 

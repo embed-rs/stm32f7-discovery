@@ -1,7 +1,7 @@
 use spin::Mutex;
 use core::{
     future::Future,
-    pin::{Pin, Unpin},
+    pin::Pin,
     mem,
 };
 use alloc::task::LocalWaker;
