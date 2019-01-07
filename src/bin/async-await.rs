@@ -110,7 +110,7 @@ fn run() -> ! {
         gpio_a, gpio_b, gpio_c, gpio_d, gpio_e, gpio_f, gpio_g, gpio_h, gpio_i, gpio_j, gpio_k,
     );
 
-    // configures the system timer to trigger a SysTick exception every second
+    // configures the system timer to trigger a SysTick exception every 10ms
     init::init_systick(Hz(100), &mut systick, &rcc);
     systick.enable_interrupt();
 
@@ -127,27 +127,33 @@ fn run() -> ! {
     let mut layer_2 = lcd.layer_2().unwrap();
 
     layer_2.clear();
+
+    // Make `println` print to the LCD
     lcd::init_stdout(layer_2);
 
     println!("Hello World");
 
-
+    // example allocation
     let _xs = vec![1, 2, 3];
 
     let mut i2c_3 = init::init_i2c_3(Box::leak(Box::new(peripherals.I2C3)), &mut rcc);
     i2c_3.test_1();
     i2c_3.test_2();
 
+    // TODO: is this needed?
     nvic.enable(Interrupt::EXTI0);
 
     let mut sd = sd::Sd::new(&mut sdmmc, &mut rcc, &pins.sdcard_present);
 
+    // audio initialization
     init::init_sai_2(&mut sai_2, &mut rcc);
     init::init_wm8994(&mut i2c_3).expect("WM8994 init failed");
+
     // touch initialization should be done after audio initialization, because the touch
     // controller might not be ready yet
     touch::check_family_id(&mut i2c_3).unwrap();
 
+    // initialization of random number generator
     let mut rng = Rng::init(&mut rng, &mut rcc).expect("RNG init failed");
     print!("Random numbers: ");
     for _ in 0..4 {
@@ -186,11 +192,19 @@ fn run() -> ! {
                 StreamExt,
             };
 
+            // Future channels for passing interrupts events. The interrupt handler pushes
+            // to a channel and the interrupt handler awaits the next item of the channel. There
+            // is no data exchange, the item is always a zero sized `()`.
+            // TODO: Currently we use futures::channel::mpsc, which means that we allocate heap
+            // memory even though the item type is zero-sized. To avoid this we could build our
+            // own channel type that uses an atomic counter instead of storing any items.
             let (idle_waker_sink, mut idle_waker_stream) = mpsc::unbounded();
             let (tim6_sink, tim6_stream) = mpsc::unbounded();
             let (button_sink, button_stream) = mpsc::unbounded();
             let (touch_int_sink, touch_int_stream) = mpsc::unbounded();
 
+            // Interrupt handler for the TIM6_DAC interrupt, which is the interrupt triggered by
+            // the tim6 timer.
             interrupt_table.register(InterruptRequest::TIM6_DAC, Priority::P1, move || {
                 tim6_sink.unbounded_send(()).expect("sending on tim6 channel failed");
                 let tim = &mut tim6;
@@ -198,28 +212,30 @@ fn run() -> ! {
                 tim.sr.modify(|_, w| w.uif().clear_bit());
             }).expect("registering tim6 interrupt failed");
 
-            // choose pin I-11 for exti11 line
+            // choose pin I-11 for exti11 line, which is the GPIO pin for the hardware button
             syscfg.exticr3.modify(|_, w| unsafe { w.exti11().bits(0b1000) });
             // trigger exti11 on rising
             exti.rtsr.modify(|_, w| w.tr11().set_bit());
             // unmask exti11 line
             exti.imr.modify(|_, w| w.mr11().set_bit());
 
-            // choose pin I-13 for exti13 line
+            // choose pin I-13 for exti13 line, which is the GPIO pin signalizing a touch event
             syscfg.exticr4.modify(|_, w| unsafe { w.exti13().bits(0b1000) });
             // trigger exti13 on rising
             exti.rtsr.modify(|_, w| w.tr13().set_bit());
             // unmask exti13 line
             exti.imr.modify(|_, w| w.mr13().set_bit());
 
-            // choose pin H-15 for exti15 line
+            // choose pin H-15 for exti15 line, which is the GPIO pin signalizing new audio data
+            // TODO: the audio interrupt doesn't work yet
             syscfg.exticr4.modify(|_, w| unsafe { w.exti15().bits(0b0111) });
             // trigger exti15 on rising
             exti.rtsr.modify(|_, w| w.tr15().set_bit());
             // unmask exti15 line
             exti.imr.modify(|_, w| w.mr15().set_bit());
 
-
+            // Interrupt handler for the EXTI15_10 interrupt, which is triggered by different
+            // sources.
             interrupt_table.register(InterruptRequest::EXTI15_10, Priority::P1, move || {
                 exti.pr.modify(|r, w| {
                     if r.pr11().bit_is_set() {
@@ -234,14 +250,6 @@ fn run() -> ! {
                     w
                 });
             }).expect("registering exti15_10 interrupt failed");
-
-
-
-            interrupt_table.register(InterruptRequest::EXTI9_5, Priority::P1, move || {
-                panic!("unknown exti9_5 interrupt");
-            }).expect("registering exti9_5 interrupt failed");
-
-            // tasks
 
             let idle_stream = task_runtime::IdleStream::new(idle_waker_sink.clone());
 

@@ -294,9 +294,6 @@ pub fn init<'a>(
         let audio_in = gpio_h
             .to_input(gpio_h_pins.pin_15.pin(), Resistor::NoPull,)
                 .expect("Failed to reserve SAI2 audio in pin");
-        /*let audio_in = gpio_d
-            .to_input(gpio_d_pins.pin_6.pin(), Resistor::NoPull,)
-                .expect("Failed to reserve SAI2 audio in pin");*/
         audio_in
     };
 

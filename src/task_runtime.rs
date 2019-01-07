@@ -118,6 +118,7 @@ impl Wake for NoOpWaker {
     }
 }
 
+// TODO document, check behavior
 #[derive(Debug, Clone)]
 pub struct IdleStream {
     idle: bool,
