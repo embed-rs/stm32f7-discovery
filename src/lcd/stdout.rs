@@ -1,3 +1,5 @@
+//! Initialize a LCD layer as standard output.
+
 use super::{FramebufferAl88, Layer, TextWriter};
 use core::fmt;
 use cortex_m::interrupt;
@@ -13,6 +15,10 @@ impl<'a> Stdout<'a> {
     }
 }
 
+/// Initialize the passed layer as standard output.
+///
+/// Subsequent calls to [`print`](print) or [`println!`](println!) will then print
+/// to the layer.
 pub fn init(layer: Layer<FramebufferAl88>) {
     static mut LAYER: Option<Layer<FramebufferAl88>> = None;
 
@@ -22,12 +28,20 @@ pub fn init(layer: Layer<FramebufferAl88>) {
     });
 }
 
+/// Prints to the LCD screen, appending a newline.
+///
+/// The LCD stdout must be initialized. See the [`lcd::stdout::print`](lcd::stdout::print)
+/// function for more information.
 #[macro_export]
 macro_rules! println {
     ($fmt:expr) => (print!(concat!($fmt, "\n")));
     ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
 }
 
+/// Prints to the LCD screen.
+///
+/// The LCD stdout must be initialized. See the [`lcd::stdout::print`](lcd::stdout::print)
+/// function for more information.
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => ({
@@ -35,6 +49,11 @@ macro_rules! print {
     });
 }
 
+/// Print to the standard output.
+///
+/// The easiest way to use this function is through the `write!`/`writeln` macros.
+///
+/// Panics if the standard output is not yet initialized.
 pub fn print(args: fmt::Arguments) {
     use core::fmt::Write;
     let mut uninitialized = false;
@@ -50,6 +69,7 @@ pub fn print(args: fmt::Arguments) {
     }
 }
 
+/// Returns whether the [`init`](init) function has already been called.
 pub fn is_initialized() -> bool {
     let mut initialized = false;
     STDOUT.with(|stdout| {

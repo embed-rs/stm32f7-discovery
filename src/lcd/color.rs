@@ -1,20 +1,28 @@
+/// Represents a color with alpha, red, green, and blue channels.
 #[derive(Debug, Clone, Copy)]
 pub struct Color {
+    /// The red channel.
     pub red: u8,
+    /// The green channel.
     pub green: u8,
+    /// The blue channel.
     pub blue: u8,
+    /// The alpha channel (0 is transparent, 255 is opaque).
     pub alpha: u8,
 }
 
 impl Color {
+    /// Creates a color from the passed RGB values. The alpha channel is set to 255 (opaque).
     pub fn rgb(red: u8, green: u8, blue: u8) -> Color {
         Self::rgba(red, green, blue, 255)
     }
 
+    /// Converts the color to RGB. The alpha channel is ignored.
     pub fn to_rgb(&self) -> u32 {
         (u32::from(self.red) << 16) | (u32::from(self.green) << 8) | u32::from(self.blue)
     }
 
+    /// Creates a color from the passed values.
     pub fn rgba(red: u8, green: u8, blue: u8, alpha: u8) -> Color {
         Color {
             red: red,
@@ -24,6 +32,7 @@ impl Color {
         }
     }
 
+    /// Creates a color from the passed hex RGB value. The alpha channel is set to 255 (opaque).
     pub fn from_hex(color: u32) -> Color {
         assert_eq!(color >> (8 * 3), 0);
         Color {
@@ -34,18 +43,22 @@ impl Color {
         }
     }
 
+    /// Converts the color to RGB. The alpha channel is ignored.
     pub fn to_rgb888(&self) -> u32 {
         self.to_rgb()
     }
 
+    /// Creates a color from the passed RGB value. The alpha channel is set to 255 (opaque).
     pub fn from_rgb888(color: u32) -> Color {
         Color::from_hex(color)
     }
 
+    /// Converts the color to ARGB.
     pub fn to_argb8888(&self) -> u32 {
         (u32::from(self.alpha) << 24) | self.to_rgb888()
     }
 
+    /// Creates a color from the passed ARGB value.
     pub fn from_argb8888(color: u32) -> Color {
         Color {
             red: (color >> 16) as u8,
@@ -55,6 +68,7 @@ impl Color {
         }
     }
 
+    /// Converts the color to ARGB1555.
     pub fn to_argb1555(&self) -> u16 {
         (u16::from(self.alpha) & 0x80) << 8
             | (u16::from(self.red) & 0xf8) << 7
@@ -62,6 +76,7 @@ impl Color {
             | (u16::from(self.blue) & 0xf8) >> 3
     }
 
+    /// Creates a color from the passed ARGB1555 value.
     pub fn from_argb1555(color: u16) -> Color {
         Color {
             alpha: ((color >> 8) & 0x80) as u8,
@@ -71,6 +86,7 @@ impl Color {
         }
     }
 
+    /// Creates a color from the passed HSV value.
     pub fn from_hsv(hue: i32, saturation: f32, value: f32) -> Color {
         let mut h = hue % 360;
         if h < 0 {

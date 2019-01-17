@@ -1,6 +1,12 @@
 use super::Lcd;
 use stm32f7::stm32f7x6::{LTDC, RCC};
 
+/// Initializes the LCD controller.
+///
+/// The SDRAM must be initialized before this function is called. See the
+/// [`init_sdram`] function for more information.
+///
+/// [`init_sdram`]: crate::init::init_sdram
 pub fn init<'a>(ltdc: &'a mut LTDC, rcc: &mut RCC) -> Lcd<'a> {
     use crate::lcd::{self, LAYER_1_START, LAYER_2_START};
     const HEIGHT: u16 = lcd::HEIGHT as u16;
