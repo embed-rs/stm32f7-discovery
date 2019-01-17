@@ -1,3 +1,5 @@
+//! Touchscreen functions.
+
 use crate::i2c::{self, I2C};
 use arrayvec::ArrayVec;
 
@@ -8,6 +10,7 @@ const FT5336_STATUS_REGISTER: u8 = 0x02;
 // Start locations for reading pressed touches
 const FT5336_DATA_REGISTERS: [u8; 5] = [0x03, 0x09, 0x0F, 0x15, 0x1B];
 
+/// Checks the whether the device familiy ID register contains the expected value.
 pub fn check_family_id(i2c_3: &mut I2C) -> Result<(), i2c::Error> {
     i2c_3.connect::<u8, _>(FT5336_ADDRESS, |mut conn| {
         // read and check device family ID
@@ -17,11 +20,13 @@ pub fn check_family_id(i2c_3: &mut I2C) -> Result<(), i2c::Error> {
 }
 
 #[derive(Debug, Clone, Copy)]
+/// Represents a touch point on the display at coordinates (x,y).
 pub struct Touch {
     pub x: u16,
     pub y: u16,
 }
 
+/// Returns a list of active touch points.
 pub fn touches(i2c_3: &mut I2C) -> Result<ArrayVec<[Touch; 5]>, i2c::Error> {
     let mut touches = ArrayVec::new();
     i2c_3.connect::<u8, _>(FT5336_ADDRESS, |mut conn| {

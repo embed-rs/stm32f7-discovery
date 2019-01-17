@@ -1,4 +1,6 @@
-//! **This module is untested!**
+//! Provides functions to detect and initialize SD cards.
+//!
+//! **This module is currently untested!**
 
 pub use self::init::{de_init, init};
 
