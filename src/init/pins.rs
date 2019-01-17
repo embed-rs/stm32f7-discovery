@@ -4,6 +4,7 @@ use crate::gpio::{
     RegisterBlockB, RegisterBlockD, Resistor,
 };
 
+/// This struct contains special PIO pins.
 pub struct Pins<
     Led: OutputPin,
     Button: InputPin,
@@ -12,14 +13,26 @@ pub struct Pins<
     SdcardPresent: InputPin,
     AudioIn: InputPin,
 > {
+    /// This pin enables or disables the debug LED.
     pub led: Led,
+    /// This pin reports whether the user button is pressed.
     pub button: Button,
+    /// This pin controls whether the LCD is enabled.
     pub display_enable: DisplayEnable,
+    /// This pin controls the LCD backlight.
     pub backlight: Backlight,
+    /// This pin reports whether there is a card in the SD card slot.
     pub sdcard_present: SdcardPresent,
+    /// This pin reports whether there is new audio data from the microphone.
+    ///
+    /// **Does not work currently**
     pub audio_in: AudioIn,
 }
 
+/// Initializes the pin mapping for all the peripherals.
+///
+/// This function uses Rust's ownership mechanism internally to report duplicate mappings
+/// at compile time.
 pub fn init<'a>(
     mut gpio_a: GpioPort<RegisterBlockA<'a>>,
     mut gpio_b: GpioPort<RegisterBlockB<'a>>,

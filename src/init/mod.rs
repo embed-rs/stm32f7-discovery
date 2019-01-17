@@ -1,3 +1,5 @@
+//! Provides various hardware initialization functions.
+
 use crate::i2c::{self, I2C};
 use crate::lcd::{self, Lcd};
 use crate::system_clock;
@@ -7,6 +9,9 @@ pub use self::pins::init as pins;
 
 mod pins;
 
+/// Initialize the system clock to the maximum speed of 216MHz.
+///
+/// This function should be called right at the beginning of the main function.
 pub fn init_system_clock_216mhz(rcc: &mut RCC, pwr: &mut PWR, flash: &mut FLASH) {
     // enable power control clock
     rcc.apb1enr.modify(|_, w| w.pwren().enabled());
@@ -89,10 +94,14 @@ pub fn init_system_clock_216mhz(rcc: &mut RCC, pwr: &mut PWR, flash: &mut FLASH)
     rcc.cfgr.modify(|_, w| w.ppre2().div2());
 }
 
+/// Initialize the system clock to the specified frequency.
+///
+/// Equivalent to [`system_clock::init`](crate::system_clock::init).
 pub fn init_systick(frequency: system_clock::Hz, systick: &mut SYST, rcc: &RCC) {
     system_clock::init(frequency, systick, rcc)
 }
 
+/// Enable all GPIO ports in the RCC register.
 pub fn enable_gpio_ports(rcc: &mut RCC) {
     rcc.ahb1enr.modify(|_, w| {
         w.gpioaen().enabled();
@@ -128,6 +137,7 @@ pub fn enable_gpio_ports(rcc: &mut RCC) {
     }
 }
 
+/// Enable the syscfg clock.
 pub fn enable_syscfg(rcc: &mut RCC) {
     // enable syscfg clock
     rcc.apb2enr.modify(|_, w| w.syscfgen().set_bit());
@@ -135,6 +145,9 @@ pub fn enable_syscfg(rcc: &mut RCC) {
     let _unused = rcc.apb2enr.read();
 }
 
+/// Initializes the SDRAM, which makes more memory accessible.
+///
+/// This is a prerequisite for using the LCD.
 pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) {
     #[allow(dead_code)]
     #[derive(Debug, Clone, Copy)]
@@ -275,14 +288,23 @@ pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) {
     }
 }
 
+/// Initializes the LCD.
+///
+/// This function is equivalent to [`lcd::init`](crate::lcd::init::init).
 pub fn init_lcd<'a>(ltdc: &'a mut LTDC, rcc: &mut RCC) -> Lcd<'a> {
     lcd::init(ltdc, rcc)
 }
 
+/// Initializes the I2C3 bus.
+///
+/// This function is equivalent to [`i2c::init`](crate::i2c::init).
 pub fn init_i2c_3<'a>(i2c: &'a i2c1::RegisterBlock, rcc: &mut RCC) -> I2C<'a> {
     i2c::init(i2c, rcc)
 }
 
+/// Initializes the SAI2 controller.
+///
+/// Required for audio input.
 pub fn init_sai_2(sai: &mut SAI2, rcc: &mut RCC) {
     let audio_frequency = 16000;
 
@@ -500,6 +522,9 @@ pub fn init_sai_2(sai: &mut SAI2, rcc: &mut RCC) {
 
 const WM8994_ADDRESS: i2c::Address = i2c::Address::bits_7(0b0011010);
 
+/// Initializes the WM8994 audio controller.
+///
+/// Required for audio input.
 pub fn init_wm8994(i2c_3: &mut i2c::I2C) -> Result<(), i2c::Error> {
     i2c_3.connect::<u16, _>(WM8994_ADDRESS, |mut conn| {
         // read and check device family ID
