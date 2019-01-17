@@ -1,3 +1,5 @@
+//! An experimental runtime for an async-await style task system.
+
 use crate::mpsc_queue::{PopResult, Queue};
 use alloc::{
     collections::BTreeMap,
@@ -14,6 +16,8 @@ use futures::{
     task::{LocalSpawn, Poll, Spawn, SpawnError},
 };
 
+/// An executor that schedules tasks round-robin, and executes an idle_task
+/// if no task is ready to execute.
 pub struct Executor {
     tasks: BTreeMap<TaskId, Pin<Box<LocalFutureObj<'static, ()>>>>,
     woken_tasks: Arc<Queue<TaskId>>,
@@ -35,6 +39,7 @@ impl LocalSpawn for Executor {
 }
 
 impl Executor {
+    /// Creates a new executor.
     pub fn new() -> Self {
         Executor {
             tasks: BTreeMap::new(),
@@ -51,6 +56,9 @@ impl Executor {
         self.woken_tasks.push(id);
     }
 
+    /// Sets the specified task as idle task.
+    ///
+    /// It will be polled whenever there is no ready-to-run task in the queue.
     pub fn set_idle_task<Fut>(&mut self, future: Fut)
     where
         Fut: Future<Output = !> + 'static,
@@ -59,6 +67,8 @@ impl Executor {
         self.idle_task = Some(future_obj);
     }
 
+    /// Poll all tasks that are ready to run, until no ready tasks exist. Then poll the idle task
+    /// once and return.
     pub fn run(&mut self) {
         match self.woken_tasks.pop() {
             PopResult::Data(task_id) => {
@@ -119,7 +129,13 @@ impl Wake for NoOpWaker {
     fn wake(_arc_self: &Arc<Self>) {}
 }
 
-// TODO document, check behavior
+/// This stream can be used by tasks that want to run when the CPU is idle.
+///
+/// It works by alternately returning `Poll::Ready` and `Poll::Pending` from `poll_next`, starting
+/// with `Poll::Pending`. When returning `Poll::Pending` it sends the Waker to the
+/// `idle_waker_sink` (passed on construction). The idle task polls the other end of this sink and
+/// wakes all received tasks when it runs.
+// TODO is the behavior correct?
 #[derive(Debug, Clone)]
 pub struct IdleStream {
     idle: bool,
@@ -127,6 +143,10 @@ pub struct IdleStream {
 }
 
 impl IdleStream {
+    /// Creates a new IdleStream with the passed sending end of an idle stream.
+    ///
+    /// The idle task should wake the tasks received from the receiving end
+    /// of the idle stream, thereby waking the tasks on idle.
     pub fn new(idle_waker_sink: mpsc::UnboundedSender<LocalWaker>) -> Self {
         IdleStream {
             idle_waker_sink,
