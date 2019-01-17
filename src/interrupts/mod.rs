@@ -16,15 +16,15 @@
 //! unregistered at the end of the scope. Thus it is safe to access the parent stack in the
 //! interrupt service routine.
 
+use crate::rt::exception;
 use alloc::boxed::Box;
 use bare_metal::Nr;
 use core::convert::{TryFrom, TryInto};
 use core::intrinsics::transmute;
 use core::marker::PhantomData;
 use core::{fmt, ptr};
-use crate::rt::exception;
-use stm32f7::stm32f7x6::{NVIC, NVIC_STIR};
 pub use stm32f7::stm32f7x6::Interrupt as InterruptRequest;
+use stm32f7::stm32f7x6::{NVIC, NVIC_STIR};
 
 pub mod primask_mutex;
 

@@ -7,7 +7,9 @@ pub fn idle(sdmmc: &mut SDMMC1, timeout: u32) -> Result<(), Error> {
     send_cmd(sdmmc, 0, 0x00, true, false, 0x00);
 
     let timeout = crate::system_clock::ms() as u32 + timeout;
-    while (crate::system_clock::ms() as u32) < timeout && sdmmc.sta.read().cmdsent().bit_is_clear() {}
+    while (crate::system_clock::ms() as u32) < timeout && sdmmc.sta.read().cmdsent().bit_is_clear()
+    {
+    }
 
     if (crate::system_clock::ms() as u32) >= timeout {
         return Err(Error::Timeout);

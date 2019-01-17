@@ -1,18 +1,18 @@
-use core::pin::Pin;
-use core::ops::{Add, AddAssign};
+use crate::mpsc_queue::{PopResult, Queue};
 use alloc::{
+    collections::BTreeMap,
     prelude::*,
     sync::Arc,
-    task::{Wake, LocalWaker, local_waker_from_nonlocal},
-    collections::BTreeMap,
+    task::{local_waker_from_nonlocal, LocalWaker, Wake},
 };
+use core::ops::{Add, AddAssign};
+use core::pin::Pin;
 use futures::{
-    prelude::*,
-    future::{FutureObj, LocalFutureObj},
-    task::{Poll, Spawn, LocalSpawn, SpawnError},
     channel::mpsc,
+    future::{FutureObj, LocalFutureObj},
+    prelude::*,
+    task::{LocalSpawn, Poll, Spawn, SpawnError},
 };
-use crate::mpsc_queue::{Queue, PopResult};
 
 pub struct Executor {
     tasks: BTreeMap<TaskId, Pin<Box<LocalFutureObj<'static, ()>>>>,
@@ -78,7 +78,9 @@ impl Executor {
             PopResult::Inconsistent => {} // println!("woken_tasks queue is inconsistent"),
         }
         if let Some(ref mut idle_task) = self.idle_task {
-            idle_task.as_mut().poll(&local_waker_from_nonlocal(Arc::new(NoOpWaker)));
+            idle_task
+                .as_mut()
+                .poll(&local_waker_from_nonlocal(Arc::new(NoOpWaker)));
         };
     }
 }
@@ -114,8 +116,7 @@ impl AddAssign<u64> for TaskId {
 struct NoOpWaker;
 
 impl Wake for NoOpWaker {
-    fn wake(_arc_self: &Arc<Self>) {
-    }
+    fn wake(_arc_self: &Arc<Self>) {}
 }
 
 // TODO document, check behavior
@@ -141,7 +142,9 @@ impl futures::prelude::Stream for IdleStream {
         let result = if self.idle {
             Poll::Ready(Some(()))
         } else {
-            self.idle_waker_sink.unbounded_send(waker.clone()).expect("sending on idle channel failed");
+            self.idle_waker_sink
+                .unbounded_send(waker.clone())
+                .expect("sending on idle channel failed");
             Poll::Pending
         };
         self.idle = !self.idle;

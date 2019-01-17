@@ -1,10 +1,10 @@
 use core::iter::TrustedLen;
 use core::marker::PhantomData;
+use embedded_hal;
 use stm32f7::stm32f7x6::{
     i2c1::{self, RegisterBlock},
     RCC,
 };
-use embedded_hal;
 
 // TODO use &mut when svd2rust API has changed (modification should require &mut)
 //pub struct I2C<'a>(&'a mut RegisterBlock);
@@ -356,30 +356,44 @@ impl<'a> I2C<'a> {
     }
 }
 
-impl <'a> embedded_hal::blocking::i2c::Read for I2C<'a> {
+impl<'a> embedded_hal::blocking::i2c::Read for I2C<'a> {
     type Error = Error;
 
     fn read(&mut self, address: u8, buffer: &mut [u8]) -> Result<(), Self::Error> {
-        self.connect(Address::bits_7(address), |mut connection: I2cConnection<u8>| connection.read_bytes_raw(buffer.iter_mut()))
+        self.connect(
+            Address::bits_7(address),
+            |mut connection: I2cConnection<u8>| connection.read_bytes_raw(buffer.iter_mut()),
+        )
     }
 }
 
-impl <'a> embedded_hal::blocking::i2c::Write for I2C<'a> {
+impl<'a> embedded_hal::blocking::i2c::Write for I2C<'a> {
     type Error = Error;
 
     fn write(&mut self, address: u8, bytes: &[u8]) -> Result<(), Self::Error> {
-        self.connect(Address::bits_7(address), |mut connection: I2cConnection<u8>| connection.write_bytes(bytes.iter().map(|b| *b)))
+        self.connect(
+            Address::bits_7(address),
+            |mut connection: I2cConnection<u8>| connection.write_bytes(bytes.iter().map(|b| *b)),
+        )
     }
 }
 
-impl <'a> embedded_hal::blocking::i2c::WriteRead for I2C<'a> {
+impl<'a> embedded_hal::blocking::i2c::WriteRead for I2C<'a> {
     type Error = Error;
 
-    fn write_read(&mut self, address: u8, bytes: &[u8], buffer: &mut [u8]) -> Result<(), Self::Error> {
-        self.connect(Address::bits_7(address), |mut connection: I2cConnection<u8>| {
-            connection.write_bytes(bytes.iter().map(|b| *b))?;
-            connection.read_bytes_raw(buffer.iter_mut())
-        })
+    fn write_read(
+        &mut self,
+        address: u8,
+        bytes: &[u8],
+        buffer: &mut [u8],
+    ) -> Result<(), Self::Error> {
+        self.connect(
+            Address::bits_7(address),
+            |mut connection: I2cConnection<u8>| {
+                connection.write_bytes(bytes.iter().map(|b| *b))?;
+                connection.read_bytes_raw(buffer.iter_mut())
+            },
+        )
     }
 }
 

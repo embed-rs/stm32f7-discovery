@@ -290,10 +290,10 @@ pub fn init<'a>(
         gpio_g
             .to_alternate_function_all(g_pins, alt_fn, typ, speed, res)
             .expect("Failed to reserve SAI2 GPIO G pins");
-        
+
         let audio_in = gpio_h
-            .to_input(gpio_h_pins.pin_15.pin(), Resistor::NoPull,)
-                .expect("Failed to reserve SAI2 audio in pin");
+            .to_input(gpio_h_pins.pin_15.pin(), Resistor::NoPull)
+            .expect("Failed to reserve SAI2 audio in pin");
         audio_in
     };
 

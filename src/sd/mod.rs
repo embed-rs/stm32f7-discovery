@@ -7,9 +7,9 @@ mod init;
 mod sdmmc_cmd;
 
 use self::error::*;
+use crate::gpio::InputPin;
 use alloc::vec::Vec;
 use core::cmp::min;
-use crate::gpio::InputPin;
 use stm32f7::stm32f7x6::{RCC, SDMMC1};
 
 /// SD handle.
@@ -255,7 +255,8 @@ impl<'a, PresentPin: InputPin> Sd<'a, PresentPin> {
         }
 
         // If there is still valid data in the FIFO, empty the FIFO
-        while (crate::system_clock::ms() as u32) < timeout && self.sdmmc.sta.read().rxdavl().bit_is_set()
+        while (crate::system_clock::ms() as u32) < timeout
+            && self.sdmmc.sta.read().rxdavl().bit_is_set()
         {
             data.push(self.sdmmc.fifo.read().fifodata().bits());
         }

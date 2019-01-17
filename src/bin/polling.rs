@@ -36,12 +36,12 @@ use stm32f7_discovery::{
     ethernet,
     gpio::{GpioPort, InputPin, OutputPin},
     init,
+    lcd::AudioWriter,
     lcd::{self, Color},
     random::Rng,
     sd,
     system_clock::{self, Hz},
     touch,
-    lcd::AudioWriter,
 };
 
 #[global_allocator]

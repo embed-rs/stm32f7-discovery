@@ -17,8 +17,8 @@ use stm32f7::stm32f7x6::{CorePeripherals, Peripherals};
 use stm32f7_discovery::{
     gpio::{GpioPort, OutputPin},
     init,
-    system_clock::{self, Hz},
     interrupts::{self, InterruptRequest, Priority},
+    system_clock::{self, Hz},
 };
 
 const HEAP_SIZE: usize = 50 * 1024; // in bytes

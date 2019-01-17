@@ -24,22 +24,22 @@ extern crate bare_metal;
 extern crate bit_field;
 extern crate byteorder;
 extern crate cortex_m_rt as rt;
-extern crate smoltcp;
-extern crate volatile;
 extern crate embedded_hal;
 extern crate futures;
+extern crate smoltcp;
+extern crate volatile;
 
 #[macro_use]
 pub mod lcd;
 pub mod ethernet;
+pub mod future_mutex;
 pub mod gpio;
 pub mod i2c;
 pub mod init;
 pub mod interrupts;
+pub mod mpsc_queue;
 pub mod random;
 pub mod sd;
 pub mod system_clock;
-pub mod touch;
 pub mod task_runtime;
-pub mod mpsc_queue;
-pub mod future_mutex;
+pub mod touch;

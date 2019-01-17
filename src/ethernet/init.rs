@@ -1,6 +1,6 @@
 use super::phy;
-use stm32f7::stm32f7x6::{ETHERNET_DMA, ETHERNET_MAC, RCC, SYSCFG};
 use crate::system_clock;
+use stm32f7::stm32f7x6::{ETHERNET_DMA, ETHERNET_MAC, RCC, SYSCFG};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {

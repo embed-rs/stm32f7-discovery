@@ -17,17 +17,20 @@ extern crate cortex_m_semihosting as sh;
 extern crate stm32f7;
 #[macro_use]
 extern crate stm32f7_discovery;
-extern crate smoltcp;
 extern crate futures;
+extern crate smoltcp;
 extern crate spin;
 
-use alloc::vec::Vec;
 use alloc::boxed::Box;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
 use alloc_cortex_m::CortexMHeap;
 use core::alloc::Layout as AllocLayout;
 use core::fmt::Write;
 use core::panic::PanicInfo;
 use cortex_m::{asm, interrupt};
+use futures::{Stream, StreamExt};
+use pin_utils::pin_mut;
 use rt::{entry, exception, ExceptionFrame};
 use sh::hio::{self, HStdout};
 use smoltcp::{
@@ -38,25 +41,22 @@ use smoltcp::{
     time::Instant,
     wire::{EthernetAddress, IpAddress, IpEndpoint, Ipv4Address},
 };
-use stm32f7::stm32f7x6::{CorePeripherals, Interrupt, Peripherals, SAI2, RCC, SYSCFG,
-    ETHERNET_DMA, ETHERNET_MAC};
+use stm32f7::stm32f7x6::{
+    CorePeripherals, Interrupt, Peripherals, ETHERNET_DMA, ETHERNET_MAC, RCC, SAI2, SYSCFG,
+};
 use stm32f7_discovery::{
     ethernet,
+    future_mutex::FutureMutex,
     gpio::{GpioPort, InputPin, OutputPin},
+    i2c::I2C,
     init,
-    lcd::{self, Color, Layer, Framebuffer, AudioWriter},
+    interrupts::{self, InterruptRequest, Priority},
+    lcd::{self, AudioWriter, Color, Framebuffer, Layer},
     random::Rng,
     sd,
     system_clock::{self, Hz},
-    touch,
-    task_runtime,
-    interrupts::{self, InterruptRequest, Priority},
-    future_mutex::FutureMutex,
-    i2c::I2C,
+    task_runtime, touch,
 };
-use futures::{Stream, StreamExt};
-use pin_utils::pin_mut;
-use alloc::sync::Arc;
 
 #[global_allocator]
 static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
@@ -186,11 +186,7 @@ fn run() -> ! {
         &mut nvic_stir,
         |_| {},
         |interrupt_table| {
-            use futures::{
-                channel::mpsc,
-                task::LocalSpawnExt,
-                StreamExt,
-            };
+            use futures::{channel::mpsc, task::LocalSpawnExt, StreamExt};
 
             // Future channels for passing interrupts events. The interrupt handler pushes
             // to a channel and the interrupt handler awaits the next item of the channel. There
@@ -205,22 +201,30 @@ fn run() -> ! {
 
             // Interrupt handler for the TIM6_DAC interrupt, which is the interrupt triggered by
             // the tim6 timer.
-            interrupt_table.register(InterruptRequest::TIM6_DAC, Priority::P1, move || {
-                tim6_sink.unbounded_send(()).expect("sending on tim6 channel failed");
-                let tim = &mut tim6;
-                // make sure the interrupt doesn't just restart again by clearing the flag
-                tim.sr.modify(|_, w| w.uif().clear_bit());
-            }).expect("registering tim6 interrupt failed");
+            interrupt_table
+                .register(InterruptRequest::TIM6_DAC, Priority::P1, move || {
+                    tim6_sink
+                        .unbounded_send(())
+                        .expect("sending on tim6 channel failed");
+                    let tim = &mut tim6;
+                    // make sure the interrupt doesn't just restart again by clearing the flag
+                    tim.sr.modify(|_, w| w.uif().clear_bit());
+                })
+                .expect("registering tim6 interrupt failed");
 
             // choose pin I-11 for exti11 line, which is the GPIO pin for the hardware button
-            syscfg.exticr3.modify(|_, w| unsafe { w.exti11().bits(0b1000) });
+            syscfg
+                .exticr3
+                .modify(|_, w| unsafe { w.exti11().bits(0b1000) });
             // trigger exti11 on rising
             exti.rtsr.modify(|_, w| w.tr11().set_bit());
             // unmask exti11 line
             exti.imr.modify(|_, w| w.mr11().set_bit());
 
             // choose pin I-13 for exti13 line, which is the GPIO pin signalizing a touch event
-            syscfg.exticr4.modify(|_, w| unsafe { w.exti13().bits(0b1000) });
+            syscfg
+                .exticr4
+                .modify(|_, w| unsafe { w.exti13().bits(0b1000) });
             // trigger exti13 on rising
             exti.rtsr.modify(|_, w| w.tr13().set_bit());
             // unmask exti13 line
@@ -228,7 +232,9 @@ fn run() -> ! {
 
             // choose pin H-15 for exti15 line, which is the GPIO pin signalizing new audio data
             // TODO: the audio interrupt doesn't work yet
-            syscfg.exticr4.modify(|_, w| unsafe { w.exti15().bits(0b0111) });
+            syscfg
+                .exticr4
+                .modify(|_, w| unsafe { w.exti15().bits(0b0111) });
             // trigger exti15 on rising
             exti.rtsr.modify(|_, w| w.tr15().set_bit());
             // unmask exti15 line
@@ -236,25 +242,32 @@ fn run() -> ! {
 
             // Interrupt handler for the EXTI15_10 interrupt, which is triggered by different
             // sources.
-            interrupt_table.register(InterruptRequest::EXTI15_10, Priority::P1, move || {
-                exti.pr.modify(|r, w| {
-                    if r.pr11().bit_is_set() {
-                        button_sink.unbounded_send(()).expect("sending on button channel failed");
-                        w.pr11().set_bit();
-                    } else if r.pr13().bit_is_set() {
-                        touch_int_sink.unbounded_send(()).expect("sending on touch_int channel failed");
-                        w.pr13().set_bit();
-                    } else {
-                        panic!("unknown exti15_10 interrupt");
-                    }
-                    w
-                });
-            }).expect("registering exti15_10 interrupt failed");
+            interrupt_table
+                .register(InterruptRequest::EXTI15_10, Priority::P1, move || {
+                    exti.pr.modify(|r, w| {
+                        if r.pr11().bit_is_set() {
+                            button_sink
+                                .unbounded_send(())
+                                .expect("sending on button channel failed");
+                            w.pr11().set_bit();
+                        } else if r.pr13().bit_is_set() {
+                            touch_int_sink
+                                .unbounded_send(())
+                                .expect("sending on touch_int channel failed");
+                            w.pr13().set_bit();
+                        } else {
+                            panic!("unknown exti15_10 interrupt");
+                        }
+                        w
+                    });
+                })
+                .expect("registering exti15_10 interrupt failed");
 
             let idle_stream = task_runtime::IdleStream::new(idle_waker_sink.clone());
 
             // ethernet
-            let ethernet_task = EthernetTask::new(idle_stream.clone(), rcc, syscfg, ethernet_mac, ethernet_dma);
+            let ethernet_task =
+                EthernetTask::new(idle_stream.clone(), rcc, syscfg, ethernet_mac, ethernet_dma);
 
             let i2c_3_mutex = Arc::new(FutureMutex::new(i2c_3));
             let layer_1_mutex = Arc::new(FutureMutex::new(layer_1));
@@ -271,7 +284,9 @@ fn run() -> ! {
             executor.spawn_local(button_task(button_stream)).unwrap();
             executor.spawn_local(tim6_task(tim6_stream)).unwrap();
             executor.spawn_local(touch_task.run()).unwrap();
-            executor.spawn_local(count_up_on_idle_task(idle_stream.clone())).unwrap();
+            executor
+                .spawn_local(count_up_on_idle_task(idle_stream.clone()))
+                .unwrap();
             executor.spawn_local(audio_task.run()).unwrap();
 
             //executor.spawn_local(print_x);
@@ -302,8 +317,7 @@ fn run() -> ! {
     )
 }
 
-
-async fn button_task(button_stream: impl Stream<Item=()>) {
+async fn button_task(button_stream: impl Stream<Item = ()>) {
     pin_mut!(button_stream);
     for i in 1usize.. {
         let next = await!(button_stream.next());
@@ -312,7 +326,7 @@ async fn button_task(button_stream: impl Stream<Item=()>) {
     }
 }
 
-async fn tim6_task(tim6_stream: impl Stream<Item=()>) {
+async fn tim6_task(tim6_stream: impl Stream<Item = ()>) {
     pin_mut!(tim6_stream);
     loop {
         let next = await!(tim6_stream.next());
@@ -322,42 +336,58 @@ async fn tim6_task(tim6_stream: impl Stream<Item=()>) {
 }
 
 struct TouchTask<S, F>
-    where S: Stream<Item=()>, F: Framebuffer,
+where
+    S: Stream<Item = ()>,
+    F: Framebuffer,
 {
     touch_int_stream: S,
     i2c_3_mutex: Arc<FutureMutex<I2C<'static>>>,
     layer_mutex: Arc<FutureMutex<Layer<F>>>,
 }
 
-impl<S, F> TouchTask<S, F> where S: Stream<Item=()>, F: Framebuffer, {
+impl<S, F> TouchTask<S, F>
+where
+    S: Stream<Item = ()>,
+    F: Framebuffer,
+{
     async fn run(self) {
-        let Self {touch_int_stream, i2c_3_mutex, layer_mutex} = self;
+        let Self {
+            touch_int_stream,
+            i2c_3_mutex,
+            layer_mutex,
+        } = self;
         pin_mut!(touch_int_stream);
         await!(layer_mutex.with(|l| l.clear()));
         loop {
             await!(touch_int_stream.next()).expect("touch channel closed");
             let touches = await!(i2c_3_mutex.with(|i2c_3| touch::touches(i2c_3))).unwrap();
-            await!(layer_mutex.with(|layer| {
-                for touch in touches {
-                    layer.print_point_color_at(
-                        touch.x as usize,
-                        touch.y as usize,
-                        Color::from_hex(0xffff00),
-                    );
-                }
+            await!(layer_mutex.with(|layer| for touch in touches {
+                layer.print_point_color_at(
+                    touch.x as usize,
+                    touch.y as usize,
+                    Color::from_hex(0xffff00),
+                );
             }))
         }
     }
 }
 
-struct AudioTask<F, S> where F: Framebuffer, S: Stream<Item=()> {
+struct AudioTask<F, S>
+where
+    F: Framebuffer,
+    S: Stream<Item = ()>,
+{
     sai_2: SAI2,
     idle_stream: S,
     layer_mutex: Arc<FutureMutex<Layer<F>>>,
     audio_writer: AudioWriter,
 }
 
-impl<F, S> AudioTask<F, S> where F: Framebuffer, S: Stream<Item=()> {
+impl<F, S> AudioTask<F, S>
+where
+    F: Framebuffer,
+    S: Stream<Item = ()>,
+{
     fn new(layer_mutex: Arc<FutureMutex<Layer<F>>>, sai_2: SAI2, idle_stream: S) -> Self {
         Self {
             sai_2,
@@ -368,7 +398,12 @@ impl<F, S> AudioTask<F, S> where F: Framebuffer, S: Stream<Item=()> {
     }
 
     async fn run(self) {
-        let Self {idle_stream, layer_mutex, mut audio_writer, sai_2} = self;
+        let Self {
+            idle_stream,
+            layer_mutex,
+            mut audio_writer,
+            sai_2,
+        } = self;
         pin_mut!(idle_stream);
 
         let mut data0_buffer = None;
@@ -383,12 +418,10 @@ impl<F, S> AudioTask<F, S> where F: Framebuffer, S: Stream<Item=()> {
                 match data0_buffer {
                     None => {
                         data0_buffer = Some(data);
-                    },
+                    }
                     Some(data0) => {
                         let data1 = data;
-                        await!(layer_mutex.with(|l| {
-                            audio_writer.set_next_col(l,data0, data1)
-                        }));
+                        await!(layer_mutex.with(|l| audio_writer.set_next_col(l, data0, data1)));
                         data0_buffer = None;
                     }
                 }
@@ -397,7 +430,7 @@ impl<F, S> AudioTask<F, S> where F: Framebuffer, S: Stream<Item=()> {
     }
 }
 
-async fn count_up_on_idle_task(idle_stream: impl Stream<Item=()>) {
+async fn count_up_on_idle_task(idle_stream: impl Stream<Item = ()>) {
     pin_mut!(idle_stream);
     let mut number = 0;
     loop {
@@ -409,7 +442,11 @@ async fn count_up_on_idle_task(idle_stream: impl Stream<Item=()>) {
     }
 }
 
-async fn sd_card_task<S, P>(mut sd: sd::Sd<'static, P>, idle_stream: S) where S: Stream<Item=()>, P: InputPin {
+async fn sd_card_task<S, P>(mut sd: sd::Sd<'static, P>, idle_stream: S)
+where
+    S: Stream<Item = ()>,
+    P: InputPin,
+{
     pin_mut!(idle_stream);
     // Initialize the SD Card on insert and deinitialize on extract.
     loop {
@@ -424,7 +461,10 @@ async fn sd_card_task<S, P>(mut sd: sd::Sd<'static, P>, idle_stream: S) where S:
     }
 }
 
-struct EthernetTask<S> where S: Stream<Item=()> {
+struct EthernetTask<S>
+where
+    S: Stream<Item = ()>,
+{
     idle_stream: S,
     rcc: RCC,
     syscfg: SYSCFG,
@@ -432,10 +472,17 @@ struct EthernetTask<S> where S: Stream<Item=()> {
     ethernet_dma: ETHERNET_DMA,
 }
 
-impl<S> EthernetTask<S> where S: Stream<Item=()> {
-    fn new(idle_stream: S, rcc: RCC, syscfg: SYSCFG, ethernet_mac: ETHERNET_MAC,
-        ethernet_dma: ETHERNET_DMA) -> Self
-    {
+impl<S> EthernetTask<S>
+where
+    S: Stream<Item = ()>,
+{
+    fn new(
+        idle_stream: S,
+        rcc: RCC,
+        syscfg: SYSCFG,
+        ethernet_mac: ETHERNET_MAC,
+        ethernet_dma: ETHERNET_DMA,
+    ) -> Self {
         Self {
             idle_stream,
             rcc,
@@ -467,8 +514,10 @@ impl<S> EthernetTask<S> where S: Stream<Item=()> {
 
         if ethernet_interface.is_ok() {
             let endpoint = IpEndpoint::new(IpAddress::Ipv4(IP_ADDR), 15);
-            let udp_rx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 3], vec![0u8; 256]);
-            let udp_tx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 1], vec![0u8; 128]);
+            let udp_rx_buffer =
+                UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 3], vec![0u8; 256]);
+            let udp_tx_buffer =
+                UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 1], vec![0u8; 128]);
             let mut example_udp_socket = UdpSocket::new(udp_rx_buffer, udp_tx_buffer);
             example_udp_socket.bind(endpoint).unwrap();
             sockets.add(example_udp_socket);
@@ -489,7 +538,7 @@ impl<S> EthernetTask<S> where S: Stream<Item=()> {
                 ) {
                     Err(::smoltcp::Error::Exhausted) => {
                         await!(idle_stream.next()).expect("idle stream closed");
-                    },
+                    }
                     Err(::smoltcp::Error::Unrecognized) => {}
                     Err(e) => println!("Network error: {:?}", e),
                     Ok(socket_changed) => {

@@ -107,7 +107,6 @@ pub fn ticks_to_ms(ticks: usize) -> usize {
     (ticks * 1000) / frequency
 }
 
-
 /// Translates the passed number of milliseconds to a number of ticks.
 ///
 /// Depends on the [`system_clock_speed`](self::system_clock_speed).
