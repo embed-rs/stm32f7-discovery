@@ -520,7 +520,7 @@ where
         let mut sockets = SocketSet::new(Vec::new());
 
         let dhcp_rx_buffer = RawSocketBuffer::new(
-            [RawPacketMetadata::EMPTY; 2],
+            [RawPacketMetadata::EMPTY; 1],
             vec![0; 1500]
         );
         let dhcp_tx_buffer = RawSocketBuffer::new(

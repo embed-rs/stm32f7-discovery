@@ -26,10 +26,11 @@ use sh::hio::{self, HStdout};
 use smoltcp::{
     socket::{
         Socket, SocketSet, TcpSocket, TcpSocketBuffer, UdpPacketMetadata, UdpSocket,
-        UdpSocketBuffer,
+        UdpSocketBuffer, RawSocketBuffer, RawPacketMetadata,
     },
     time::Instant,
-    wire::{EthernetAddress, IpAddress, IpEndpoint, Ipv4Address},
+    wire::{EthernetAddress, IpEndpoint, Ipv4Address, IpCidr},
+    dhcp::Dhcpv4Client,
 };
 use stm32f7::stm32f7x6::{CorePeripherals, Interrupt, Peripherals};
 use stm32f7_discovery::{
@@ -49,7 +50,6 @@ static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
 
 const HEAP_SIZE: usize = 50 * 1024; // in bytes
 const ETH_ADDR: EthernetAddress = EthernetAddress([0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef]);
-const IP_ADDR: Ipv4Address = Ipv4Address([141, 52, 46, 198]);
 
 #[entry]
 fn main() -> ! {
@@ -146,27 +146,25 @@ fn main() -> ! {
         &mut ethernet_dma,
         ETH_ADDR,
     )
-    .map(|device| device.into_interface(IP_ADDR));
+    .map(|device| {
+        let iface = device.into_interface();
+        let prev_ip_addr = iface.ipv4_addr().unwrap();
+        (iface, prev_ip_addr)
+    });
     if let Err(e) = ethernet_interface {
         println!("ethernet init failed: {:?}", e);
     };
 
     let mut sockets = SocketSet::new(Vec::new());
-
-    if ethernet_interface.is_ok() {
-        let endpoint = IpEndpoint::new(IpAddress::Ipv4(IP_ADDR), 15);
-        let udp_rx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 3], vec![0u8; 256]);
-        let udp_tx_buffer = UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 1], vec![0u8; 128]);
-        let mut example_udp_socket = UdpSocket::new(udp_rx_buffer, udp_tx_buffer);
-        example_udp_socket.bind(endpoint).unwrap();
-        sockets.add(example_udp_socket);
-
-        let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
-        let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
-        let mut example_tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
-        example_tcp_socket.listen(endpoint).unwrap();
-        sockets.add(example_tcp_socket);
-    }
+    let dhcp_rx_buffer = RawSocketBuffer::new(
+        [RawPacketMetadata::EMPTY; 1],
+        vec![0; 1500]
+    );
+    let dhcp_tx_buffer = RawSocketBuffer::new(
+        [RawPacketMetadata::EMPTY; 1],
+        vec![0; 3000]
+    );
+    let mut dhcp = Dhcpv4Client::new(&mut sockets, dhcp_rx_buffer, dhcp_tx_buffer, Instant::from_millis(system_clock::ms() as i64));
 
     let mut previous_button_state = pins.button.get();
     let mut audio_writer = AudioWriter::new();
@@ -202,13 +200,16 @@ fn main() -> ! {
         audio_writer.set_next_col(&mut layer_1, data0, data1);
 
         // handle new ethernet packets
-        if let Ok(ref mut eth) = ethernet_interface {
-            match eth.poll(
+        if let Ok((ref mut iface, ref mut prev_ip_addr)) = ethernet_interface {
+            let timestamp = Instant::from_millis(system_clock::ms() as i64);
+            match iface.poll(
                 &mut sockets,
-                Instant::from_millis(system_clock::ms() as i64),
+                timestamp,
             ) {
-                Err(::smoltcp::Error::Exhausted) => continue,
-                Err(::smoltcp::Error::Unrecognized) => {}
+                Err(::smoltcp::Error::Exhausted) => {
+                    continue;
+                }
+                Err(::smoltcp::Error::Unrecognized) => {print!("U")}
                 Err(e) => println!("Network error: {:?}", e),
                 Ok(socket_changed) => {
                     if socket_changed {
@@ -218,6 +219,47 @@ fn main() -> ! {
                     }
                 }
             }
+
+            dhcp.poll(iface, &mut sockets, timestamp)
+                .unwrap_or_else(|e| println!("DHCP: {:?}", e));
+            let ip_addr = iface.ipv4_addr().unwrap();
+            if ip_addr != *prev_ip_addr {
+                println!("Assigned a new IPv4 address: {}", ip_addr);
+                iface.routes_mut()
+                    .update(|routes_map| {
+                        routes_map.get(&IpCidr::new(Ipv4Address::UNSPECIFIED.into(), 0))
+                            .map(|default_route| {
+                                println!("Default gateway: {}", default_route.via_router);
+                            });
+                    });
+                for dns_server in dhcp.dns_servers() {
+                    println!("DNS servers: {}", dns_server);
+                }
+
+                // TODO delete old sockets
+
+                // add new sockets
+                let endpoint = IpEndpoint::new(ip_addr.into(), 15);
+
+                let udp_rx_buffer =
+                    UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 3], vec![0u8; 256]);
+                let udp_tx_buffer =
+                    UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 1], vec![0u8; 128]);
+                let mut example_udp_socket = UdpSocket::new(udp_rx_buffer, udp_tx_buffer);
+                example_udp_socket.bind(endpoint).unwrap();
+                sockets.add(example_udp_socket);
+
+                let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
+                let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
+                let mut example_tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
+                example_tcp_socket.listen(endpoint).unwrap();
+                sockets.add(example_tcp_socket);
+
+                *prev_ip_addr = ip_addr;
+            }
+            let mut timeout = dhcp.next_poll(timestamp);
+            iface.poll_delay(&sockets, timestamp).map(|sockets_timeout| timeout = sockets_timeout);
+            // TODO await next interrupt
         }
 
         // Initialize the SD Card on insert and deinitialize on extract.
