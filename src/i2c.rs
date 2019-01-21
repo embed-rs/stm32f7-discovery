@@ -1,3 +1,5 @@
+//! Safe abstractions for an I2C bus.
+
 use core::iter::TrustedLen;
 use core::marker::PhantomData;
 use embedded_hal;
@@ -8,17 +10,24 @@ use stm32f7::stm32f7x6::{
 
 // TODO use &mut when svd2rust API has changed (modification should require &mut)
 //pub struct I2C<'a>(&'a mut RegisterBlock);
+/// Represents an I2C (Inter-Integrated Circuit) bus.
 pub struct I2C<'a>(&'a RegisterBlock);
 
+/// Errors that can happen while accessing the I2C bus.
 #[derive(Debug)]
 pub enum Error {
+    /// A NACK flag (negative acknowledgement) was detected.
     Nack,
 }
 
+/// An I2C address.
+///
+/// Currently only 7 bit addresses are supported.
 #[derive(Debug, Clone, Copy)]
 pub struct Address(u16);
 
 impl Address {
+    /// Create a 7 bit I2C address.
     pub const fn bits_7(addr: u8) -> Address {
         Address((addr as u16) << 1)
     }
@@ -37,16 +46,26 @@ fn icr_clear_all(w: &mut i2c1::icr::W) -> &mut i2c1::icr::W {
     w
 }
 
+/// An active connection to a device on the I2C bus.
+///
+/// Allows reading and writing the registers of the device.
 pub struct I2cConnection<'a, 'i: 'a, T: RegisterType> {
     i2c: &'a mut I2C<'i>,
     device_address: Address,
     register_type: PhantomData<T>,
 }
 
+/// Valid register types of I2C devices.
+///
+/// This trait is implemented for the `u8` and `u16` types.
 pub trait RegisterType: Sized {
+    /// Convert the register type into a byte slice and pass it to the specified closure.
     fn write<F>(&self, f: F) -> Result<(), Error>
     where
         F: FnOnce(&[u8]) -> Result<(), Error>;
+
+    /// Call the specified closure with a mutable reference to a byte slice and then convert it
+    /// to the register type.
     fn read<F>(f: F) -> Result<Self, Error>
     where
         F: FnOnce(&mut [u8]) -> Result<(), Error>;
@@ -165,6 +184,7 @@ impl<'a, 'i: 'a, T: RegisterType> I2cConnection<'a, 'i, T> {
         self.i2c.0.icr.write(|w| icr_clear_all(w));
     }
 
+    /// Read the current value from the specified register.
     pub fn read(&mut self, register_address: T) -> Result<T, Error> {
         self.pre();
 
@@ -173,6 +193,7 @@ impl<'a, 'i: 'a, T: RegisterType> I2cConnection<'a, 'i, T> {
         T::read(|val_bytes| self.read_bytes_raw(val_bytes.iter_mut()))
     }
 
+    /// Read bytes from the specified register into the specified buffer.
     pub fn read_bytes(&mut self, register_address: T, bytes: &mut [u8]) -> Result<(), Error> {
         self.pre();
 
@@ -181,6 +202,7 @@ impl<'a, 'i: 'a, T: RegisterType> I2cConnection<'a, 'i, T> {
         self.read_bytes_raw(bytes.iter_mut())
     }
 
+    /// Write the specified bytes into to specified register.
     pub fn write(&mut self, register_address: T, value: T) -> Result<(), Error> {
         self.pre();
         register_address.write(|addr_bytes| {
@@ -192,6 +214,10 @@ impl<'a, 'i: 'a, T: RegisterType> I2cConnection<'a, 'i, T> {
 }
 
 impl<'a> I2C<'a> {
+    /// Connects to the specified device and run the closure `f` with the connection as argument.
+    ///
+    /// This function takes an exclusive reference to the `I2C` type because it blocks the I2C
+    /// bus. The connection is active until the closure `f` returns.
     pub fn connect<T, F>(&mut self, device_address: Address, f: F) -> Result<(), Error>
     where
         T: RegisterType,
@@ -208,6 +234,7 @@ impl<'a> I2C<'a> {
         self.stop()
     }
 
+    /// Stop the active connection by sending a stop symbol.
     pub fn stop(&mut self) -> Result<(), Error> {
         self.0.cr2.modify(|_, w| w.stop().set_bit());
 
@@ -217,6 +244,7 @@ impl<'a> I2C<'a> {
         self.wait_for_stop()
     }
 
+    /// Update a device register.
     pub fn update<F>(
         &mut self,
         device_address: Address,
@@ -291,7 +319,7 @@ impl<'a> I2C<'a> {
         }
     }
 
-    // provokes a NACK
+    /// Provokes a NACK and checks if the response is as expected. Panics otherwise.
     pub fn test_1(&mut self) {
         let i2c = &mut self.0;
 
@@ -316,7 +344,7 @@ impl<'a> I2C<'a> {
         i2c.icr.write(|w| icr_clear_all(w));
     }
 
-    // try all addresses
+    /// Try to access all I2C addresses. Panics on test failure.
     #[allow(dead_code)]
     pub fn test_2(&mut self) {
         let i2c = &mut self.0;
@@ -397,6 +425,12 @@ impl<'a> embedded_hal::blocking::i2c::WriteRead for I2C<'a> {
     }
 }
 
+/// Initialize the I2C bus and return an `I2C` type.
+///
+/// The IC2 type assumes that it has ownership of the I2C buffer. Therefore it is unsafe to access
+/// the passed RegisterBlock as long as the I2C lives. (This function should take a
+/// `&mut RegisterBlock`, but this is not possible due to the API that svd2rust generates. See
+/// [stm32f7-discovery#72](https://github.com/embed-rs/stm32f7-discovery/issues/72) for more info.
 pub fn init<'a>(i2c: &'a RegisterBlock, rcc: &mut RCC) -> I2C<'a> {
     // enable clocks
     rcc.apb1enr.modify(|_, w| w.i2c3en().enabled());
