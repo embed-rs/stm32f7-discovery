@@ -5,10 +5,10 @@ use core::fmt;
 use stm32f7::stm32f7x6::{ETHERNET_DMA, ETHERNET_MAC, RCC, SYSCFG};
 use volatile::Volatile;
 
-use smoltcp::iface::{EthernetInterface, EthernetInterfaceBuilder};
+use smoltcp::iface::{EthernetInterface, EthernetInterfaceBuilder, Routes};
 use smoltcp::phy::{Device, DeviceCapabilities};
 use smoltcp::time::Instant;
-use smoltcp::wire::{EthernetAddress, IpCidr, Ipv4Address, Ipv4Cidr};
+use smoltcp::wire::{EthernetAddress, IpCidr, Ipv4Address};
 
 mod init;
 mod phy;
@@ -90,18 +90,21 @@ impl<'d> EthernetDevice<'d> {
     }
 
     pub fn into_interface<'a>(
-        self,
-        ip_address: Ipv4Address,
+        self
     ) -> EthernetInterface<'a, 'a, 'a, Self> {
         use alloc::collections::BTreeMap;
         use smoltcp::iface::NeighborCache;
+
+        let ip_addrs = [IpCidr::new(Ipv4Address::UNSPECIFIED.into(), 0)];
+        let routes_storage = Box::leak(Box::new([None; 1]));
+        let routes = Routes::new(&mut routes_storage[..]);
 
         let neighbor_cache = NeighborCache::new(BTreeMap::new());
         let ethernet_address = self.ethernet_address;
         let interface_builder = EthernetInterfaceBuilder::new(self);
         let interface_builder = interface_builder.ethernet_addr(ethernet_address);
-        let ip_cidr = IpCidr::Ipv4(Ipv4Cidr::new(ip_address, 0));
-        let interface_builder = interface_builder.ip_addrs(vec![ip_cidr]);
+        let interface_builder = interface_builder.ip_addrs(ip_addrs);
+        let interface_builder = interface_builder.routes(routes);
         let interface_builder = interface_builder.neighbor_cache(neighbor_cache);
         interface_builder.finalize()
     }

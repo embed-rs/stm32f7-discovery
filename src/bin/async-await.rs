@@ -36,7 +36,7 @@ use sh::hio::{self, HStdout};
 use smoltcp::{
     socket::{
         Socket, SocketSet, TcpSocket, TcpSocketBuffer, UdpPacketMetadata, UdpSocket,
-        UdpSocketBuffer,
+        UdpSocketBuffer, IcmpSocket, IcmpEndpoint,
     },
     time::Instant,
     wire::{EthernetAddress, IpAddress, IpEndpoint, Ipv4Address},
@@ -63,7 +63,6 @@ static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
 
 const HEAP_SIZE: usize = 50 * 1024; // in bytes
 const ETH_ADDR: EthernetAddress = EthernetAddress([0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef]);
-const IP_ADDR: Ipv4Address = Ipv4Address([141, 52, 46, 198]);
 
 #[entry]
 fn main() -> ! {
@@ -293,7 +292,7 @@ fn run() -> ! {
 
             // FIXME: Causes link error: no memory region specified for section '.ARM.extab'
             // see https://github.com/rust-embedded/cortex-m-rt/issues/157
-            //executor.spawn_local(_ethernet_task.run()).unwrap();
+            executor.spawn_local(ethernet_task.run()).unwrap();
 
             // FIXME: Does not work currently due to borrowing errors
             // executor.spawn_local(sd_card_task(sd, idle_stream.clone())).unwrap();
@@ -493,6 +492,10 @@ where
     }
 
     async fn run(mut self) {
+        use smoltcp::wire::{EthernetAddress, Ipv4Address, IpCidr};
+        use smoltcp::socket::{SocketSet, RawSocketBuffer, RawPacketMetadata, IcmpSocketBuffer, IcmpPacketMetadata};
+        use smoltcp::dhcp::Dhcpv4Client;
+
         let mut ethernet_interface = ethernet::EthernetDevice::new(
             Default::default(),
             Default::default(),
@@ -502,9 +505,13 @@ where
             &mut self.ethernet_dma,
             ETH_ADDR,
         )
-        .map(|device| device.into_interface(IP_ADDR));
-        if let Err(e) = ethernet_interface {
-            println!("ethernet init failed: {:?}", e);
+        .map(|device| device.into_interface());
+        let mut iface = match ethernet_interface {
+            Ok(iface) => iface,
+            Err(e) => {
+                println!("ethernet init failed: {:?}", e);
+                return;
+            }
         };
 
         let idle_stream = self.idle_stream;
@@ -512,44 +519,79 @@ where
 
         let mut sockets = SocketSet::new(Vec::new());
 
-        if ethernet_interface.is_ok() {
-            let endpoint = IpEndpoint::new(IpAddress::Ipv4(IP_ADDR), 15);
-            let udp_rx_buffer =
-                UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 3], vec![0u8; 256]);
-            let udp_tx_buffer =
-                UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 1], vec![0u8; 128]);
-            let mut example_udp_socket = UdpSocket::new(udp_rx_buffer, udp_tx_buffer);
-            example_udp_socket.bind(endpoint).unwrap();
-            sockets.add(example_udp_socket);
-
-            let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
-            let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
-            let mut example_tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
-            example_tcp_socket.listen(endpoint).unwrap();
-            sockets.add(example_tcp_socket);
-        }
+        let dhcp_rx_buffer = RawSocketBuffer::new(
+            [RawPacketMetadata::EMPTY; 2],
+            vec![0; 1500]
+        );
+        let dhcp_tx_buffer = RawSocketBuffer::new(
+            [RawPacketMetadata::EMPTY; 1],
+            vec![0; 3000]
+        );
+        let mut dhcp = Dhcpv4Client::new(&mut sockets, dhcp_rx_buffer, dhcp_tx_buffer, Instant::from_millis(system_clock::ms() as i64));
+        let mut prev_ip_addr = iface.ipv4_addr().unwrap();
 
         // handle new ethernet packets
-        if let Ok(ref mut eth) = ethernet_interface {
-            loop {
-                match eth.poll(
-                    &mut sockets,
-                    Instant::from_millis(system_clock::ms() as i64),
-                ) {
-                    Err(::smoltcp::Error::Exhausted) => {
-                        await!(idle_stream.next()).expect("idle stream closed");
-                    }
-                    Err(::smoltcp::Error::Unrecognized) => {}
-                    Err(e) => println!("Network error: {:?}", e),
-                    Ok(socket_changed) => {
-                        if socket_changed {
-                            for mut socket in sockets.iter_mut() {
-                                Self::poll_socket(&mut socket).expect("socket poll failed");
-                            }
+        loop {
+            await!(idle_stream.next());
+            let timestamp = Instant::from_millis(system_clock::ms() as i64);
+            match iface.poll(
+                &mut sockets,
+                timestamp,
+            ) {
+                Err(::smoltcp::Error::Exhausted) => {
+                    continue;
+                }
+                Err(::smoltcp::Error::Unrecognized) => {print!("U")}
+                Err(e) => println!("Network error: {:?}", e),
+                Ok(socket_changed) => {
+                    if socket_changed {
+                        for mut socket in sockets.iter_mut() {
+                            Self::poll_socket(&mut socket).expect("socket poll failed");
                         }
                     }
                 }
             }
+
+            dhcp.poll(&mut iface, &mut sockets, timestamp)
+                .unwrap_or_else(|e| println!("DHCP: {:?}", e));
+            let ip_addr = iface.ipv4_addr().unwrap();
+            if ip_addr != prev_ip_addr {
+                println!("Assigned a new IPv4 address: {}", ip_addr);
+                iface.routes_mut()
+                    .update(|routes_map| {
+                        routes_map.get(&IpCidr::new(Ipv4Address::UNSPECIFIED.into(), 0))
+                            .map(|default_route| {
+                                println!("Default gateway: {}", default_route.via_router);
+                            });
+                    });
+                for dns_server in dhcp.dns_servers() {
+                    println!("DNS servers: {}", dns_server);
+                }
+
+                // TODO delete old sockets
+
+                // add new sockets
+                let endpoint = IpEndpoint::new(ip_addr.into(), 15);
+
+                let udp_rx_buffer =
+                    UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 3], vec![0u8; 256]);
+                let udp_tx_buffer =
+                    UdpSocketBuffer::new(vec![UdpPacketMetadata::EMPTY; 1], vec![0u8; 128]);
+                let mut example_udp_socket = UdpSocket::new(udp_rx_buffer, udp_tx_buffer);
+                example_udp_socket.bind(endpoint).unwrap();
+                sockets.add(example_udp_socket);
+
+                let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
+                let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; ethernet::MTU]);
+                let mut example_tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
+                example_tcp_socket.listen(endpoint).unwrap();
+                sockets.add(example_tcp_socket);
+
+                prev_ip_addr = ip_addr;
+            }
+            let mut timeout = dhcp.next_poll(timestamp);
+            iface.poll_delay(&sockets, timestamp).map(|sockets_timeout| timeout = sockets_timeout);
+            // TODO await next interrupt
         }
     }
 
@@ -570,7 +612,7 @@ where
                     }
                     socket.send_slice(&reply.0, reply.1)?;
                 },
-                _ => {}
+                _ => unreachable!()
             },
             &mut Socket::Tcp(ref mut socket) => match socket.local_endpoint().port {
                 15 => {
@@ -592,7 +634,7 @@ where
                         assert_eq!(socket.send_slice(&reply)?, reply.len());
                     }
                 }
-                _ => {}
+                _ => unreachable!()
             },
             _ => {}
         }
