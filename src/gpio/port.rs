@@ -2,11 +2,24 @@ use super::*;
 use core::marker::PhantomData;
 use stm32f7::stm32f7x6::{gpioa, gpiob, gpiod};
 
+/// Abstraction for a GPIO port that allows safe configuration of the port's pins.
 pub struct GpioPort<T> {
     pub(super) pin_in_use: [bool; 16],
     register_block: T,
 }
 
+/// Errors that can occur during pin initialization.
+#[derive(Debug)]
+pub enum Error {
+    /// The specified GPIO pin is already in use.
+    PinAlreadyInUse(PinNumber),
+}
+
+/// A generic struct representing a hardware GPIO register block.
+///
+/// This struct is needed because the GPIO A, GPIO B, and the other GPIO ports have slight
+/// differences in their reset values so that the SVD file and svd2rust use different types
+/// for them.
 pub struct RegisterBlock<'a, I: 'a, O: 'a, M: 'a, P: 'a, B: 'a, T: 'a, S: 'a, AH: 'a, AL: 'a> {
     idr: &'a I,
     odr: &'a O,
@@ -19,6 +32,7 @@ pub struct RegisterBlock<'a, I: 'a, O: 'a, M: 'a, P: 'a, B: 'a, T: 'a, S: 'a, AH
     afrl: &'a AL,
 }
 
+/// An instantiation of the generic `RegisterBlock` for GPIO port A.
 pub type RegisterBlockA<'a> = RegisterBlock<
     'a,
     gpioa::IDR,
@@ -31,6 +45,8 @@ pub type RegisterBlockA<'a> = RegisterBlock<
     gpioa::AFRH,
     gpioa::AFRL,
 >;
+
+/// An instantiation of the generic `RegisterBlock` for GPIO port B.
 pub type RegisterBlockB<'a> = RegisterBlock<
     'a,
     gpiob::IDR,
@@ -43,6 +59,8 @@ pub type RegisterBlockB<'a> = RegisterBlock<
     gpiob::AFRH,
     gpiob::AFRL,
 >;
+
+/// An instantiation of the generic `RegisterBlock` for the remaining GPIO ports.
 pub type RegisterBlockD<'a> = RegisterBlock<
     'a,
     gpiod::IDR,
@@ -76,39 +94,64 @@ macro_rules! new_gpio_port {
 }
 
 impl<'a> GpioPort<RegisterBlockA<'a>> {
+    /// Create a new `RegisterBlockA` from the hardware register block.
     pub fn new_a(register_block: &'a gpioa::RegisterBlock) -> Self {
         new_gpio_port!(register_block)
     }
 }
 
 impl<'a> GpioPort<RegisterBlockB<'a>> {
+    /// Create a new `RegisterBlockB` from the hardware register block.
     pub fn new_b(register_block: &'a gpiob::RegisterBlock) -> Self {
         new_gpio_port!(register_block)
     }
 }
 
 impl<'a> GpioPort<RegisterBlockD<'a>> {
+    /// Create a new `RegisterBlockD` from the hardware register block.
     pub fn new(register_block: &'a gpiod::RegisterBlock) -> Self {
         new_gpio_port!(register_block)
     }
 }
 
+/// This trait allows generic functions that work on all three register block types.
 pub trait RegisterBlockTrait<'a> {
+    /// The IDR (input data register) type, returned by the `idr` function.
     type Idr: IdrTrait + 'a;
+
+    /// The ODR (output data register) type, returned by the `odr` function.
     type Odr: OdrTrait + 'a;
+
+    /// The BSRR (bit set and reset register) type, returned by the `bsrr` function.
     type Bsrr: BsrrTrait + 'a;
 
+    /// Returns a reference to the input data register.
     fn idr(&self) -> &'a Self::Idr;
+
+    /// Returns a reference to the output data register.
     fn odr(&self) -> &'a Self::Odr;
+
+    /// Returns a reference to the bit set and reset register.
     fn bsrr(&self) -> &'a Self::Bsrr;
+
+    /// Set the mode register for the specified pins to the given `Mode`.
     fn set_mode(&mut self, pins: &[PinNumber], mode: Mode);
+
+    /// Set the resistor register for the specified pins to the given `Resistor`.
     fn set_resistor(&mut self, pins: &[PinNumber], resistor: Resistor);
+
+    /// Set the output type register for the specified pins to the given `OutputType`.
     fn set_out_type(&mut self, pins: &[PinNumber], out_type: OutputType);
+
+    /// Set the output speed register for the specified pins to the given `OutputSpeed`.
     fn set_out_speed(&mut self, pins: &[PinNumber], out_speed: OutputSpeed);
+
+    /// Set the alternate function register for the specified pins to the given `AlternateFunction`.
     fn set_alternate_fn(&mut self, pins: &[PinNumber], alternate_fn: AlternateFunction);
 }
 
 impl<'a, T: RegisterBlockTrait<'a>> GpioPort<T> {
+    /// Initialize the specified pin as an input pin.
     pub fn to_input(
         &mut self,
         pin: PinNumber,
@@ -125,6 +168,7 @@ impl<'a, T: RegisterBlockTrait<'a>> GpioPort<T> {
         })
     }
 
+    /// Initialize the specified pin as an output pin.
     pub fn to_output(
         &mut self,
         pin: PinNumber,
@@ -150,6 +194,7 @@ impl<'a, T: RegisterBlockTrait<'a>> GpioPort<T> {
         Ok(output_pin)
     }
 
+    /// Initialize the specified pin as an alternate function pin.
     pub fn to_alternate_function(
         &mut self,
         pin: PinNumber,
@@ -161,6 +206,7 @@ impl<'a, T: RegisterBlockTrait<'a>> GpioPort<T> {
         self.to_alternate_function_all(&[pin], alternate_fn, typ, speed, resistor)
     }
 
+    /// Initialize the specified pins as alternate function pins.
     pub fn to_alternate_function_all(
         &mut self,
         pins: &[PinNumber],

@@ -1,37 +1,67 @@
 use super::PinNumber;
 use stm32f7::stm32f7x6::{gpioa, gpiob, gpiod};
 
+/// Abstracts over the three different types of input data registers (IDRs).
+///
+/// The GPIO ports A and B have separate IDR types because they use slightly different
+/// reset values. This trait allows to create generic functions that work with all three
+/// IDR types.
 pub trait IdrTrait {
+    /// Represents an IDR value.
     type R: IdrR;
 
+    /// Read the current value from the IDR register.
     fn read(&self) -> Self::R;
 }
 
+/// Represents an IDR value that specifies the input value of all pins of the port.
 pub trait IdrR {
+    /// Returns the input value of the specified pin.
     fn get(&self, pin: PinNumber) -> bool;
 }
 
+/// Abstracts over the three different types of output data registers (ODRs).
+///
+/// The GPIO ports A and B have separate ODR types because they use slightly different
+/// reset values. This trait allows to create generic functions that work with all three
+/// ODR types.
 pub trait OdrTrait {
+    /// Represents an ODR value.
     type R: OdrR;
 
+    /// Read the current value from the ODR register.
     fn read(&self) -> Self::R;
 }
 
+/// Represents an ODR value that specifies the output value of all pins of the port.
 pub trait OdrR {
+    /// Returns the output value of the specified pin.
     fn get(&self, pin: PinNumber) -> bool;
 }
 
+/// Abstracts over the three different types of bit set and reset registers (BSRRs).
+///
+/// The GPIO ports A and B have separate BSRR types because they use slightly different
+/// reset values. This trait allows to create generic functions that work with all three
+/// BSRR types.
 pub trait BsrrTrait {
+    /// A type that allows BSRR write operations.
     type W: BsrrW;
 
+    /// Perform write operations on the BSRR register.
     fn write<F>(&mut self, f: F)
     where
         F: FnOnce(&mut Self::W) -> &mut Self::W;
 }
 
+/// Allows writing the BSRR register.
+///
+/// Bits that are neither `set` or `reset` keep their previous value.
 pub trait BsrrW {
+    /// Set the output value of the specified pin to 1.
     fn set(&mut self, pin: PinNumber) -> &mut Self;
 
+    /// Set the output value of the specified pin to 0.
     fn reset(&mut self, pin: PinNumber) -> &mut Self;
 }
 

@@ -1,3 +1,5 @@
+//! Abstractions for GPIO ports.
+
 use core::marker::PhantomData;
 
 pub use self::port::*;
@@ -6,32 +8,41 @@ pub use self::traits::*;
 mod port;
 mod traits;
 
-#[derive(Debug)]
-pub enum Error {
-    PinAlreadyInUse(PinNumber),
-}
-
+/// The different possible modes of a GPIO pin.
 #[derive(Debug, Clone, Copy)]
 pub enum Mode {
+    /// Use the pin for receiving data.
     Input,
+    /// Use the pin for sending data.
     Output,
+    /// Activate an alternate function of the pin to make it usable to some connected device.
     Alternate,
+    /// Use the pin in analog mode.
     Analog,
 }
 
+/// Pull the pin value up or down.
 #[derive(Debug, Clone, Copy)]
 pub enum Resistor {
+    /// Don't pull the value.
     NoPull,
+    /// Pull the value to 1 if no data is sent/received.
     PullUp,
+    /// Pull the value to 0 if no data is sent/received.
     PullDown,
 }
 
+/// The output mode of the pin.
 #[derive(Debug, Clone, Copy)]
 pub enum OutputType {
+    /// Use push-pull mode.
     PushPull,
+    /// Use open drain mode.
     OpenDrain,
 }
 
+/// The different output speeds.
+#[allow(missing_docs)]
 #[derive(Debug, Clone, Copy)]
 pub enum OutputSpeed {
     Low,
@@ -40,6 +51,10 @@ pub enum OutputSpeed {
     VeryHigh,
 }
 
+/// The possible alternate functions.
+///
+/// The alternate function number that a device uses is specified in the manual.
+#[allow(missing_docs)]
 #[derive(Debug, Clone, Copy)]
 pub enum AlternateFunction {
     AF0,
@@ -60,6 +75,8 @@ pub enum AlternateFunction {
     AF15,
 }
 
+/// The 16 possible pin numbers.
+#[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum PinNumber {
@@ -81,10 +98,13 @@ pub enum PinNumber {
     Pin15,
 }
 
+/// High level abstraction of a GPIO pin configured as input.
 pub trait InputPin: Sized {
+    /// Get the current input value of the pin.
     fn get(&self) -> bool;
 }
 
+/// An implementation of the `InputPin` trait for the IDR abstractions of this module.
 pub struct InputPinImpl<'a, IDR: IdrTrait + 'a> {
     pin: PinNumber,
     input_data: ReadOnlyIdr<'a, IDR>,
@@ -111,17 +131,22 @@ impl<'a, IDR: IdrTrait> ReadOnlyIdr<'a, IDR> {
 unsafe impl<'a, IDR: IdrTrait> Sync for ReadOnlyIdr<'a, IDR> {}
 unsafe impl<'a, IDR: IdrTrait> Send for ReadOnlyIdr<'a, IDR> {}
 
+/// High level abstraction of a GPIO pin configured as output.
 pub trait OutputPin: Sized {
+    /// Get the current output value of the pin.
     fn get(&self) -> bool;
 
+    /// Set the output value of the pin.
     fn set(&mut self, value: bool);
 
+    /// Toggle the output value of the pin.
     fn toggle(&mut self) {
         let current = self.get();
         self.set(!current);
     }
 }
 
+/// An implementation of the `OutputPin` trait for the ODR and BSRR abstractions of this module.
 pub struct OutputPinImpl<'a, ODR: OdrTrait + 'a, BSRR: BsrrTrait + 'a> {
     pin: PinNumber,
     output_data: ReadOnlyOdr<'a, ODR>,
@@ -143,7 +168,7 @@ where
     }
 }
 
-pub struct ReadOnlyOdr<'a, ODR: OdrTrait>(&'a ODR);
+struct ReadOnlyOdr<'a, ODR: OdrTrait>(&'a ODR);
 
 impl<'a, ODR: OdrTrait> ReadOnlyOdr<'a, ODR> {
     fn read(&self) -> ODR::R {
