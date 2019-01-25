@@ -1,9 +1,9 @@
 //! Provides various hardware initialization functions.
 
-use crate::i2c::{self, I2C};
+use crate::i2c::{self, I2C, I2cTrait};
 use crate::lcd::{self, Lcd};
 use crate::system_clock;
-use stm32f7::stm32f7x6::{i2c1, FLASH, FMC, LTDC, PWR, RCC, SAI2, SYST};
+use stm32f7::stm32f7x6::{self as device, i2c1, FLASH, FMC, LTDC, PWR, RCC, SAI2, SYST};
 
 pub use self::pins::init as pins;
 
@@ -298,7 +298,7 @@ pub fn init_lcd<'a>(ltdc: &'a mut LTDC, rcc: &mut RCC) -> Lcd<'a> {
 /// Initializes the I2C3 bus.
 ///
 /// This function is equivalent to [`i2c::init`](crate::i2c::init).
-pub fn init_i2c_3<'a>(i2c: &'a i2c1::RegisterBlock, rcc: &mut RCC) -> I2C<'a> {
+pub fn init_i2c_3(i2c: device::I2C3, rcc: &mut RCC) -> I2C<device::I2C3> {
     i2c::init(i2c, rcc)
 }
 
@@ -525,7 +525,7 @@ const WM8994_ADDRESS: i2c::Address = i2c::Address::bits_7(0b0011010);
 /// Initializes the WM8994 audio controller.
 ///
 /// Required for audio input.
-pub fn init_wm8994(i2c_3: &mut i2c::I2C) -> Result<(), i2c::Error> {
+pub fn init_wm8994(i2c_3: &mut i2c::I2C<device::I2C3>) -> Result<(), i2c::Error> {
     i2c_3.connect::<u16, _>(WM8994_ADDRESS, |mut conn| {
         // read and check device family ID
         assert_eq!(conn.read(0).ok(), Some(0x8994));

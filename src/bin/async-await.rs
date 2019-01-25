@@ -21,7 +21,6 @@ extern crate futures;
 extern crate smoltcp;
 extern crate spin;
 
-use alloc::boxed::Box;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use alloc_cortex_m::CortexMHeap;
@@ -43,6 +42,7 @@ use smoltcp::{
 };
 use stm32f7::stm32f7x6::{
     CorePeripherals, Interrupt, Peripherals, ETHERNET_DMA, ETHERNET_MAC, RCC, SAI2, SYSCFG,
+    self as device,
 };
 use stm32f7_discovery::{
     ethernet,
@@ -135,7 +135,7 @@ fn run() -> ! {
     // example allocation
     let _xs = vec![1, 2, 3];
 
-    let mut i2c_3 = init::init_i2c_3(Box::leak(Box::new(peripherals.I2C3)), &mut rcc);
+    let mut i2c_3 = init::init_i2c_3(peripherals.I2C3, &mut rcc);
     i2c_3.test_1();
     i2c_3.test_2();
 
@@ -340,7 +340,7 @@ where
     F: Framebuffer,
 {
     touch_int_stream: S,
-    i2c_3_mutex: Arc<FutureMutex<I2C<'static>>>,
+    i2c_3_mutex: Arc<FutureMutex<I2C<device::I2C3>>>,
     layer_mutex: Arc<FutureMutex<Layer<F>>>,
 }
 

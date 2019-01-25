@@ -2,6 +2,7 @@
 
 use crate::i2c::{self, I2C};
 use arrayvec::ArrayVec;
+use stm32f7::stm32f7x6 as device;
 
 const FT5336_ADDRESS: i2c::Address = i2c::Address::bits_7(0b0111000);
 const FT5336_FAMILY_ID_REGISTER: u8 = 0xA8;
@@ -11,7 +12,7 @@ const FT5336_STATUS_REGISTER: u8 = 0x02;
 const FT5336_DATA_REGISTERS: [u8; 5] = [0x03, 0x09, 0x0F, 0x15, 0x1B];
 
 /// Checks the whether the device familiy ID register contains the expected value.
-pub fn check_family_id(i2c_3: &mut I2C) -> Result<(), i2c::Error> {
+pub fn check_family_id(i2c_3: &mut I2C<device::I2C3>) -> Result<(), i2c::Error> {
     i2c_3.connect::<u8, _>(FT5336_ADDRESS, |mut conn| {
         // read and check device family ID
         assert_eq!(conn.read(FT5336_FAMILY_ID_REGISTER).ok(), Some(0x51));
@@ -27,7 +28,7 @@ pub struct Touch {
 }
 
 /// Returns a list of active touch points.
-pub fn touches(i2c_3: &mut I2C) -> Result<ArrayVec<[Touch; 5]>, i2c::Error> {
+pub fn touches(i2c_3: &mut I2C<device::I2C3>) -> Result<ArrayVec<[Touch; 5]>, i2c::Error> {
     let mut touches = ArrayVec::new();
     i2c_3.connect::<u8, _>(FT5336_ADDRESS, |mut conn| {
         let status = conn.read(FT5336_STATUS_REGISTER)?;

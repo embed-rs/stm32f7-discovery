@@ -2,16 +2,24 @@
 
 use core::iter::TrustedLen;
 use core::marker::PhantomData;
+use core::ops::Deref;
 use embedded_hal;
 use stm32f7::stm32f7x6::{
-    i2c1::{self, RegisterBlock},
+    i2c1,
     RCC,
+    self as device,
 };
 
-// TODO use &mut when svd2rust API has changed (modification should require &mut)
-//pub struct I2C<'a>(&'a mut RegisterBlock);
+pub trait I2cTrait: Deref<Target = i2c1::RegisterBlock> {
+
+}
+
+impl I2cTrait for device::I2C1 {}
+impl I2cTrait for device::I2C2 {}
+impl I2cTrait for device::I2C3 {}
+
 /// Represents an I2C (Inter-Integrated Circuit) bus.
-pub struct I2C<'a>(&'a RegisterBlock);
+pub struct I2C<I: I2cTrait>(I);
 
 /// Errors that can happen while accessing the I2C bus.
 #[derive(Debug)]
@@ -49,8 +57,8 @@ fn icr_clear_all(w: &mut i2c1::icr::W) -> &mut i2c1::icr::W {
 /// An active connection to a device on the I2C bus.
 ///
 /// Allows reading and writing the registers of the device.
-pub struct I2cConnection<'a, 'i: 'a, T: RegisterType> {
-    i2c: &'a mut I2C<'i>,
+pub struct I2cConnection<'a, I: I2cTrait, T: RegisterType> {
+    i2c: &'a mut I2C<I>,
     device_address: Address,
     register_type: PhantomData<T>,
 }
@@ -107,7 +115,7 @@ impl RegisterType for u16 {
     }
 }
 
-impl<'a, 'i: 'a, T: RegisterType> I2cConnection<'a, 'i, T> {
+impl<'a, I: I2cTrait, T: RegisterType> I2cConnection<'a, I, T> {
     fn start(&mut self, read: bool, bytes: u8) {
         self.i2c.0.cr2.write(|w| {
             w.sadd().bits(self.device_address.0); // slave_address
@@ -213,7 +221,7 @@ impl<'a, 'i: 'a, T: RegisterType> I2cConnection<'a, 'i, T> {
     }
 }
 
-impl<'a> I2C<'a> {
+impl<I: I2cTrait> I2C<I> {
     /// Connects to the specified device and run the closure `f` with the connection as argument.
     ///
     /// This function takes an exclusive reference to the `I2C` type because it blocks the I2C
@@ -221,7 +229,7 @@ impl<'a> I2C<'a> {
     pub fn connect<T, F>(&mut self, device_address: Address, f: F) -> Result<(), Error>
     where
         T: RegisterType,
-        F: FnOnce(I2cConnection<T>) -> Result<(), Error>,
+        F: FnOnce(I2cConnection<I, T>) -> Result<(), Error>,
     {
         {
             let conn = I2cConnection {
@@ -384,29 +392,29 @@ impl<'a> I2C<'a> {
     }
 }
 
-impl<'a> embedded_hal::blocking::i2c::Read for I2C<'a> {
+impl<I: I2cTrait> embedded_hal::blocking::i2c::Read for I2C<I> {
     type Error = Error;
 
     fn read(&mut self, address: u8, buffer: &mut [u8]) -> Result<(), Self::Error> {
         self.connect(
             Address::bits_7(address),
-            |mut connection: I2cConnection<u8>| connection.read_bytes_raw(buffer.iter_mut()),
+            |mut connection: I2cConnection<I, u8>| connection.read_bytes_raw(buffer.iter_mut()),
         )
     }
 }
 
-impl<'a> embedded_hal::blocking::i2c::Write for I2C<'a> {
+impl<I: I2cTrait> embedded_hal::blocking::i2c::Write for I2C<I> {
     type Error = Error;
 
     fn write(&mut self, address: u8, bytes: &[u8]) -> Result<(), Self::Error> {
         self.connect(
             Address::bits_7(address),
-            |mut connection: I2cConnection<u8>| connection.write_bytes(bytes.iter().map(|b| *b)),
+            |mut connection: I2cConnection<I, u8>| connection.write_bytes(bytes.iter().map(|b| *b)),
         )
     }
 }
 
-impl<'a> embedded_hal::blocking::i2c::WriteRead for I2C<'a> {
+impl<I: I2cTrait> embedded_hal::blocking::i2c::WriteRead for I2C<I> {
     type Error = Error;
 
     fn write_read(
@@ -417,7 +425,7 @@ impl<'a> embedded_hal::blocking::i2c::WriteRead for I2C<'a> {
     ) -> Result<(), Self::Error> {
         self.connect(
             Address::bits_7(address),
-            |mut connection: I2cConnection<u8>| {
+            |mut connection: I2cConnection<I, u8>| {
                 connection.write_bytes(bytes.iter().map(|b| *b))?;
                 connection.read_bytes_raw(buffer.iter_mut())
             },
@@ -426,12 +434,7 @@ impl<'a> embedded_hal::blocking::i2c::WriteRead for I2C<'a> {
 }
 
 /// Initialize the I2C bus and return an `I2C` type.
-///
-/// The IC2 type assumes that it has ownership of the I2C buffer. Therefore it is unsafe to access
-/// the passed RegisterBlock as long as the I2C lives. (This function should take a
-/// `&mut RegisterBlock`, but this is not possible due to the API that svd2rust generates. See
-/// [stm32f7-discovery#72](https://github.com/embed-rs/stm32f7-discovery/issues/72) for more info.
-pub fn init<'a>(i2c: &'a RegisterBlock, rcc: &mut RCC) -> I2C<'a> {
+pub fn init<I: I2cTrait>(i2c: I, rcc: &mut RCC) -> I2C<I> {
     // enable clocks
     rcc.apb1enr.modify(|_, w| w.i2c3en().enabled());
 

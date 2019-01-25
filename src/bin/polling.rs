@@ -32,7 +32,7 @@ use smoltcp::{
     wire::{EthernetAddress, IpEndpoint, Ipv4Address, IpCidr},
     dhcp::Dhcpv4Client,
 };
-use stm32f7::stm32f7x6::{CorePeripherals, Interrupt, Peripherals};
+use stm32f7::stm32f7x6::{self as device, CorePeripherals, Interrupt, Peripherals};
 use stm32f7_discovery::{
     ethernet,
     gpio::{GpioPort, InputPin, OutputPin},
@@ -111,7 +111,7 @@ fn main() -> ! {
 
     let _xs = vec![1, 2, 3];
 
-    let mut i2c_3 = init::init_i2c_3(&peripherals.I2C3, &mut rcc);
+    let mut i2c_3 = init::init_i2c_3(peripherals.I2C3, &mut rcc);
     i2c_3.test_1();
     i2c_3.test_2();
 
