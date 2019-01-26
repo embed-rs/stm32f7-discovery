@@ -32,7 +32,7 @@ use smoltcp::{
     wire::{EthernetAddress, IpEndpoint, Ipv4Address, IpCidr},
     dhcp::Dhcpv4Client,
 };
-use stm32f7::stm32f7x6::{self as device, CorePeripherals, Interrupt, Peripherals};
+use stm32f7::stm32f7x6::{CorePeripherals, Interrupt, Peripherals};
 use stm32f7_discovery::{
     ethernet,
     gpio::{GpioPort, InputPin, OutputPin},

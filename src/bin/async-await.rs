@@ -34,11 +34,10 @@ use rt::{entry, exception, ExceptionFrame};
 use sh::hio::{self, HStdout};
 use smoltcp::{
     socket::{
-        Socket, SocketSet, TcpSocket, TcpSocketBuffer, UdpPacketMetadata, UdpSocket,
-        UdpSocketBuffer, IcmpSocket, IcmpEndpoint,
+        Socket, TcpSocket, TcpSocketBuffer, UdpPacketMetadata, UdpSocket, UdpSocketBuffer,
     },
     time::Instant,
-    wire::{EthernetAddress, IpAddress, IpEndpoint, Ipv4Address},
+    wire::{EthernetAddress, IpEndpoint},
 };
 use stm32f7::stm32f7x6::{
     CorePeripherals, Interrupt, Peripherals, ETHERNET_DMA, ETHERNET_MAC, RCC, SAI2, SYSCFG,
@@ -492,8 +491,8 @@ where
     }
 
     async fn run(mut self) {
-        use smoltcp::wire::{EthernetAddress, Ipv4Address, IpCidr};
-        use smoltcp::socket::{SocketSet, RawSocketBuffer, RawPacketMetadata, IcmpSocketBuffer, IcmpPacketMetadata};
+        use smoltcp::wire::{Ipv4Address, IpCidr};
+        use smoltcp::socket::{SocketSet, RawSocketBuffer, RawPacketMetadata};
         use smoltcp::dhcp::Dhcpv4Client;
 
         let mut ethernet_interface = ethernet::EthernetDevice::new(
