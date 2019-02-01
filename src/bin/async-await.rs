@@ -550,7 +550,7 @@ where
                 .unwrap_or_else(|e| println!("DHCP: {:?}", e));
             let ip_addr = iface.ipv4_addr().unwrap();
             if ip_addr != prev_ip_addr {
-                println!("Assigned a new IPv4 address: {}", ip_addr);
+                println!("\nAssigned a new IPv4 address: {}", ip_addr);
                 iface.routes_mut().update(|routes_map| {
                     routes_map
                         .get(&IpCidr::new(Ipv4Address::UNSPECIFIED.into(), 0))
