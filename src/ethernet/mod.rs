@@ -89,9 +89,7 @@ impl<'d> EthernetDevice<'d> {
         })
     }
 
-    pub fn into_interface<'a>(
-        self
-    ) -> EthernetInterface<'a, 'a, 'a, Self> {
+    pub fn into_interface<'a>(self) -> EthernetInterface<'a, 'a, 'a, Self> {
         use alloc::collections::BTreeMap;
         use smoltcp::iface::NeighborCache;
 

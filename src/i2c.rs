@@ -4,15 +4,9 @@ use core::iter::TrustedLen;
 use core::marker::PhantomData;
 use core::ops::Deref;
 use embedded_hal;
-use stm32f7::stm32f7x6::{
-    i2c1,
-    RCC,
-    self as device,
-};
+use stm32f7::stm32f7x6::{self as device, i2c1, RCC};
 
-pub trait I2cTrait: Deref<Target = i2c1::RegisterBlock> {
-
-}
+pub trait I2cTrait: Deref<Target = i2c1::RegisterBlock> {}
 
 impl I2cTrait for device::I2C1 {}
 impl I2cTrait for device::I2C2 {}
