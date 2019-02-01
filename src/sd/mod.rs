@@ -2,6 +2,8 @@
 //!
 //! **This module is currently untested!**
 
+#![allow(missing_docs)]
+
 pub use self::init::{de_init, init};
 
 pub mod error;

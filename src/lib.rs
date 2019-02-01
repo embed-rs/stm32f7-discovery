@@ -19,6 +19,7 @@
 #![feature(never_type)]
 #![feature(generators)]
 #![feature(async_await)]
+#![warn(missing_docs)]
 
 #[macro_use]
 extern crate alloc;
