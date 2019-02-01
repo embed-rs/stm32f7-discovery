@@ -1,7 +1,9 @@
 use self::pin_wrapper::PortPins;
 use crate::gpio::{
-    AlternateFunction, GpioPort, InputPin, OutputPin, OutputSpeed, OutputType, RegisterBlockA,
-    RegisterBlockB, RegisterBlockD, Resistor,
+    AlternateFunction, GpioPort, InputPin, OutputPin, OutputSpeed, OutputType, Resistor,
+};
+use stm32f7::stm32f7x6::{
+    GPIOA, GPIOB, GPIOC, GPIOD, GPIOE, GPIOF, GPIOG, GPIOH, GPIOI, GPIOJ, GPIOK,
 };
 
 /// This struct contains special PIO pins.
@@ -34,17 +36,17 @@ pub struct Pins<
 /// This function uses Rust's ownership mechanism internally to report duplicate mappings
 /// at compile time.
 pub fn init<'a>(
-    mut gpio_a: GpioPort<RegisterBlockA<'a>>,
-    mut gpio_b: GpioPort<RegisterBlockB<'a>>,
-    mut gpio_c: GpioPort<RegisterBlockD<'a>>,
-    mut gpio_d: GpioPort<RegisterBlockD<'a>>,
-    mut gpio_e: GpioPort<RegisterBlockD<'a>>,
-    mut gpio_f: GpioPort<RegisterBlockD<'a>>,
-    mut gpio_g: GpioPort<RegisterBlockD<'a>>,
-    mut gpio_h: GpioPort<RegisterBlockD<'a>>,
-    mut gpio_i: GpioPort<RegisterBlockD<'a>>,
-    mut gpio_j: GpioPort<RegisterBlockD<'a>>,
-    mut gpio_k: GpioPort<RegisterBlockD<'a>>,
+    mut gpio_a: GpioPort<GPIOA>,
+    mut gpio_b: GpioPort<GPIOB>,
+    mut gpio_c: GpioPort<GPIOC>,
+    mut gpio_d: GpioPort<GPIOD>,
+    mut gpio_e: GpioPort<GPIOE>,
+    mut gpio_f: GpioPort<GPIOF>,
+    mut gpio_g: GpioPort<GPIOG>,
+    mut gpio_h: GpioPort<GPIOH>,
+    mut gpio_i: GpioPort<GPIOI>,
+    mut gpio_j: GpioPort<GPIOJ>,
+    mut gpio_k: GpioPort<GPIOK>,
 ) -> Pins<
     impl OutputPin + 'a,
     impl InputPin + 'a,

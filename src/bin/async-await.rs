@@ -91,17 +91,17 @@ fn run() -> ! {
     init::enable_gpio_ports(&mut rcc);
     init::enable_syscfg(&mut rcc);
 
-    let gpio_a = GpioPort::new_a(&peripherals.GPIOA);
-    let gpio_b = GpioPort::new_b(&peripherals.GPIOB);
-    let gpio_c = GpioPort::new(&peripherals.GPIOC);
-    let gpio_d = GpioPort::new(&peripherals.GPIOD);
-    let gpio_e = GpioPort::new(&peripherals.GPIOE);
-    let gpio_f = GpioPort::new(&peripherals.GPIOF);
-    let gpio_g = GpioPort::new(&peripherals.GPIOG);
-    let gpio_h = GpioPort::new(&peripherals.GPIOH);
-    let gpio_i = GpioPort::new(&peripherals.GPIOI);
-    let gpio_j = GpioPort::new(&peripherals.GPIOJ);
-    let gpio_k = GpioPort::new(&peripherals.GPIOK);
+    let gpio_a = GpioPort::new(peripherals.GPIOA);
+    let gpio_b = GpioPort::new(peripherals.GPIOB);
+    let gpio_c = GpioPort::new(peripherals.GPIOC);
+    let gpio_d = GpioPort::new(peripherals.GPIOD);
+    let gpio_e = GpioPort::new(peripherals.GPIOE);
+    let gpio_f = GpioPort::new(peripherals.GPIOF);
+    let gpio_g = GpioPort::new(peripherals.GPIOG);
+    let gpio_h = GpioPort::new(peripherals.GPIOH);
+    let gpio_i = GpioPort::new(peripherals.GPIOI);
+    let gpio_j = GpioPort::new(peripherals.GPIOJ);
+    let gpio_k = GpioPort::new(peripherals.GPIOK);
     let mut pins = init::pins(
         gpio_a, gpio_b, gpio_c, gpio_d, gpio_e, gpio_f, gpio_g, gpio_h, gpio_i, gpio_j, gpio_k,
     );
