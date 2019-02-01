@@ -1,3 +1,5 @@
+//! Provides abstractions for the ethernet device.
+
 pub use init::PhyError;
 
 use alloc::boxed::Box;
@@ -16,8 +18,12 @@ mod phy;
 mod rx;
 mod tx;
 
+/// The maximum transmission unit.
 pub const MTU: usize = 1536;
 
+/// Represents an ethernet device that allows sending and receiving packets.
+///
+/// This struct implements the [smoltcp::phy::Device] trait.
 pub struct EthernetDevice<'d> {
     rx: RxDevice,
     tx: TxDevice,
@@ -26,6 +32,16 @@ pub struct EthernetDevice<'d> {
 }
 
 impl<'d> EthernetDevice<'d> {
+    /// Creates and initializes a new `EthernetDevice`.
+    ///
+    /// This function takes the following parameters:
+    ///
+    /// - `rx_config` and `tx_config` for configuring the receive and transmission buffers.
+    /// - References to the `RCC`, `SYSCFG` and `ETHERNET_MAC` register blocks used for
+    ///   initializing the device.
+    /// - A reference to the `ETHERNET_DMA` register. This reference determines the lifetime
+    ///   of the resulting EthernetDevice.
+    /// - The `EthernetAddress` that should be used for the interface.
     pub fn new(
         rx_config: RxConfig,
         tx_config: TxConfig,
@@ -68,6 +84,7 @@ impl<'d> EthernetDevice<'d> {
         })
     }
 
+    /// Transforms the ethernet device into a smoltcp ethernet network interface.
     pub fn into_interface<'a>(self) -> EthernetInterface<'a, 'a, 'a, Self> {
         use alloc::collections::BTreeMap;
         use smoltcp::iface::NeighborCache;
@@ -127,6 +144,9 @@ impl<'a, 'd> Device<'a> for EthernetDevice<'d> {
     }
 }
 
+/// A token that allows receiving a single packet.
+///
+/// Used in the [Device] trait.
 pub struct RxToken<'a> {
     rx: &'a mut RxDevice,
 }
@@ -143,6 +163,9 @@ impl<'a> ::smoltcp::phy::RxToken for RxToken<'a> {
     }
 }
 
+/// A token that allows tranmitting a single packet.
+///
+/// Used in the [Device] trait.
 pub struct TxToken<'a> {
     tx: &'a mut TxDevice,
     ethernet_dma: &'a mut ETHERNET_DMA,
@@ -182,15 +205,26 @@ impl<'a> TxToken<'a> {
     }
 }
 
+/// An error that occurred while receiving a packet.
 #[derive(Debug, PartialEq, Eq)]
 pub enum ReceiveError {
+    /// A cyclic redundancy check (CRC) error occurred on the received frame.
     Crc,
+    /// The RX_ERR signal was asserted while RX_DV was asserted during frame reception.
     Receive,
+    /// The Receive watchdog timer has expired while receiving the current frame.
     WatchdogTimeout,
+    /// A late collision has occurred while receiving the frame in half-duplex mode.
     LateCollision,
+    /// This error depends on the configuration and can also be a IPv4/IPv6 header checksum
+    /// error. TODO: Figure out which error variant we use.
     GiantFrame,
+    /// The received frame was damaged due to buffer overflow.
     Overflow,
+    /// Indicates a frame truncation caused by a frame that does not fit within the current
+    /// descriptor buffers
     Descriptor,
+    /// An error occurred while processing the packet.
     Processing(::smoltcp::Error),
 }
 
@@ -377,6 +411,7 @@ impl TxDevice {
     }
 }
 
+/// Configures the package reception buffer.
 pub struct RxConfig {
     buffer_size: usize,
     number_of_descriptors: usize,
@@ -410,6 +445,7 @@ impl Default for RxConfig {
     }
 }
 
+/// Configures the package transmission buffer.
 pub struct TxConfig {
     number_of_descriptors: usize,
 }

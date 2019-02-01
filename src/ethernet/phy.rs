@@ -14,9 +14,12 @@ const AUTONEGOTIATION_RESTART: u16 = 1 << 9;
 
 const TIMEOUT_MS: usize = 5000;
 
+/// Errors that can happen during initialization of the PHY.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
+    /// Timeout while waiting for ethernet link.
     LinkTimeout,
+    /// Timeout while waiting for auto negotiation.
     AutoNegotiationTimeout,
 }
 
