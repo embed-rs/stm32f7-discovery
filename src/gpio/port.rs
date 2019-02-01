@@ -1,9 +1,12 @@
 use super::*;
 use core::marker::PhantomData;
-use stm32f7::stm32f7x6::{gpioa, gpiob, gpiod};
+use stm32f7::stm32f7x6::{
+    gpioa, gpiob, gpiod, GPIOA, GPIOB, GPIOC, GPIOD, GPIOE, GPIOF, GPIOG, GPIOH, GPIOI, GPIOJ,
+    GPIOK,
+};
 
 /// Abstraction for a GPIO port that allows safe configuration of the port's pins.
-pub struct GpioPort<T> {
+pub struct GpioPort<T: RegisterBlockTrait> {
     pub(super) pin_in_use: [bool; 16],
     register_block: T,
 }
@@ -15,124 +18,25 @@ pub enum Error {
     PinAlreadyInUse(PinNumber),
 }
 
-/// A generic struct representing a hardware GPIO register block.
-///
-/// This struct is needed because the GPIO A, GPIO B, and the other GPIO ports have slight
-/// differences in their reset values so that the SVD file and svd2rust use different types
-/// for them.
-pub struct RegisterBlock<'a, I: 'a, O: 'a, M: 'a, P: 'a, B: 'a, T: 'a, S: 'a, AH: 'a, AL: 'a> {
-    idr: &'a I,
-    odr: &'a O,
-    moder: &'a M,
-    pupdr: &'a P,
-    bsrr: &'a B,
-    otyper: &'a T,
-    ospeedr: &'a S,
-    afrh: &'a AH,
-    afrl: &'a AL,
-}
-
-/// An instantiation of the generic `RegisterBlock` for GPIO port A.
-pub type RegisterBlockA<'a> = RegisterBlock<
-    'a,
-    gpioa::IDR,
-    gpioa::ODR,
-    gpioa::MODER,
-    gpioa::PUPDR,
-    gpioa::BSRR,
-    gpioa::OTYPER,
-    gpioa::OSPEEDR,
-    gpioa::AFRH,
-    gpioa::AFRL,
->;
-
-/// An instantiation of the generic `RegisterBlock` for GPIO port B.
-pub type RegisterBlockB<'a> = RegisterBlock<
-    'a,
-    gpiob::IDR,
-    gpiob::ODR,
-    gpiob::MODER,
-    gpiob::PUPDR,
-    gpiob::BSRR,
-    gpiob::OTYPER,
-    gpiob::OSPEEDR,
-    gpiob::AFRH,
-    gpiob::AFRL,
->;
-
-/// An instantiation of the generic `RegisterBlock` for the remaining GPIO ports.
-pub type RegisterBlockD<'a> = RegisterBlock<
-    'a,
-    gpiod::IDR,
-    gpiod::ODR,
-    gpiod::MODER,
-    gpiod::PUPDR,
-    gpiod::BSRR,
-    gpiod::OTYPER,
-    gpiod::OSPEEDR,
-    gpiod::AFRH,
-    gpiod::AFRL,
->;
-
-macro_rules! new_gpio_port {
-    ($register_block:expr) => {
-        GpioPort {
-            pin_in_use: [false; 16],
-            register_block: RegisterBlock {
-                idr: &$register_block.idr,
-                odr: &$register_block.odr,
-                moder: &$register_block.moder,
-                pupdr: &$register_block.pupdr,
-                bsrr: &$register_block.bsrr,
-                otyper: &$register_block.otyper,
-                ospeedr: &$register_block.ospeedr,
-                afrh: &$register_block.afrh,
-                afrl: &$register_block.afrl,
-            },
-        }
-    };
-}
-
-impl<'a> GpioPort<RegisterBlockA<'a>> {
-    /// Create a new `RegisterBlockA` from the hardware register block.
-    pub fn new_a(register_block: &'a gpioa::RegisterBlock) -> Self {
-        new_gpio_port!(register_block)
-    }
-}
-
-impl<'a> GpioPort<RegisterBlockB<'a>> {
-    /// Create a new `RegisterBlockB` from the hardware register block.
-    pub fn new_b(register_block: &'a gpiob::RegisterBlock) -> Self {
-        new_gpio_port!(register_block)
-    }
-}
-
-impl<'a> GpioPort<RegisterBlockD<'a>> {
-    /// Create a new `RegisterBlockD` from the hardware register block.
-    pub fn new(register_block: &'a gpiod::RegisterBlock) -> Self {
-        new_gpio_port!(register_block)
-    }
-}
-
 /// This trait allows generic functions that work on all three register block types.
-pub trait RegisterBlockTrait<'a> {
+pub trait RegisterBlockTrait {
     /// The IDR (input data register) type, returned by the `idr` function.
-    type Idr: IdrTrait + 'a;
+    type Idr: IdrTrait + 'static;
 
     /// The ODR (output data register) type, returned by the `odr` function.
-    type Odr: OdrTrait + 'a;
+    type Odr: OdrTrait + 'static;
 
     /// The BSRR (bit set and reset register) type, returned by the `bsrr` function.
-    type Bsrr: BsrrTrait + 'a;
+    type Bsrr: BsrrTrait + 'static;
 
-    /// Returns a reference to the input data register.
-    fn idr(&self) -> &'a Self::Idr;
+    /// Returns a static reference to the input data register.
+    fn idr(&self) -> &'static Self::Idr;
 
-    /// Returns a reference to the output data register.
-    fn odr(&self) -> &'a Self::Odr;
+    /// Returns a static reference to the output data register.
+    fn odr(&self) -> &'static Self::Odr;
 
-    /// Returns a reference to the bit set and reset register.
-    fn bsrr(&self) -> &'a Self::Bsrr;
+    /// Returns a static reference to the bit set and reset register.
+    fn bsrr(&self) -> &'static Self::Bsrr;
 
     /// Set the mode register for the specified pins to the given `Mode`.
     fn set_mode(&mut self, pins: &[PinNumber], mode: Mode);
@@ -150,13 +54,17 @@ pub trait RegisterBlockTrait<'a> {
     fn set_alternate_fn(&mut self, pins: &[PinNumber], alternate_fn: AlternateFunction);
 }
 
-impl<'a, T: RegisterBlockTrait<'a>> GpioPort<T> {
+impl<T: RegisterBlockTrait> GpioPort<T> {
+    /// Create a new GPIO port from the passed register block.
+    pub fn new(register_block: T) -> Self {
+        Self {
+            register_block,
+            pin_in_use: [false; 16],
+        }
+    }
+
     /// Initialize the specified pin as an input pin.
-    pub fn to_input(
-        &mut self,
-        pin: PinNumber,
-        resistor: Resistor,
-    ) -> Result<impl InputPin + 'a, Error> {
+    pub fn to_input(&mut self, pin: PinNumber, resistor: Resistor) -> Result<impl InputPin, Error> {
         self.use_pin(pin)?;
 
         self.register_block.set_mode(&[pin], Mode::Input);
@@ -175,7 +83,7 @@ impl<'a, T: RegisterBlockTrait<'a>> GpioPort<T> {
         out_type: OutputType,
         out_speed: OutputSpeed,
         resistor: Resistor,
-    ) -> Result<impl OutputPin + 'a, Error> {
+    ) -> Result<impl OutputPin, Error> {
         self.use_pin(pin)?;
 
         self.register_block.set_mode(&[pin], Mode::Output);
@@ -256,21 +164,21 @@ impl<'a, T: RegisterBlockTrait<'a>> GpioPort<T> {
 
 macro_rules! impl_register_block_trait {
     ($register_block:tt, $gpio:tt) => {
-        impl<'a> RegisterBlockTrait<'a> for $register_block<'a> {
+        impl RegisterBlockTrait for $register_block {
             type Idr = $gpio::IDR;
             type Odr = $gpio::ODR;
             type Bsrr = $gpio::BSRR;
 
-            fn idr(&self) -> &'a Self::Idr {
-                self.idr
+            fn idr(&self) -> &'static Self::Idr {
+                &unsafe { &*Self::ptr() }.idr
             }
 
-            fn odr(&self) -> &'a Self::Odr {
-                self.odr
+            fn odr(&self) -> &'static Self::Odr {
+                &unsafe { &*Self::ptr() }.odr
             }
 
-            fn bsrr(&self) -> &'a Self::Bsrr {
-                self.bsrr
+            fn bsrr(&self) -> &'static Self::Bsrr {
+                &unsafe { &*Self::ptr() }.bsrr
             }
 
             fn set_mode(&mut self, pins: &[PinNumber], mode: Mode) {
@@ -501,6 +409,14 @@ macro_rules! impl_register_block_trait {
     };
 }
 
-impl_register_block_trait!(RegisterBlockA, gpioa);
-impl_register_block_trait!(RegisterBlockB, gpiob);
-impl_register_block_trait!(RegisterBlockD, gpiod);
+impl_register_block_trait!(GPIOA, gpioa);
+impl_register_block_trait!(GPIOB, gpiob);
+impl_register_block_trait!(GPIOC, gpiod);
+impl_register_block_trait!(GPIOD, gpiod);
+impl_register_block_trait!(GPIOE, gpiod);
+impl_register_block_trait!(GPIOF, gpiod);
+impl_register_block_trait!(GPIOG, gpiod);
+impl_register_block_trait!(GPIOH, gpiod);
+impl_register_block_trait!(GPIOI, gpiod);
+impl_register_block_trait!(GPIOJ, gpiod);
+impl_register_block_trait!(GPIOK, gpiod);
