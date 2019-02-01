@@ -1,6 +1,5 @@
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use core::fmt;
 
 use stm32f7::stm32f7x6::{ETHERNET_DMA, ETHERNET_MAC, RCC, SYSCFG};
 use volatile::Volatile;
@@ -200,29 +199,6 @@ impl<'a> TxToken<'a> {
         } else {
             panic!("unexpected transmit process state");
         }
-    }
-}
-
-pub struct PortInUse<F> {
-    pub tcp: bool,
-    pub port: u16,
-    pub f: F,
-}
-
-impl<F> PortInUse<F> {
-    pub fn new(tcp: bool, port: u16, f: F) -> PortInUse<F> {
-        PortInUse { tcp, port, f }
-    }
-}
-
-impl<F> fmt::Debug for PortInUse<F> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(
-            f,
-            "{} port {} already in use",
-            if self.tcp { "TCP" } else { "UDP" },
-            self.port
-        )
     }
 }
 
