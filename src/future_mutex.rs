@@ -19,9 +19,9 @@ impl<T> FutureMutex<T> {
 }
 
 impl<T> FutureMutex<T> {
-    pub fn with<'a, R, F>(&'a self, f: F) -> FutureMutexResult<'a, T, R, F>
+    pub fn with<'a, R, F>(&'a self, f: F) -> impl Future<Output = R> + 'a
     where
-        F: FnOnce(&mut T) -> R + 'a,
+        F: FnOnce(&mut T) -> R + Unpin + 'a,
         R: 'a,
     {
         FutureMutexResult {
@@ -33,7 +33,7 @@ impl<T> FutureMutex<T> {
 }
 
 #[must_use = "futures do nothing unless polled"]
-pub struct FutureMutexResult<'a, T, R, F>
+struct FutureMutexResult<'a, T, R, F>
 where
     F: FnOnce(&mut T) -> R,
 {
