@@ -1,3 +1,5 @@
+pub use init::PhyError;
+
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
@@ -13,28 +15,6 @@ mod init;
 mod phy;
 mod rx;
 mod tx;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Error {
-    Exhausted,
-    Checksum,
-    Truncated,
-    NoIp,
-    Unknown,
-    Initialization(init::Error),
-}
-
-impl From<init::Error> for Error {
-    fn from(err: init::Error) -> Error {
-        Error::Initialization(err)
-    }
-}
-
-impl From<()> for Error {
-    fn from(_: ()) -> Error {
-        Error::Unknown
-    }
-}
 
 pub const MTU: usize = 1536;
 
@@ -54,7 +34,7 @@ impl<'d> EthernetDevice<'d> {
         ethernet_mac: &mut ETHERNET_MAC,
         ethernet_dma: &'d mut ETHERNET_DMA,
         ethernet_address: EthernetAddress,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self, PhyError> {
         use byteorder::{ByteOrder, LittleEndian};
 
         init::init(rcc, syscfg, ethernet_mac, ethernet_dma)?;
@@ -222,7 +202,7 @@ struct RxDevice {
 }
 
 impl RxDevice {
-    fn new(config: RxConfig) -> Result<RxDevice, init::Error> {
+    fn new(config: RxConfig) -> Result<RxDevice, PhyError> {
         use self::rx::RxDescriptor;
 
         let buffer = vec![0; config.buffer_size].into_boxed_slice();

@@ -1,24 +1,15 @@
+pub use phy::Error as PhyError;
+
 use super::phy;
 use crate::system_clock;
 use stm32f7::stm32f7x6::{ETHERNET_DMA, ETHERNET_MAC, RCC, SYSCFG};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Error {
-    PhyError(phy::Error),
-}
-
-impl From<phy::Error> for Error {
-    fn from(err: phy::Error) -> Error {
-        Error::PhyError(err)
-    }
-}
 
 pub fn init(
     rcc: &mut RCC,
     syscfg: &mut SYSCFG,
     ethernet_mac: &mut ETHERNET_MAC,
     ethernet_dma: &mut ETHERNET_DMA,
-) -> Result<(), Error> {
+) -> Result<(), PhyError> {
     // TODO delay after writes?
 
     // enable syscfg clock
