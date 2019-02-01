@@ -80,9 +80,9 @@ fn run() -> ! {
     let mut sai_2 = peripherals.SAI2;
     let mut rng = peripherals.RNG;
     let mut sdmmc = peripherals.SDMMC1;
-    let mut syscfg = peripherals.SYSCFG;
-    let mut ethernet_mac = peripherals.ETHERNET_MAC;
-    let mut ethernet_dma = peripherals.ETHERNET_DMA;
+    let syscfg = peripherals.SYSCFG;
+    let ethernet_mac = peripherals.ETHERNET_MAC;
+    let ethernet_dma = peripherals.ETHERNET_DMA;
     let mut nvic_stir = peripherals.NVIC_STIR;
     let mut tim6 = peripherals.TIM6;
     let exti = peripherals.EXTI;
@@ -139,7 +139,8 @@ fn run() -> ! {
     // TODO: is this needed?
     nvic.enable(Interrupt::EXTI0);
 
-    let mut sd = sd::Sd::new(&mut sdmmc, &mut rcc, &pins.sdcard_present);
+    // TODO: do something with this type
+    let _sd = sd::Sd::new(&mut sdmmc, &mut rcc, &pins.sdcard_present);
 
     // audio initialization
     init::init_sai_2(&mut sai_2, &mut rcc);
@@ -493,7 +494,7 @@ where
         use smoltcp::socket::{RawPacketMetadata, RawSocketBuffer, SocketSet};
         use smoltcp::wire::{IpCidr, Ipv4Address};
 
-        let mut ethernet_interface = ethernet::EthernetDevice::new(
+        let ethernet_interface = ethernet::EthernetDevice::new(
             Default::default(),
             Default::default(),
             &mut self.rcc,
