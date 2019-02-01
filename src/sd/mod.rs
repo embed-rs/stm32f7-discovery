@@ -393,21 +393,32 @@ impl<'a, PresentPin: InputPin> Sd<'a, PresentPin> {
     }
 }
 
+/// Different SD card versions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CardType {
-    SDv1,   // SD version 1, always Standard Capacity (SD)
-    SDv2SC, // SD version 2 with SD (up to 2 GB)
-    SDv2HC, // SD version 2 with High Capacity (HC) (up to 32 GB) or Extended Capacity (XC) (up to 2 TB)
+    /// SD version 1, always Standard Capacity (SD)
+    SDv1,
+    /// SD version 2 with SD (up to 2 GB)
+    SDv2SC,
+    /// SD version 2 with High Capacity (HC) (up to 32 GB) or Extended Capacity (XC) (up to 2 TB)
+    SDv2HC,
 }
 
+/// Various information about the SD card.
 #[derive(Debug)]
 pub struct CardInfo {
+    /// The type of the card.
     card_type: CardType,
-    rca: u16,            // Relative Card Address
-    blk_number: u32,     // Number of physical blocks
-    blk_size: u32,       // Physical block size
-    log_blk_number: u32, // Number of logical blocks
-    log_blk_size: u32,   // Logical block size
+    /// Relative Card Address
+    rca: u16,
+    /// Number of physical blocks
+    blk_number: u32,
+    /// Physical block size
+    blk_size: u32,
+    /// Number of logical blocks
+    log_blk_number: u32,
+    /// Logical block size
+    log_blk_size: u32,
 }
 
 impl Default for CardInfo {

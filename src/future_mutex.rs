@@ -1,15 +1,19 @@
+//! Provides a non-blocking Mutex based on Futures.
+
 use crate::mpsc_queue::{PopResult, Queue};
 use alloc::task::LocalWaker;
 use core::{future::Future, mem, pin::Pin};
 use futures::task::Poll;
 use spin::Mutex;
 
+/// A Mutex that yields instead of blocking.
 pub struct FutureMutex<T> {
     mutex: Mutex<T>,
     waker_queue: Queue<LocalWaker>,
 }
 
 impl<T> FutureMutex<T> {
+    /// Creates a new Mutex wrapping the given data.
     pub fn new(user_data: T) -> Self {
         FutureMutex {
             mutex: Mutex::new(user_data),
@@ -19,6 +23,7 @@ impl<T> FutureMutex<T> {
 }
 
 impl<T> FutureMutex<T> {
+    /// Lock the mutex and execute the passed closure on the data.
     pub fn with<'a, R, F>(&'a self, f: F) -> impl Future<Output = R> + 'a
     where
         F: FnOnce(&mut T) -> R + Unpin + 'a,

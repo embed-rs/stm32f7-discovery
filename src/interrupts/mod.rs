@@ -28,6 +28,7 @@ use stm32f7::stm32f7x6::{NVIC, NVIC_STIR};
 
 pub mod primask_mutex;
 
+/// The default interrupt handler that is called for all uncaught IRQs.
 #[exception]
 fn DefaultHandler(irqn: i16) {
     if irqn < 0 {

@@ -6,6 +6,9 @@ use core::ops::Deref;
 use embedded_hal;
 use stm32f7::stm32f7x6::{self as device, i2c1, RCC};
 
+/// This trait marks all valid I2C types. Used to provide generic interfaces.
+///
+/// TODO: replace by trait alias when they're fully implemented
 pub trait I2cTrait: Deref<Target = i2c1::RegisterBlock> {}
 
 impl I2cTrait for device::I2C1 {}

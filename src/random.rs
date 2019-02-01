@@ -40,11 +40,20 @@ pub struct Rng<'a> {
 /// struct again.
 #[derive(Debug)]
 pub enum ErrorType {
-    CECS,
-    SECS,
-    CEIS,
-    SEIS,
+    /// The RNG_CLK was not correctly detected.
+    ClockError,
+    /// One of the following faulty sequences has been detected:
+    ///
+    /// - More than 64 consecutive bits at the same value (0 or 1)
+    /// - More than 32 consecutive alternations of 0 and 1 (0101010101...01)
+    SeedError,
+    /// This bit is set at the same time as ClockError.
+    ClockErrorInterrupt,
+    /// This bit is set at the same time as SeedError.
+    SeedErrorInterrupt,
+    /// The RNG was already enabled.
     AlreadyEnabled,
+    /// The RNG has no random data available yet.
     NotReady,
 }
 
@@ -85,19 +94,19 @@ impl<'a> Rng<'a> {
 
         if status.ceis().bit_is_set() {
             self.reset();
-            return Err(ErrorType::CEIS);
+            return Err(ErrorType::ClockErrorInterrupt);
         }
         if status.seis().bit_is_set() {
             self.reset();
-            return Err(ErrorType::SEIS);
+            return Err(ErrorType::SeedErrorInterrupt);
         }
 
         if status.cecs().bit_is_set() {
-            return Err(ErrorType::CECS);
+            return Err(ErrorType::ClockError);
         }
         if status.secs().bit_is_set() {
             self.reset();
-            return Err(ErrorType::SECS);
+            return Err(ErrorType::SeedError);
         }
         if status.drdy().bit_is_set() {
             let data = self.board_rng.dr.read().rndata().bits();
@@ -116,6 +125,7 @@ impl<'a> Rng<'a> {
         Err(ErrorType::NotReady)
     }
 
+    /// Re-enable the RNG.
     pub fn reset(&mut self) {
         self.board_rng.cr.modify(|_, w| w.rngen().clear_bit());
         self.board_rng.cr.modify(|_, w| w.ie().clear_bit());
@@ -128,6 +138,7 @@ impl<'a> Rng<'a> {
         rcc.ahb2enr.modify(|_, w| w.rngen().clear_bit());
     }
 
+    /// Disable the RNG.
     pub fn disable(mut self, rcc: &mut RCC) {
         use core::mem;
         self.disable_cr(rcc);

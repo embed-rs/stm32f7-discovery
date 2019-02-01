@@ -23,7 +23,9 @@ pub fn check_family_id(i2c_3: &mut I2C<device::I2C3>) -> Result<(), i2c::Error> 
 #[derive(Debug, Clone, Copy)]
 /// Represents a touch point on the display at coordinates (x,y).
 pub struct Touch {
+    /// The x coordinate of the touch point (horizontal).
     pub x: u16,
+    /// The y coordinate of the touch point (vertical).
     pub y: u16,
 }
 

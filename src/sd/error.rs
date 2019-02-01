@@ -1,18 +1,27 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
-    Error,                            // Unknown Error
-    NoSdCard,                         // No SD Card
-    Timeout,                          // Timeout while waiting for a response
-    InvalidVoltrange,                 // Voltage Trial failed
-    CardError { t: CardStatusFlags }, // Card Error, see CardStatusFlags
-    SdmmcError { t: SdmmcErrorType }, // Response to a failed command
-    RWError { t: RWErrorType },       // Error during reading from/writing to the card
+    /// Unknown Error
+    Error,
+    /// No SD Card
+    NoSdCard,
+    /// Timeout while waiting for a response
+    Timeout,
+    /// Voltage Trial failed
+    InvalidVoltrange,
+    /// Card Error, see CardStatusFlags
+    CardError { t: CardStatusFlags },
+    /// Response to a failed command
+    SdmmcError { t: SdmmcErrorType },
+    /// Error during reading from/writing to the card
+    RWError { t: RWErrorType },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SdmmcErrorType {
-    CmdCrcFailed,   // CRC check failed
-    CmdRespTimeout, // No response to command
+    /// CRC check failed
+    CmdCrcFailed,
+    /// No response to command
+    CmdRespTimeout,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,14 +29,15 @@ pub enum RWErrorType {
     AddressOutOfRange,
     DataTimeout,
     DataCrcFailed,
-    TxUnderrun, // FIFO underrun
-    RxOverrun,  // FIFO overrun
+    /// FIFO underrun
+    TxUnderrun,
+    /// FIFO overrun
+    RxOverrun,
 }
 
-// See Documentation Table 207 and Table 228
 bitflags! {
+    /// See Documentation Table 207 and Table 228
     pub struct CardStatusFlags: u32 {
-        // Error bits
         const OCR_ERROR_BITS        = 0xFDFF_E008;
         const AKE_SEQ_ERROR         = 0x0000_0008;
         const ERASE_RESET           = 0x0000_2000;
