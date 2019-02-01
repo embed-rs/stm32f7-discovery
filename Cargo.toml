@@ -56,5 +56,5 @@ debug = true
 lto = true # better optimizations
 
 [patch.crates-io.cortex-m-rt]
-git = "https://github.com/phil-opp/cortex-m-rt.git"
-branch = "phil-opp-patch-1"
+# TODO: replace with crates.io version when new version is released
+git = "https://github.com/rust-embedded/cortex-m-rt.git"

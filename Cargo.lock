@@ -67,16 +67,16 @@ dependencies = [
 [[package]]
 name = "cortex-m-rt"
 version = "0.6.7"
-source = "git+https://github.com/phil-opp/cortex-m-rt.git?branch=phil-opp-patch-1#79bba49948aad6f50717f9f0a076ebd783c9aa29"
+source = "git+https://github.com/rust-embedded/cortex-m-rt.git#ba4520107996da4e169e83e58409870f7ec7dc00"
 dependencies = [
- "cortex-m-rt-macros 0.1.5 (git+https://github.com/phil-opp/cortex-m-rt.git?branch=phil-opp-patch-1)",
+ "cortex-m-rt-macros 0.1.5 (git+https://github.com/rust-embedded/cortex-m-rt.git)",
  "r0 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "cortex-m-rt-macros"
 version = "0.1.5"
-source = "git+https://github.com/phil-opp/cortex-m-rt.git?branch=phil-opp-patch-1#79bba49948aad6f50717f9f0a076ebd783c9aa29"
+source = "git+https://github.com/rust-embedded/cortex-m-rt.git#ba4520107996da4e169e83e58409870f7ec7dc00"
 dependencies = [
  "proc-macro2 0.4.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 0.6.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -293,7 +293,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bare-metal 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m 0.5.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "cortex-m-rt 0.6.7 (git+https://github.com/phil-opp/cortex-m-rt.git?branch=phil-opp-patch-1)",
+ "cortex-m-rt 0.6.7 (git+https://github.com/rust-embedded/cortex-m-rt.git)",
  "vcell 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -309,7 +309,7 @@ dependencies = [
  "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "core 0.1.0",
  "cortex-m 0.5.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "cortex-m-rt 0.6.7 (git+https://github.com/phil-opp/cortex-m-rt.git?branch=phil-opp-patch-1)",
+ "cortex-m-rt 0.6.7 (git+https://github.com/rust-embedded/cortex-m-rt.git)",
  "cortex-m-semihosting 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "embedded-hal 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "font8x8 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -374,8 +374,8 @@ dependencies = [
 "checksum byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "90492c5858dd7d2e78691cfb89f90d273a2800fc11d98f60786e5d87e2f83781"
 "checksum cortex-m 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "3df5de9a9829f2ccb7defa8945fa020c6614cd2f6ba9b5f33db9241dcc01985e"
 "checksum cortex-m 0.5.7 (registry+https://github.com/rust-lang/crates.io-index)" = "4573199c5b1e9b0eeae418b46f7c0af5fdf11b3057f83880810dfef68dd1dcb5"
-"checksum cortex-m-rt 0.6.7 (git+https://github.com/phil-opp/cortex-m-rt.git?branch=phil-opp-patch-1)" = "<none>"
-"checksum cortex-m-rt-macros 0.1.5 (git+https://github.com/phil-opp/cortex-m-rt.git?branch=phil-opp-patch-1)" = "<none>"
+"checksum cortex-m-rt 0.6.7 (git+https://github.com/rust-embedded/cortex-m-rt.git)" = "<none>"
+"checksum cortex-m-rt-macros 0.1.5 (git+https://github.com/rust-embedded/cortex-m-rt.git)" = "<none>"
 "checksum cortex-m-semihosting 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "54d46ec4730314a01de4504328ef4ed6b2c51b63815caac4847ac9e70f88c9e5"
 "checksum either 1.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3be565ca5c557d7f59e7cfcf1844f9e3033650c929c6566f511e8005f205c1d0"
 "checksum embedded-hal 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "26944677e4934eb5fb4025501dc0d6cdbcf6bfabd6200fcfee2e7e8eef8c0362"
