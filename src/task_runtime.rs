@@ -76,18 +76,18 @@ impl Executor {
                     woken_tasks: self.woken_tasks.clone(),
                 };
                 let poll_result = {
-                    let task = self.tasks.get_mut(&task_id).expect(&format!("task with id {:?} not found", task_id));
+                    let task = self.tasks.get_mut(&task_id).unwrap_or_else(|| panic!("task with id {:?} not found", task_id));
                     task.as_mut().poll(&waker.into_waker())
                 };
                 if poll_result.is_ready() {
-                    self.tasks.remove(&task_id).expect(&format!("Task {:?} not found", task_id));
+                    self.tasks.remove(&task_id).unwrap_or_else(|| panic!("Task {:?} not found", task_id));
                 }
             }
             PopResult::Empty => {}
             PopResult::Inconsistent => {} // println!("woken_tasks queue is inconsistent"),
         }
         if let Some(ref mut idle_task) = self.idle_task {
-            idle_task
+            let _ = idle_task
                 .as_mut()
                 .poll(&NoOpWaker.into_waker());
         };
