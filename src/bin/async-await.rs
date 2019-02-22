@@ -491,7 +491,7 @@ where
 
     async fn run(mut self) {
         use smoltcp::dhcp::Dhcpv4Client;
-        use smoltcp::socket::{RawPacketMetadata, RawSocketBuffer, SocketSet};
+        use smoltcp::socket::SocketSet;
         use smoltcp::wire::{IpCidr, Ipv4Address};
 
         let ethernet_interface = ethernet::EthernetDevice::new(

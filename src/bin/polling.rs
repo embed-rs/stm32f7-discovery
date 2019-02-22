@@ -20,13 +20,13 @@ use alloc_cortex_m::CortexMHeap;
 use core::alloc::Layout as AllocLayout;
 use core::fmt::Write;
 use core::panic::PanicInfo;
-use cortex_m::{asm, interrupt};
+use cortex_m::{asm, interrupt, peripheral::NVIC};
 use rt::{entry, exception, ExceptionFrame};
 use sh::hio::{self, HStdout};
 use smoltcp::{
     dhcp::Dhcpv4Client,
     socket::{
-        RawPacketMetadata, RawSocketBuffer, Socket, SocketSet, TcpSocket, TcpSocketBuffer,
+        Socket, SocketSet, TcpSocket, TcpSocketBuffer,
         UdpPacketMetadata, UdpSocket, UdpSocketBuffer,
     },
     time::Instant,
@@ -175,7 +175,7 @@ fn main() -> ! {
                 pins.led.toggle();
 
                 // trigger the `EXTI0` interrupt
-                nvic.set_pending(Interrupt::EXTI0);
+                NVIC::pend(Interrupt::EXTI0);
             }
 
             previous_button_state = current_button_state;
