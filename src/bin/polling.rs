@@ -156,14 +156,14 @@ fn main() -> ! {
     };
 
     let mut sockets = SocketSet::new(Vec::new());
-    let dhcp_rx_buffer = RawSocketBuffer::new([RawPacketMetadata::EMPTY; 1], vec![0; 1500]);
-    let dhcp_tx_buffer = RawSocketBuffer::new([RawPacketMetadata::EMPTY; 1], vec![0; 3000]);
+    let dhcp_rx_buffer = UdpSocketBuffer::new([UdpPacketMetadata::EMPTY; 1], vec![0; 1500]);
+    let dhcp_tx_buffer = UdpSocketBuffer::new([UdpPacketMetadata::EMPTY; 1], vec![0; 3000]);
     let mut dhcp = Dhcpv4Client::new(
         &mut sockets,
         dhcp_rx_buffer,
         dhcp_tx_buffer,
         Instant::from_millis(system_clock::ms() as i64),
-    );
+    ).expect("could not bind udp socket");
 
     let mut previous_button_state = pins.button.get();
     let mut audio_writer = AudioWriter::new();
@@ -216,8 +216,8 @@ fn main() -> ! {
                 }
             }
 
-            dhcp.poll(iface, &mut sockets, timestamp)
-                .unwrap_or_else(|e| println!("DHCP: {:?}", e));
+            let config = dhcp.poll(iface, &mut sockets, timestamp)
+                .unwrap_or_else(|e| { println!("DHCP: {:?}", e); None});
             let ip_addr = iface.ipv4_addr().unwrap();
             if ip_addr != *prev_ip_addr {
                 println!("\nAssigned a new IPv4 address: {}", ip_addr);
@@ -228,7 +228,7 @@ fn main() -> ! {
                             println!("Default gateway: {}", default_route.via_router);
                         });
                 });
-                for dns_server in dhcp.dns_servers() {
+                for dns_server in config.iter().flat_map(|c| c.dns_servers.iter()).filter_map(|x| x.as_ref()) {
                     println!("DNS servers: {}", dns_server);
                 }
 
