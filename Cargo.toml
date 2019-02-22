@@ -46,7 +46,7 @@ features = ["unicode"]
 
 [dependencies.futures-preview]
 git = "https://github.com/embed-rs/futures-rs.git"
-branch = "alloc"
+branch = "alloc-rebase"
 default-features = false
 features = ["alloc"]
 

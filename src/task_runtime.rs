@@ -5,7 +5,6 @@ use alloc::{
     collections::BTreeMap,
     prelude::*,
     sync::Arc,
-    task::{local_waker_from_nonlocal, LocalWaker, Wake},
 };
 use core::ops::{Add, AddAssign};
 use core::pin::Pin;
@@ -13,7 +12,7 @@ use futures::{
     channel::mpsc,
     future::{FutureObj, LocalFutureObj},
     prelude::*,
-    task::{LocalSpawn, Poll, Spawn, SpawnError},
+    task::{LocalSpawn, Poll, Spawn, SpawnError, Waker, RawWaker, RawWakerVTable},
 };
 
 /// An executor that schedules tasks round-robin, and executes an idle_task
@@ -78,7 +77,7 @@ impl Executor {
                 };
                 let poll_result = {
                     let task = self.tasks.get_mut(&task_id).expect(&format!("task with id {:?} not found", task_id));
-                    task.as_mut().poll(&local_waker_from_nonlocal(Arc::new(waker)))
+                    task.as_mut().poll(&waker.into_waker())
                 };
                 if poll_result.is_ready() {
                     self.tasks.remove(&task_id).expect(&format!("Task {:?} not found", task_id));
@@ -90,19 +89,38 @@ impl Executor {
         if let Some(ref mut idle_task) = self.idle_task {
             idle_task
                 .as_mut()
-                .poll(&local_waker_from_nonlocal(Arc::new(NoOpWaker)));
+                .poll(&NoOpWaker.into_waker());
         };
     }
 }
 
+#[derive(Clone)]
 struct MyWaker {
     task_id: TaskId,
     woken_tasks: Arc<Queue<TaskId>>,
 }
 
-impl Wake for MyWaker {
-    fn wake(arc_self: &Arc<Self>) {
-        arc_self.woken_tasks.push(arc_self.task_id);
+const MY_WAKER_VTABLE: RawWakerVTable = unsafe { RawWakerVTable {
+    drop: core::mem::transmute(MyWaker::waker_drop as fn(Box<MyWaker>)),
+    wake: core::mem::transmute(MyWaker::wake as fn(&MyWaker)),
+    clone: core::mem::transmute(MyWaker::waker_clone as fn(&MyWaker) -> RawWaker),
+}};
+
+impl MyWaker {
+    fn into_raw_waker(self) -> RawWaker {
+        RawWaker::new(Box::into_raw(Box::new(self)) as *const (), &MY_WAKER_VTABLE)
+    }
+    fn waker_drop(_: Box<Self>) {}
+    fn waker_clone(&self) -> RawWaker {
+        self.clone().into_raw_waker()
+    }
+    fn wake(&self) {
+        self.woken_tasks.push(self.task_id);
+    }
+    fn into_waker(self) -> Waker {
+        unsafe {
+            Waker::new_unchecked(self.into_raw_waker())
+        }
     }
 }
 
@@ -125,8 +143,22 @@ impl AddAssign<u64> for TaskId {
 
 struct NoOpWaker;
 
-impl Wake for NoOpWaker {
-    fn wake(_arc_self: &Arc<Self>) {}
+impl NoOpWaker {
+    fn into_waker(self) -> Waker {
+        unsafe {
+            Waker::new_unchecked(self.into_raw_waker())
+        }
+    }
+    fn into_raw_waker(self) -> RawWaker {
+        RawWaker::new(
+            &NoOpWaker as *const _ as *const (),
+            &RawWakerVTable {
+                drop: (|_| {}) as fn(*const ()),
+                wake: (|_| {}) as fn(*const ()),
+                clone: (|_| NoOpWaker.into_raw_waker()) as fn(*const ()) -> RawWaker,
+            },
+        )
+    }
 }
 
 /// This stream can be used by tasks that want to run when the CPU is idle.
@@ -139,7 +171,7 @@ impl Wake for NoOpWaker {
 #[derive(Debug, Clone)]
 pub struct IdleStream {
     idle: bool,
-    idle_waker_sink: mpsc::UnboundedSender<LocalWaker>,
+    idle_waker_sink: mpsc::UnboundedSender<Waker>,
 }
 
 impl IdleStream {
@@ -147,7 +179,7 @@ impl IdleStream {
     ///
     /// The idle task should wake the tasks received from the receiving end
     /// of the idle stream, thereby waking the tasks on idle.
-    pub fn new(idle_waker_sink: mpsc::UnboundedSender<LocalWaker>) -> Self {
+    pub fn new(idle_waker_sink: mpsc::UnboundedSender<Waker>) -> Self {
         IdleStream {
             idle_waker_sink,
             idle: false,
@@ -158,7 +190,7 @@ impl IdleStream {
 impl futures::prelude::Stream for IdleStream {
     type Item = ();
 
-    fn poll_next(mut self: Pin<&mut Self>, waker: &LocalWaker) -> Poll<Option<()>> {
+    fn poll_next(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Option<()>> {
         let result = if self.idle {
             Poll::Ready(Some(()))
         } else {
