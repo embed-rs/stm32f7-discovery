@@ -14,7 +14,7 @@ pub mod future {
         pin::Pin,
         ptr,
         sync::atomic::{AtomicPtr, Ordering},
-        task::{LocalWaker, Poll},
+        task::{Waker, Poll},
     };
 
     /// Wrap a future in a generator.
@@ -36,7 +36,7 @@ pub mod future {
 
     impl<T: Generator<Yield = ()>> Future for GenFuture<T> {
         type Output = T::Return;
-        fn poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+        fn poll(self: Pin<&mut Self>, lw: &Waker) -> Poll<Self::Output> {
             // Safe because we're !Unpin + !Drop mapping to a ?Unpin value
             let gen = unsafe { Pin::map_unchecked_mut(self, |s| &mut s.0) };
             set_task_waker(lw, || match gen.resume() {
@@ -47,9 +47,9 @@ pub mod future {
     }
 
     // FIXME: Should be thread local, but is currently a static since we only have a single thread
-    static TLS_WAKER: AtomicPtr<LocalWaker> = AtomicPtr::new(ptr::null_mut());
+    static TLS_WAKER: AtomicPtr<Waker> = AtomicPtr::new(ptr::null_mut());
 
-    struct SetOnDrop(*mut LocalWaker);
+    struct SetOnDrop(*mut Waker);
 
     impl Drop for SetOnDrop {
         fn drop(&mut self) {
@@ -58,7 +58,7 @@ pub mod future {
     }
 
     /// Sets the thread-local task context used by async/await futures.
-    pub fn set_task_waker<F, R>(lw: &LocalWaker, f: F) -> R
+    pub fn set_task_waker<F, R>(lw: &Waker, f: F) -> R
     where
         F: FnOnce() -> R,
     {
@@ -75,14 +75,14 @@ pub mod future {
     /// retrieved by a surrounding call to get_task_waker.
     pub fn get_task_waker<F, R>(f: F) -> R
     where
-        F: FnOnce(&LocalWaker) -> R,
+        F: FnOnce(&Waker) -> R,
     {
         // Clear the entry so that nested `get_task_waker` calls
         // will fail or set their own value.
         let waker_ptr = TLS_WAKER.swap(ptr::null_mut(), Ordering::SeqCst);
         let _reset_waker = SetOnDrop(waker_ptr);
 
-        let waker_ptr = unsafe { waker_ptr.as_ref() }.expect("TLS LocalWaker not set.");
+        let waker_ptr = unsafe { waker_ptr.as_ref() }.expect("TLS Waker not set.");
         f(waker_ptr)
     }
 
