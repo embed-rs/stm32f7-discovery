@@ -479,13 +479,13 @@ impl<'a> InterruptTable<'a> {
     /// Clears the pending state of the interrupt corresponding to the `interrupt_handle`.
     pub fn clear_pending_state<T>(&mut self, interrupt_handle: &InterruptHandle<T>) {
         let irq = InterruptId(interrupt_handle.irq.nr());
-        self.nvic.clear_pending(irq);
+        NVIC::unpend(irq);
     }
 
     /// Sets the pending state of the interrupt corresponding to the `interrupt_handle`.
     pub fn set_pending_state<T>(&mut self, interrupt_handle: &InterruptHandle<T>) {
         let irq = InterruptId(interrupt_handle.irq.nr());
-        self.nvic.set_pending(irq);
+        NVIC::pend(irq);
     }
 
     /// Returns the pending state of the interrupt corresponding to the `interrupt_handle`.
