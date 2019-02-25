@@ -608,6 +608,7 @@ where
                     }
                     socket.send_slice(&reply.0, reply.1)?;
                 },
+                smoltcp::dhcp::UDP_CLIENT_PORT => {}, // dhcp packet
                 _ => unreachable!(),
             },
             &mut Socket::Tcp(ref mut socket) => match socket.local_endpoint().port {
