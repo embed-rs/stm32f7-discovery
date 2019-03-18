@@ -8,7 +8,6 @@
 //! [other stm32f746ng resources]: https://www.st.com/content/st_com/en/products/microcontrollers/stm32-32-bit-arm-cortex-mcus/stm32-high-performance-mcus/stm32f7-series/stm32f7x6/stm32f746ng.html#design-scroll
 
 #![no_std]
-#![feature(try_from)]
 #![feature(trusted_len)]
 #![feature(alloc)]
 #![feature(optin_builtin_traits)]

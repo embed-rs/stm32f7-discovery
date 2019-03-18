@@ -2,7 +2,6 @@
 
 ## Building
 
-- **Use a nightly version of Rust**: Run `rustup override add nightly` to add an override for the current directory.
 - **Install the thumbv7em-none-eabihf target**: Run `rustup target add thumbv7em-none-eabihf`.
 - **Run `cargo build`**
 
