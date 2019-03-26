@@ -18,6 +18,7 @@ use cortex_m::register::primask;
 /// Since the access to the data is synchronized (no interrupt can preempt
 /// the current code in the critical section) the mutex implements `Send` and `Sync` when
 /// the synchronized data implements `Send`.
+#[derive(Debug)]
 pub struct PrimaskMutex<T> {
     data: UnsafeCell<T>,
 }

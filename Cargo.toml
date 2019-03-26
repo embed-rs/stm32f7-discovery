@@ -48,10 +48,9 @@ default-features = false
 features = ["unicode"]
 
 [dependencies.futures-preview]
-git = "https://github.com/embed-rs/futures-rs.git"
-branch = "alloc-rebase"
+git = "https://github.com/rust-lang-nursery/futures-rs.git"
 default-features = false
-features = ["alloc"]
+features = ["alloc", "nightly"]
 
 [profile.release]
 codegen-units = 1 # better optimizations

@@ -183,7 +183,8 @@ fn run() -> ! {
         &mut nvic_stir,
         |_| {},
         |interrupt_table| {
-            use futures::{channel::mpsc, task::LocalSpawnExt, StreamExt};
+            use futures::{task::LocalSpawnExt, StreamExt};
+            use stm32f7_discovery::task_runtime::mpsc;
 
             // Future channels for passing interrupts events. The interrupt handler pushes
             // to a channel and the interrupt handler awaits the next item of the channel. There
