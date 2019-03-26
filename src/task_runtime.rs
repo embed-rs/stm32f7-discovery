@@ -9,11 +9,12 @@ use alloc::{
 use core::ops::{Add, AddAssign};
 use core::pin::Pin;
 use futures::{
-    channel::mpsc,
     future::{FutureObj, LocalFutureObj},
     prelude::*,
     task::{LocalSpawn, Poll, Spawn, SpawnError, Waker, RawWaker, RawWakerVTable},
 };
+
+pub mod mpsc;
 
 /// An executor that schedules tasks round-robin, and executes an idle_task
 /// if no task is ready to execute.
