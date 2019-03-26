@@ -3,7 +3,7 @@
 use crate::mpsc_queue::{PopResult, Queue};
 use alloc::{
     collections::BTreeMap,
-    prelude::*,
+    prelude::v1::*,
     sync::Arc,
 };
 use core::ops::{Add, AddAssign};
