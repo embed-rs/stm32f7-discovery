@@ -291,11 +291,7 @@ pub struct TextWriter<'a, T: Framebuffer + 'a> {
 impl<'a, T: Framebuffer> TextWriter<'a, T> {
     fn newline(&mut self) {
         self.y_pos += 8;
-        self.x_pos = 0;
-        if self.y_pos >= HEIGHT {
-            self.y_pos = 0;
-            self.layer.clear();
-        }
+        self.carriage_return()
     }
     fn carriage_return(&mut self) {
         self.x_pos = 0;
