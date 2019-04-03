@@ -297,6 +297,13 @@ impl<'a, T: Framebuffer> TextWriter<'a, T> {
             self.layer.clear();
         }
     }
+    fn carriage_return(&mut self) {
+        self.x_pos = 0;
+        if self.y_pos >= HEIGHT {
+            self.y_pos = 0;
+            self.layer.clear();
+        }
+    }
 }
 
 impl<'a, T: Framebuffer> fmt::Write for TextWriter<'a, T> {
@@ -306,6 +313,9 @@ impl<'a, T: Framebuffer> fmt::Write for TextWriter<'a, T> {
         for c in s.chars() {
             if c == '\n' {
                 self.newline();
+                continue;
+            } else if c == '\r' {
+                self.carriage_return();
                 continue;
             }
             match c {
