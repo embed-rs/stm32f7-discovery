@@ -96,7 +96,7 @@ pub struct FramebufferArgb8888 {
 }
 
 impl FramebufferArgb8888 {
-    fn new(base_addr: usize) -> Self {
+    const fn new(base_addr: usize) -> Self {
         Self { base_addr }
     }
 }
@@ -118,7 +118,7 @@ pub struct FramebufferAl88 {
 }
 
 impl FramebufferAl88 {
-    fn new(base_addr: usize) -> Self {
+    const fn new(base_addr: usize) -> Self {
         Self { base_addr }
     }
 }
@@ -220,7 +220,7 @@ pub struct AudioWriter {
 
 impl AudioWriter {
     /// Creates a new audio writer starting at the left edge of the screen.
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         AudioWriter {
             next_pixel: 0,
             next_col: 0,

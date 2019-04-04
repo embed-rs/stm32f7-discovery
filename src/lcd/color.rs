@@ -13,7 +13,7 @@ pub struct Color {
 
 impl Color {
     /// Creates a color from the passed RGB values. The alpha channel is set to 255 (opaque).
-    pub fn rgb(red: u8, green: u8, blue: u8) -> Color {
+    pub const fn rgb(red: u8, green: u8, blue: u8) -> Color {
         Self::rgba(red, green, blue, 255)
     }
 
@@ -23,7 +23,7 @@ impl Color {
     }
 
     /// Creates a color from the passed values.
-    pub fn rgba(red: u8, green: u8, blue: u8, alpha: u8) -> Color {
+    pub const fn rgba(red: u8, green: u8, blue: u8, alpha: u8) -> Color {
         Color {
             red,
             green,
@@ -59,7 +59,7 @@ impl Color {
     }
 
     /// Creates a color from the passed ARGB value.
-    pub fn from_argb8888(color: u32) -> Color {
+    pub const fn from_argb8888(color: u32) -> Color {
         Color {
             red: (color >> 16) as u8,
             green: (color >> 8) as u8,
@@ -77,7 +77,7 @@ impl Color {
     }
 
     /// Creates a color from the passed ARGB1555 value.
-    pub fn from_argb1555(color: u16) -> Color {
+    pub const fn from_argb1555(color: u16) -> Color {
         Color {
             alpha: ((color >> 8) & 0x80) as u8,
             red: ((color >> 7) & 0xf8) as u8,

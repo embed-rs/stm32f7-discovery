@@ -180,7 +180,7 @@ impl IdleStream {
     ///
     /// The idle task should wake the tasks received from the receiving end
     /// of the idle stream, thereby waking the tasks on idle.
-    pub fn new(idle_waker_sink: mpsc::UnboundedSender<Waker>) -> Self {
+    pub const fn new(idle_waker_sink: mpsc::UnboundedSender<Waker>) -> Self {
         IdleStream {
             idle_waker_sink,
             idle: false,
