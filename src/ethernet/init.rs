@@ -95,7 +95,7 @@ pub fn init(
         w.saf().disabled(); // Source address filter
         w.saif().normal(); // Source address inverse filtering
         w.daif().normal(); // Destination address inverse filtering
-        w.bfd().disabled(); // broadcast frames disable
+        w.bfd().enabled(); // broadcast frames enable
         w.ram().disabled(); // pass all multicast
         w.hu().perfect(); // hash unicast
         w.hm().perfect(); // hash multicast
