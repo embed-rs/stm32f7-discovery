@@ -1,10 +1,11 @@
-#!/bin/bash
-
-set -e
+#!/bin/sh
 
 echo "Please run openocd in another terminal window (you might need sudo)"
 echo ""
 
-# https://stackoverflow.com/questions/3466166/how-to-check-if-running-in-cygwin-mac-or-linux
-unameOut="$(uname -s)"
-gdb-multiarch -iex 'add-auto-load-safe-path .' $1
+for GDB in arm-none-eabi-gdb gdb-multiarch
+do
+command -v "$GDB" >/dev/null && break
+done
+
+exec "$GDB" -iex 'add-auto-load-safe-path .' "$1"
