@@ -89,8 +89,8 @@ pub fn init(ethernet_mac: &mut ETHERNET_MAC) -> Result<AutoNegotiationResult, Er
         other => unreachable!("invalid auto-negotiation value: {:#b}", other),
     };
     Ok(AutoNegotiationResult {
-        duplex: duplex,
-        speed: speed,
+        duplex,
+        speed,
     })
 }
 

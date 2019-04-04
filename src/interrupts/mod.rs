@@ -97,7 +97,7 @@ pub struct InterruptHandle<T> {
 impl<T> InterruptHandle<T> {
     fn new(irq: InterruptRequest) -> Self {
         InterruptHandle {
-            irq: irq,
+            irq,
             _data_type: PhantomData,
         }
     }
@@ -198,8 +198,8 @@ where
 
     let mut interrupt_table = InterruptTable {
         _lifetime: PhantomData,
-        nvic: nvic,
-        nvic_stir: nvic_stir,
+        nvic,
+        nvic_stir,
         data: [ptr::null_mut(); 98],
     };
     // When the *code(self)* panics, the programm ends in an endless loop with disabled interrupts

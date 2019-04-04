@@ -36,7 +36,7 @@ pub fn init(
 
     // MAC init: set clock range in MAC MII address register
     match system_clock::system_clock_speed() {
-        f if f.0 >= 150000000 => {
+        f if f.0 >= 150_000_000 => {
             ethernet_mac.macmiiar.modify(|_, w| w.cr().cr_150_168()); // 150-168 MHz HCLK/102
         }
         _ => panic!("unsupported"),
@@ -170,9 +170,11 @@ pub fn init(
 
     // Initialize MAC address in ethernet MAC
     ethernet_mac.maca0hr.modify(|_, w| {
+        #[allow(clippy::eq_op)]
         w.maca0h().bits(0 << 8 | 0) // high register
     });
     ethernet_mac.maca0lr.modify(|_, w| {
+        #[allow(clippy::eq_op)]
         w.maca0l().bits(0 << 24 | 0 << 16 | 0 << 8 | 2) // low register
     });
 

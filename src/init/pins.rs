@@ -306,10 +306,9 @@ pub fn init<'a>(
             .to_alternate_function_all(g_pins, alt_fn, typ, speed, res)
             .expect("Failed to reserve SAI2 GPIO G pins");
 
-        let audio_in = gpio_h
+        gpio_h
             .to_input(gpio_h_pins.pin_15.pin(), Resistor::NoPull)
-            .expect("Failed to reserve SAI2 audio in pin");
-        audio_in
+            .expect("Failed to reserve SAI2 audio in pin")
     };
 
     // SD card pins
@@ -347,10 +346,9 @@ pub fn init<'a>(
             .to_alternate_function_all(d_pins, alt_fn, typ, speed, res)
             .expect("Failed to reserve SD card GPIO D pins");
 
-        let present_pin = gpio_c
+        gpio_c
             .to_input(gpio_c_pins.pin_13.pin(), Resistor::PullUp)
-            .expect("Failed to reserve SD card present pin");
-        present_pin
+            .expect("Failed to reserve SD card present pin")
     };
 
     // ethernet pins

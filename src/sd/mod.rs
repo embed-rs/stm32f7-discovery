@@ -47,9 +47,9 @@ impl<'a, PresentPin: InputPin> Sd<'a, PresentPin> {
         self::init::init_hw(rcc);
 
         Sd {
-            sdmmc: sdmmc,
+            sdmmc,
             card_info: None,
-            present_pin: present_pin,
+            present_pin,
         }
     }
 

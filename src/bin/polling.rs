@@ -134,7 +134,7 @@ fn main() -> ! {
                 .expect("Failed to generate random number")
         );
     }
-    println!("");
+    println!();
 
     // ethernet
     let mut ethernet_interface = ethernet::EthernetDevice::new(

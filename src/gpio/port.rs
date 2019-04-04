@@ -71,7 +71,7 @@ impl<T: RegisterBlockTrait> GpioPort<T> {
         self.register_block.set_resistor(&[pin], resistor);
 
         Ok(InputPinImpl {
-            pin: pin,
+            pin,
             input_data: ReadOnlyIdr(self.register_block.idr()),
         })
     }
@@ -92,7 +92,7 @@ impl<T: RegisterBlockTrait> GpioPort<T> {
         self.register_block.set_resistor(&[pin], resistor);
 
         let output_pin: OutputPinImpl<T::Odr, T::Bsrr> = OutputPinImpl {
-            pin: pin,
+            pin,
             output_data: ReadOnlyOdr(self.register_block.odr()),
             bit_set_reset: BsrrRef {
                 register: self.register_block.bsrr() as *const _ as *mut _,

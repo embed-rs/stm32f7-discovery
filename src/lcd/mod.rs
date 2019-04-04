@@ -127,7 +127,7 @@ impl Framebuffer for FramebufferAl88 {
     fn set_pixel(&mut self, x: usize, y: usize, color: Color) {
         let pixel = y * WIDTH + x;
         let pixel_ptr = (self.base_addr + pixel * LAYER_2_OCTETS_PER_PIXEL) as *mut u16;
-        unsafe { ptr::write_volatile(pixel_ptr, (color.alpha as u16) << 8 | color.red as u16) };
+        unsafe { ptr::write_volatile(pixel_ptr, u16::from(color.alpha) << 8 | u16::from(color.red)) };
     }
 }
 
@@ -142,7 +142,7 @@ impl<T: Framebuffer> Layer<T> {
     /// Useful for testing.
     pub fn horizontal_stripes(&mut self) {
         let colors = [
-            0xffffff, 0xcccccc, 0x999999, 0x666666, 0x333333, 0x0, 0xff0000, 0x0000ff,
+            0xff_ff_ff, 0xcc_cc_cc, 0x99_99_99, 0x66_66_66, 0x33_33_33, 0x00_00_00, 0xff_00_00, 0x00_00_ff,
         ];
 
         // horizontal stripes
@@ -162,7 +162,7 @@ impl<T: Framebuffer> Layer<T> {
     /// Useful for testing.
     pub fn vertical_stripes(&mut self) {
         let colors = [
-            0xcccccc, 0x999999, 0x666666, 0x333333, 0x0, 0xff0000, 0x0000ff, 0xffffff,
+            0xcc_cc_cc, 0x99_99_99, 0x66_66_66, 0x33_33_33, 0x00_00_00, 0xff_00_00, 0x00_00_ff, 0xff_ff_ff,
         ];
 
         // vertical stripes
@@ -190,7 +190,7 @@ impl<T: Framebuffer> Layer<T> {
 
     /// Sets the pixel at the specified coordinates to white.
     pub fn print_point_at(&mut self, x: usize, y: usize) {
-        self.print_point_color_at(x, y, Color::from_hex(0xffffff));
+        self.print_point_color_at(x, y, Color::from_hex(0xff_ff_ff));
     }
 
     /// Sets the pixel at the specified coordinates to the specified color.

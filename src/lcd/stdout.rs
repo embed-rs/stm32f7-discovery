@@ -34,6 +34,7 @@ pub fn init(layer: Layer<FramebufferAl88>) {
 /// function for more information.
 #[macro_export]
 macro_rules! println {
+    () => (println!(""));
     ($fmt:expr) => (print!(concat!($fmt, "\n")));
     ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
 }
