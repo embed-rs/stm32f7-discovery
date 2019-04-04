@@ -79,8 +79,8 @@ impl<'d> EthernetDevice<'d> {
         Ok(EthernetDevice {
             rx: rx_device,
             tx: tx_device,
-            ethernet_dma: ethernet_dma,
-            ethernet_address: ethernet_address,
+            ethernet_dma,
+            ethernet_address,
         })
     }
 
@@ -256,8 +256,8 @@ impl RxDevice {
         }
 
         Ok(RxDevice {
-            config: config,
-            buffer: buffer,
+            config,
+            buffer,
             descriptors: descriptors.into_boxed_slice(),
             next_descriptor: 0,
         })
@@ -342,7 +342,7 @@ impl RxDevice {
         let mut next = descriptor_index;
         loop {
             let descriptor = self.descriptors[next].read();
-            self.descriptors[next].update(|d| d.reset());
+            self.descriptors[next].update(rx::RxDescriptor::reset);
             next = (next + 1) % self.descriptors.len();
             if descriptor.is_last_descriptor() {
                 break;
@@ -439,8 +439,8 @@ impl Default for RxConfig {
         let default_descriptor_buffer_size = 64;
         RxConfig {
             buffer_size: default_descriptor_buffer_size * (number_of_descriptors - 1) + MTU,
-            number_of_descriptors: number_of_descriptors,
-            default_descriptor_buffer_size: default_descriptor_buffer_size,
+            number_of_descriptors,
+            default_descriptor_buffer_size,
         }
     }
 }

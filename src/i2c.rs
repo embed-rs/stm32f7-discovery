@@ -108,7 +108,7 @@ impl RegisterType for u16 {
     {
         let mut buf = [0, 0];
         f(&mut buf)?;
-        Ok((buf[0] as u16) << 8 | buf[1] as u16)
+        Ok(u16::from(buf[0]) << 8 | u16::from(buf[1]))
     }
 }
 
@@ -231,7 +231,7 @@ impl<I: I2cTrait> I2C<I> {
         {
             let conn = I2cConnection {
                 i2c: self,
-                device_address: device_address,
+                device_address,
                 register_type: PhantomData,
             };
             f(conn)?;
@@ -329,7 +329,7 @@ impl<I: I2cTrait> I2C<I> {
         let i2c = &mut self.0;
 
         i2c.cr2.modify(|_, w| {
-            w.sadd().bits(Address::bits_7(0b1010101).0); // slave_address
+            w.sadd().bits(Address::bits_7(0b101_0101).0); // slave_address
             w.start().set_bit(); // start_generation
             w.nbytes().bits(0); // number_of_bytes
             w.autoend().set_bit(); // automatic_end_mode
@@ -406,7 +406,7 @@ impl<I: I2cTrait> embedded_hal::blocking::i2c::Write for I2C<I> {
     fn write(&mut self, address: u8, bytes: &[u8]) -> Result<(), Self::Error> {
         self.connect(
             Address::bits_7(address),
-            |mut connection: I2cConnection<I, u8>| connection.write_bytes(bytes.iter().map(|b| *b)),
+            |mut connection: I2cConnection<I, u8>| connection.write_bytes(bytes.iter().cloned()),
         )
     }
 }
@@ -423,7 +423,7 @@ impl<I: I2cTrait> embedded_hal::blocking::i2c::WriteRead for I2C<I> {
         self.connect(
             Address::bits_7(address),
             |mut connection: I2cConnection<I, u8>| {
-                connection.write_bytes(bytes.iter().map(|b| *b))?;
+                connection.write_bytes(bytes.iter().cloned())?;
                 connection.read_bytes_raw(buffer.iter_mut())
             },
         )

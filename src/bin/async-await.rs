@@ -160,7 +160,7 @@ fn run() -> ! {
                 .expect("Failed to generate random number")
         );
     }
-    println!("");
+    println!();
 
     // enable timers
     rcc.apb1enr.modify(|_, w| w.tim6en().enabled());

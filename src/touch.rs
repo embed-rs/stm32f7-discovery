@@ -4,7 +4,7 @@ use crate::i2c::{self, I2C};
 use arrayvec::ArrayVec;
 use stm32f7::stm32f7x6 as device;
 
-const FT5336_ADDRESS: i2c::Address = i2c::Address::bits_7(0b0111000);
+const FT5336_ADDRESS: i2c::Address = i2c::Address::bits_7(0b011_1000);
 const FT5336_FAMILY_ID_REGISTER: u8 = 0xA8;
 const FT5336_STATUS_REGISTER: u8 = 0x02;
 
@@ -44,7 +44,7 @@ pub fn touches(i2c_3: &mut I2C<device::I2C3>) -> Result<ArrayVec<[Touch; 5]>, i2
             conn.read_bytes(data_reg, &mut touch_data)?;
             let y = (u16::from(touch_data[0] & 0x0F) << 8) | u16::from(touch_data[1]);
             let x = (u16::from(touch_data[2] & 0x0F) << 8) | u16::from(touch_data[3]);
-            touches.push(Touch { x: x, y: y });
+            touches.push(Touch { x, y });
         }
         Ok(())
     })?;

@@ -78,7 +78,7 @@ pub fn init<'a>(ltdc: &'a mut LTDC, rcc: &mut RCC) -> Lcd<'a> {
     });
 
     // set background color
-    ltdc.bccr.modify(|_, w| unsafe { w.bc().bits(0x0000ff) }); // background_color blue
+    ltdc.bccr.modify(|_, w| unsafe { w.bc().bits(0x00_00_ff) }); // background_color blue
 
     // enable the transfer error interrupt and the FIFO underrun interrupt
     ltdc.ier.modify(|_, w| {

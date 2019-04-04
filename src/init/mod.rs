@@ -171,11 +171,11 @@ pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) {
     enum Command {
         Normal = 0b000,
         ClockConfigurationEnable = 0b001,
-        PrechargeAllCommand = 0b010,
-        AutoRefreshCommand = 0b011,
+        PrechargeAll = 0b010,
+        AutoRefresh = 0b011,
         LoadModeRegister = 0b100,
-        SelfRefreshCommand = 0b101,
-        PowerDownCommand = 0b110,
+        SelfRefresh = 0b101,
+        PowerDown = 0b110,
     }
 
     fn send_fmc_command(
@@ -253,10 +253,10 @@ pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) {
     system_clock::wait_ms(1);
 
     // Precharge all Command
-    send_fmc_command(fmc, banks, Command::PrechargeAllCommand, 1, 0);
+    send_fmc_command(fmc, banks, Command::PrechargeAll, 1, 0);
 
     // Set auto refresh
-    send_fmc_command(fmc, banks, Command::AutoRefreshCommand, 8, 0);
+    send_fmc_command(fmc, banks, Command::AutoRefresh, 8, 0);
 
     // Load the external mode register
     // BURST_LENGTH_1 | BURST_TYPE_SEQUENTIAL | CAS_LATENCY_2 | OPERATING_MODE_STANDARD
@@ -279,12 +279,12 @@ pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) {
     let ptr3 = 0xC07F_FFFC as *mut u32;
 
     unsafe {
-        ptr::write_volatile(ptr1, 0xcafebabe);
-        ptr::write_volatile(ptr2, 0xdeadbeaf);
-        ptr::write_volatile(ptr3, 0x0deafbee);
-        assert_eq!(ptr::read_volatile(ptr1), 0xcafebabe);
-        assert_eq!(ptr::read_volatile(ptr2), 0xdeadbeaf);
-        assert_eq!(ptr::read_volatile(ptr3), 0x0deafbee);
+        ptr::write_volatile(ptr1, 0xcafe_babe);
+        ptr::write_volatile(ptr2, 0xdead_beaf);
+        ptr::write_volatile(ptr3, 0x0dea_fbee);
+        assert_eq!(ptr::read_volatile(ptr1), 0xcafe_babe);
+        assert_eq!(ptr::read_volatile(ptr2), 0xdead_beaf);
+        assert_eq!(ptr::read_volatile(ptr3), 0x0dea_fbee);
     }
 }
 
@@ -384,7 +384,7 @@ pub fn init_sai_2(sai: &mut SAI2, rcc: &mut RCC) {
             // Configure the PLLSAI division factor
             // PLLSAI_VCO Input  = PLL_SOURCE/PLLM
             // In Case the PLL Source is HSE (External Clock)
-            let vcoinput = 25000000 / u32::from(rcc.pllcfgr.read().pllm().bits());
+            let vcoinput = 25_000_000 / u32::from(rcc.pllcfgr.read().pllm().bits());
 
             // PLLSAI_VCO Output = PLLSAI_VCO Input * PLLSAIN
             // SAI_CLK(first level) = PLLSAI_VCO Output/PLLSAIQ
@@ -520,7 +520,7 @@ pub fn init_sai_2(sai: &mut SAI2, rcc: &mut RCC) {
     sai.bcr1.modify(|_, w| w.saiben().set_bit()); // audio_block_enable
 }
 
-const WM8994_ADDRESS: i2c::Address = i2c::Address::bits_7(0b0011010);
+const WM8994_ADDRESS: i2c::Address = i2c::Address::bits_7(0b001_1010);
 
 /// Initializes the WM8994 audio controller.
 ///

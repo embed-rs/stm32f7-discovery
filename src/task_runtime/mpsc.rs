@@ -515,7 +515,7 @@ impl<T> SenderInner<T> {
 
             state.num_messages += 1;
 
-            let next = encode_state(&state);
+            let next = encode_state(state);
             match self.inner.state.compare_exchange(curr, next, SeqCst, SeqCst) {
                 Ok(_) => {
                     return Some(state.num_messages)
@@ -815,7 +815,7 @@ impl<T> Receiver<T> {
             // Wake up any threads waiting as they'll see that we've closed the
             // channel and will continue on their merry way.
             while let Some(task) = unsafe { inner.parked_queue.pop_spin() } {
-                task.lock(|task| task.notify());
+                task.lock(SenderTask::notify);
             }
         }
     }
@@ -876,7 +876,7 @@ impl<T> Receiver<T> {
     fn unpark_one(&mut self) {
         if let Some(inner) = &mut self.inner {
             if let Some(task) = unsafe { inner.parked_queue.pop_spin() } {
-                task.lock(|task| task.notify());
+                task.lock(SenderTask::notify);
             }
         }
     }
@@ -1021,7 +1021,7 @@ fn decode_state(num: usize) -> State {
     }
 }
 
-fn encode_state(state: &State) -> usize {
+fn encode_state(state: State) -> usize {
     let mut num = state.num_messages;
 
     if state.is_open {
