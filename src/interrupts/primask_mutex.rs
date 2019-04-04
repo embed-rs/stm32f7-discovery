@@ -34,7 +34,7 @@ impl<T> PrimaskMutex<T> {
     /// let x = 5;
     /// let mutex = PrimaskMutex::new(x);
     /// ```
-    pub fn new(data: T) -> PrimaskMutex<T> {
+    pub const fn new(data: T) -> PrimaskMutex<T> {
         PrimaskMutex {
             data: UnsafeCell::new(data),
         }

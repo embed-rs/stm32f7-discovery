@@ -421,7 +421,7 @@ mod pin_wrapper {
     }
 
     impl PortPins {
-        pub(super) fn new() -> PortPins {
+        pub(super) const fn new() -> PortPins {
             use crate::gpio::PinNumber::*;
 
             PortPins {
@@ -449,7 +449,7 @@ mod pin_wrapper {
     pub(super) struct PinWrapper(PinNumber);
 
     impl PinWrapper {
-        pub(super) fn pin(self) -> PinNumber {
+        pub(super) const fn pin(self) -> PinNumber {
             self.0
         }
     }

@@ -95,7 +95,7 @@ pub struct InterruptHandle<T> {
 }
 
 impl<T> InterruptHandle<T> {
-    fn new(irq: InterruptRequest) -> Self {
+    const fn new(irq: InterruptRequest) -> Self {
         InterruptHandle {
             irq,
             _data_type: PhantomData,
