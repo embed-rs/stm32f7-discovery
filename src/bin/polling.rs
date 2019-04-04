@@ -5,15 +5,10 @@
 
 #[macro_use]
 extern crate alloc;
-extern crate alloc_cortex_m;
-extern crate cortex_m;
-extern crate cortex_m_rt as rt;
-extern crate cortex_m_semihosting as sh;
 #[macro_use]
 extern crate stm32f7;
 #[macro_use]
 extern crate stm32f7_discovery;
-extern crate smoltcp;
 
 use alloc::vec::Vec;
 use alloc_cortex_m::CortexMHeap;
@@ -21,8 +16,8 @@ use core::alloc::Layout as AllocLayout;
 use core::fmt::Write;
 use core::panic::PanicInfo;
 use cortex_m::{asm, interrupt, peripheral::NVIC};
-use rt::{entry, exception, ExceptionFrame};
-use sh::hio::{self, HStdout};
+use cortex_m_rt::{entry, exception, ExceptionFrame};
+use cortex_m_semihosting::hio::{self, HStdout};
 use smoltcp::{
     dhcp::Dhcpv4Client,
     socket::{
@@ -107,7 +102,7 @@ fn main() -> ! {
     println!("Hello World");
 
     // Initialize the allocator BEFORE you use it
-    unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }
+    unsafe { ALLOCATOR.init(cortex_m_rt::heap_start() as usize, HEAP_SIZE) }
 
     let _xs = vec![1, 2, 3];
 

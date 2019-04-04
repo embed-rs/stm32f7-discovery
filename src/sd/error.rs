@@ -1,3 +1,5 @@
+use bitflags::bitflags;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
     /// Unknown Error

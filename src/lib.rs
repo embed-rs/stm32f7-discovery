@@ -24,21 +24,7 @@
 
 #[macro_use]
 extern crate alloc;
-extern crate arrayvec;
-extern crate cortex_m;
-extern crate font8x8;
-extern crate spin;
-extern crate stm32f7;
-#[macro_use]
-extern crate bitflags;
-extern crate bare_metal;
-extern crate bit_field;
-extern crate byteorder;
 extern crate cortex_m_rt as rt;
-extern crate embedded_hal;
-extern crate futures;
-extern crate smoltcp;
-extern crate volatile;
 
 #[macro_use]
 pub mod lcd;

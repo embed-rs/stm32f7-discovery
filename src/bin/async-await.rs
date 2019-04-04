@@ -9,17 +9,10 @@
 
 #[macro_use]
 extern crate alloc;
-extern crate alloc_cortex_m;
-extern crate cortex_m;
-extern crate cortex_m_rt as rt;
-extern crate cortex_m_semihosting as sh;
 #[macro_use]
 extern crate stm32f7;
 #[macro_use]
 extern crate stm32f7_discovery;
-extern crate futures;
-extern crate smoltcp;
-extern crate spin;
 
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -30,8 +23,8 @@ use core::panic::PanicInfo;
 use cortex_m::{asm, interrupt};
 use futures::{Stream, StreamExt};
 use pin_utils::pin_mut;
-use rt::{entry, exception, ExceptionFrame};
-use sh::hio::{self, HStdout};
+use cortex_m_rt::{entry, exception, ExceptionFrame};
+use cortex_m_semihosting::hio::{self, HStdout};
 use smoltcp::{
     socket::{Socket, TcpSocket, TcpSocketBuffer, UdpPacketMetadata, UdpSocket, UdpSocketBuffer},
     time::Instant,
@@ -116,7 +109,7 @@ fn run() -> ! {
     pins.backlight.set(true);
 
     // Initialize the allocator BEFORE you use it
-    unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }
+    unsafe { ALLOCATOR.init(cortex_m_rt::heap_start() as usize, HEAP_SIZE) }
 
     lcd.set_background_color(Color::from_hex(0x006600));
     let layer_1 = lcd.layer_1().unwrap();
