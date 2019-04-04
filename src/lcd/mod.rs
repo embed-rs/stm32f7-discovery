@@ -127,7 +127,7 @@ impl Framebuffer for FramebufferAl88 {
     fn set_pixel(&mut self, x: usize, y: usize, color: Color) {
         let pixel = y * WIDTH + x;
         let pixel_ptr = (self.base_addr + pixel * LAYER_2_OCTETS_PER_PIXEL) as *mut u16;
-        unsafe { ptr::write_volatile(pixel_ptr, (color.alpha as u16) << 8 | 0xff) };
+        unsafe { ptr::write_volatile(pixel_ptr, (color.alpha as u16) << 8 | color.red as u16) };
     }
 }
 
