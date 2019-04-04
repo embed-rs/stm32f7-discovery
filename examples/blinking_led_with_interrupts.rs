@@ -2,17 +2,10 @@
 #![no_main]
 #![feature(alloc_error_handler)]
 
-extern crate alloc_cortex_m;
-extern crate cortex_m;
-extern crate cortex_m_rt as rt;
-extern crate cortex_m_semihosting;
-extern crate stm32f7;
-extern crate stm32f7_discovery;
-
 use alloc_cortex_m::CortexMHeap;
 use core::alloc::Layout as AllocLayout;
 use core::panic::PanicInfo;
-use rt::{entry, exception};
+use cortex_m_rt::{entry, exception};
 use stm32f7::stm32f7x6::{CorePeripherals, Peripherals};
 use stm32f7_discovery::{
     gpio::{GpioPort, OutputPin},
@@ -78,7 +71,7 @@ fn main() -> ! {
     tim6.cr1.modify(|_, w| w.cen().set_bit());
 
     // The interrupt module needs an allocator for its dynamic interrupt table.
-    unsafe { ALLOCATOR.init(rt::heap_start() as usize, HEAP_SIZE) }
+    unsafe { ALLOCATOR.init(cortex_m_rt::heap_start() as usize, HEAP_SIZE) }
 
     interrupts::scope(
         &mut nvic,
