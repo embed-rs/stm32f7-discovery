@@ -59,6 +59,18 @@ impl<'a> Lcd<'a> {
             .modify(|_, w| unsafe { w.bc().bits(color.to_rgb()) });
     }
 
+    /// Sets the color `i` in the lookup table for layer 2
+    pub fn set_color_lookup_table(&mut self, i: u8, color: Color) {
+        self.controller
+            .l2clutwr
+            .write(|w| unsafe { w
+                .clutadd().bits(i)
+                .red().bits(color.red)
+                .green().bits(color.green)
+                .blue().bits(color.blue)
+            });
+    }
+
     /// Returns a reference to layer 1.
     pub fn layer_1(&mut self) -> Option<Layer<FramebufferArgb8888>> {
         if self.layer_1_in_use {
