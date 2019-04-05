@@ -6,6 +6,7 @@ use crate::system_clock;
 use stm32f7::stm32f7x6::{self as device, FLASH, FMC, LTDC, PWR, RCC, SAI2, SYST};
 
 pub use self::pins::init as pins;
+pub use self::pins::Pins;
 
 mod pins;
 
