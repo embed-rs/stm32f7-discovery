@@ -25,6 +25,8 @@
 #[macro_use]
 extern crate alloc;
 extern crate cortex_m_rt as rt;
+#[macro_use]
+extern crate cortex_m_semihosting;
 
 #[macro_use]
 pub mod lcd;
