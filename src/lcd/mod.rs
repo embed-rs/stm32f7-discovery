@@ -296,8 +296,10 @@ impl AudioWriter {
 /// to use the `writeln!` macro with this struct.
 pub struct TextWriter<'a, T: Framebuffer + 'a> {
     layer: &'a mut Layer<T>,
-    x_pos: usize,
-    y_pos: usize,
+    /// Column position of the cursor
+    pub x_pos: usize,
+    /// Row/Line position of the cursor
+    pub y_pos: usize,
 }
 
 impl<'a, T: Framebuffer> TextWriter<'a, T> {
