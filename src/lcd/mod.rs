@@ -330,6 +330,9 @@ impl<'a, T: Framebuffer> fmt::Write for TextWriter<'a, T> {
             }
             match c {
                 ' '..='~' => {
+                    if self.x_pos >= WIDTH {
+                        self.newline();
+                    }
                     let rendered = font8x8::BASIC_FONTS
                         .get(c)
                         .expect("character not found in basic font");
@@ -350,9 +353,6 @@ impl<'a, T: Framebuffer> fmt::Write for TextWriter<'a, T> {
                 _ => panic!("unprintable character"),
             }
             self.x_pos += 8;
-            if self.x_pos >= WIDTH {
-                self.newline();
-            }
         }
         Ok(())
     }
