@@ -178,7 +178,7 @@ pub fn init<'a>(ltdc: &'a mut LTDC, rcc: &mut RCC) -> Lcd<'a> {
 
     // enable layers
     ltdc.l1cr.modify(|_, w| w.len().set_bit());
-    ltdc.l2cr.modify(|_, w| w.len().set_bit());
+    ltdc.l2cr.modify(|_, w| w.len().set_bit().cluten().set_bit());
 
     // reload shadow registers
     ltdc.srcr.modify(|_, w| w.imr().set_bit()); // IMMEDIATE_RELOAD
