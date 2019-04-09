@@ -85,11 +85,11 @@ impl<'d> EthernetDevice<'d> {
     }
 
     /// Transforms the ethernet device into a smoltcp ethernet network interface.
-    pub fn into_interface<'a>(self) -> EthernetInterface<'a, 'a, 'a, Self> {
+    pub fn into_interface<'a>(self, default_addr: Ipv4Address) -> EthernetInterface<'a, 'a, 'a, Self> {
         use alloc::collections::BTreeMap;
         use smoltcp::iface::NeighborCache;
 
-        let ip_addrs = [IpCidr::new(Ipv4Address::UNSPECIFIED.into(), 0)];
+        let ip_addrs = [IpCidr::new(default_addr.into(), 0)];
         let routes_storage = Box::leak(Box::new([None; 1]));
         let routes = Routes::new(&mut routes_storage[..]);
 

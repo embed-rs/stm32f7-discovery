@@ -497,7 +497,7 @@ where
             &mut self.ethernet_dma,
             ETH_ADDR,
         )
-        .map(|device| device.into_interface());
+        .map(|device| device.into_interface(Ipv4Address::new(192, 168, 42, 69)));
         let mut iface = match ethernet_interface {
             Ok(iface) => iface,
             Err(e) => {
