@@ -3,12 +3,16 @@ use stm32f7::stm32f7x6::{LTDC, RCC};
 
 /// Initializes the LCD controller.
 ///
-/// The SDRAM must be initialized before this function is called. See the
-/// [`init_sdram`] function for more information.
+/// Needs memory for the screen buffers. On stm32f7 this is usually done via SDRAM.
+/// The SDRAM is initialized via the [`init_sdram`] function.
 ///
 /// [`init_sdram`]: crate::init::init_sdram
-pub fn init<'a>(ltdc: &'a mut LTDC, rcc: &mut RCC) -> Lcd<'a> {
-    use crate::lcd::{self, LAYER_1_START, LAYER_2_START};
+pub fn init<'a>(
+    ltdc: &'a mut LTDC,
+    rcc: &mut RCC,
+    mem: &'static mut [volatile::Volatile<u8>],
+) -> (Lcd<'a>, &'static mut [volatile::Volatile<u8>]) {
+    use crate::lcd;
     const HEIGHT: u16 = lcd::HEIGHT as u16;
     const WIDTH: u16 = lcd::WIDTH as u16;
     const LAYER_1_OCTETS_PER_PIXEL: u16 = lcd::LAYER_1_OCTETS_PER_PIXEL as u16;
@@ -152,11 +156,14 @@ pub fn init<'a>(ltdc: &'a mut LTDC, rcc: &mut RCC) -> Lcd<'a> {
         w
     });
 
+    let (layer1, mem) = mem.split_at_mut(lcd::LAYER_1_LENGTH);
+    let (layer2, mem) = mem.split_at_mut(lcd::LAYER_2_LENGTH);
+
     // configure color frame buffer start address
     ltdc.l1cfbar
-        .modify(|_, w| unsafe { w.cfbadd().bits(LAYER_1_START as u32) });
+        .modify(|_, w| unsafe { w.cfbadd().bits(layer1.as_mut_ptr() as usize as u32) });
     ltdc.l2cfbar
-        .modify(|_, w| unsafe { w.cfbadd().bits(LAYER_2_START as u32) });
+        .modify(|_, w| unsafe { w.cfbadd().bits(layer2.as_mut_ptr() as usize as u32) });
 
     // configure color frame buffer line length and pitch
     ltdc.l1cfblr.modify(|_, w| unsafe {
@@ -180,10 +187,11 @@ pub fn init<'a>(ltdc: &'a mut LTDC, rcc: &mut RCC) -> Lcd<'a> {
     ltdc.l1cr.modify(|_, w| w.len().set_bit());
     ltdc.l2cr.modify(|_, w| w.len().set_bit().cluten().set_bit());
 
-    // reload shadow registers
-    ltdc.srcr.modify(|_, w| w.imr().set_bit()); // IMMEDIATE_RELOAD
+    let mut lcd = Lcd::new(ltdc, layer1, layer2);
 
-    let mut lcd = Lcd::new(ltdc);
     lcd.set_color_lookup_table(255, super::Color::rgb(255, 255, 255));
-    lcd
+
+    lcd.reload_shadow_registers(); // IMMEDIATE_RELOAD
+
+    (lcd, mem)
 }

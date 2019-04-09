@@ -1,9 +1,8 @@
 //! Provides various hardware initialization functions.
 
 use crate::i2c::{self, I2C};
-use crate::lcd::{self, Lcd};
 use crate::system_clock;
-use stm32f7::stm32f7x6::{self as device, FLASH, FMC, LTDC, PWR, RCC, SAI2, SYST};
+use stm32f7::stm32f7x6::{self as device, FLASH, FMC, PWR, RCC, SAI2, SYST};
 
 pub use self::pins::init as pins;
 pub use self::pins::Pins;
@@ -146,10 +145,19 @@ pub fn enable_syscfg(rcc: &mut RCC) {
     let _unused = rcc.apb2enr.read();
 }
 
+static mut SDRAM_INITIALIZED: bool = false;
+
 /// Initializes the SDRAM, which makes more memory accessible.
 ///
 /// This is a prerequisite for using the LCD.
-pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) {
+pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) -> &'static mut [volatile::Volatile<u8>] {
+
+    // ensures that we don't do this twice and end up with two `&'static mut` to the same memory
+    unsafe {
+        assert!(!SDRAM_INITIALIZED);
+        SDRAM_INITIALIZED = true;
+    }
+
     #[allow(dead_code)]
     #[derive(Debug, Clone, Copy)]
     enum Bank {
@@ -221,7 +229,7 @@ pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) {
     rcc.ahb3rstr.modify(|_, w| w.fmcrst().reset());
     rcc.ahb3rstr.modify(|_, w| w.fmcrst().clear_bit());
 
-    // SDRAM contol register
+    // SDRAM control register
     fmc.sdcr1.modify(|_, w| unsafe {
         w.nc().bits(8 - 8); // number_of_column_address_bits
         w.nr().bits(12 - 11); // number_of_row_address_bits
@@ -272,28 +280,30 @@ pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) {
         w
     });
 
-    // test sdram
-    use core::ptr;
+    let sdram_start: usize = 0xC000_0000;
+    let sdram_len: usize = 64 / 8 * 1024 * 1024; // 64 Mbit according to packaging
 
-    let ptr1 = 0xC000_0000 as *mut u32;
-    let ptr2 = 0xC053_6170 as *mut u32;
-    let ptr3 = 0xC07F_FFFC as *mut u32;
+    {
+        // test sdram
+        use core::ptr;
 
-    unsafe {
-        ptr::write_volatile(ptr1, 0xcafe_babe);
-        ptr::write_volatile(ptr2, 0xdead_beaf);
-        ptr::write_volatile(ptr3, 0x0dea_fbee);
-        assert_eq!(ptr::read_volatile(ptr1), 0xcafe_babe);
-        assert_eq!(ptr::read_volatile(ptr2), 0xdead_beaf);
-        assert_eq!(ptr::read_volatile(ptr3), 0x0dea_fbee);
+        let ptr1 = sdram_start as *mut u32;
+        let ptr2 = (sdram_start + 0x0053_6170) as *mut u32;
+        let ptr3 = (sdram_start + sdram_len - 4) as *mut u32;
+
+        unsafe {
+            ptr::write_volatile(ptr1, 0xcafe_babe);
+            ptr::write_volatile(ptr2, 0xdead_beaf);
+            ptr::write_volatile(ptr3, 0x0dea_fbee);
+            assert_eq!(ptr::read_volatile(ptr1), 0xcafe_babe);
+            assert_eq!(ptr::read_volatile(ptr2), 0xdead_beaf);
+            assert_eq!(ptr::read_volatile(ptr3), 0x0dea_fbee);
+        }
     }
-}
-
-/// Initializes the LCD.
-///
-/// This function is equivalent to [`lcd::init`](crate::lcd::init::init).
-pub fn init_lcd<'a>(ltdc: &'a mut LTDC, rcc: &mut RCC) -> Lcd<'a> {
-    lcd::init(ltdc, rcc)
+    // this block's safety is guaranteed by SDRAM_INITIALIZED check at the start of this function
+    unsafe {
+        core::slice::from_raw_parts_mut(sdram_start as *mut volatile::Volatile<u8>, sdram_len)
+    }
 }
 
 /// Initializes the I2C3 bus.

@@ -87,13 +87,13 @@ fn main() -> ! {
     init::init_systick(Hz(100), &mut systick, &rcc);
     systick.enable_interrupt();
 
-    init::init_sdram(&mut rcc, &mut fmc);
-    let mut lcd = init::init_lcd(&mut ltdc, &mut rcc);
+    let sdram = init::init_sdram(&mut rcc, &mut fmc);
+    let (mut lcd, _sdram) = lcd::init(&mut ltdc, &mut rcc, sdram);
     pins.display_enable.set(true);
     pins.backlight.set(true);
 
-    let mut layer_1 = lcd.layer_1().unwrap();
-    let mut layer_2 = lcd.layer_2().unwrap();
+    let mut layer_1 = lcd.layer_1.take().unwrap();
+    let mut layer_2 = lcd.layer_2.take().unwrap();
 
     layer_1.clear();
     layer_2.clear();
