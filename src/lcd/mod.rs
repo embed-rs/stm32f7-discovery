@@ -314,6 +314,10 @@ impl<'a, T: Framebuffer> TextWriter<'a, T> {
             self.layer.clear();
         }
     }
+    /// Erases all text on the screen
+    pub fn clear(&mut self) {
+        self.layer.clear();
+    }
 }
 
 impl<'a, T: Framebuffer> fmt::Write for TextWriter<'a, T> {

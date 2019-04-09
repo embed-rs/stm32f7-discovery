@@ -15,6 +15,15 @@ impl<'a> Stdout<'a> {
     }
 }
 
+/// Erases the stdout output on the screen
+pub fn clear() {
+    STDOUT.with(|stdout| {
+        if let Some(ref mut stdout) = *stdout {
+            stdout.clear();
+        }
+    });
+}
+
 /// Initialize the passed layer as standard output.
 ///
 /// Subsequent calls to [`print`](print) or [`println!`](println!) will then print
