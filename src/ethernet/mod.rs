@@ -24,14 +24,14 @@ pub const MTU: usize = 1536;
 /// Represents an ethernet device that allows sending and receiving packets.
 ///
 /// This struct implements the [smoltcp::phy::Device] trait.
-pub struct EthernetDevice<'d> {
+pub struct EthernetDevice {
     rx: RxDevice,
     tx: TxDevice,
-    ethernet_dma: &'d mut ETHERNET_DMA,
+    ethernet_dma: ETHERNET_DMA,
     ethernet_address: EthernetAddress,
 }
 
-impl<'d> EthernetDevice<'d> {
+impl EthernetDevice {
     /// Creates and initializes a new `EthernetDevice`.
     ///
     /// This function takes the following parameters:
@@ -48,12 +48,12 @@ impl<'d> EthernetDevice<'d> {
         rcc: &mut RCC,
         syscfg: &mut SYSCFG,
         ethernet_mac: &mut ETHERNET_MAC,
-        ethernet_dma: &'d mut ETHERNET_DMA,
+        mut ethernet_dma: ETHERNET_DMA,
         ethernet_address: EthernetAddress,
     ) -> Result<Self, PhyError> {
         use byteorder::{ByteOrder, LittleEndian};
 
-        init::init(rcc, syscfg, ethernet_mac, ethernet_dma)?;
+        init::init(rcc, syscfg, ethernet_mac, &mut ethernet_dma)?;
 
         let rx_device = RxDevice::new(rx_config)?;
         let tx_device = TxDevice::new(tx_config);
@@ -75,7 +75,7 @@ impl<'d> EthernetDevice<'d> {
             .maca0hr
             .write(|w| w.maca0h().bits(LittleEndian::read_u16(&eth_bytes[4..])));
 
-        init::start(ethernet_mac, ethernet_dma);
+        init::start(ethernet_mac, &mut ethernet_dma);
         Ok(EthernetDevice {
             rx: rx_device,
             tx: tx_device,
@@ -104,14 +104,14 @@ impl<'d> EthernetDevice<'d> {
     }
 }
 
-impl<'d> Drop for EthernetDevice<'d> {
+impl Drop for EthernetDevice {
     fn drop(&mut self) {
         // TODO stop ethernet device and wait for idle
         unimplemented!();
     }
 }
 
-impl<'a, 'd> Device<'a> for EthernetDevice<'d> {
+impl<'a> Device<'a> for EthernetDevice {
     type RxToken = RxToken<'a>;
     type TxToken = TxToken<'a>;
 
