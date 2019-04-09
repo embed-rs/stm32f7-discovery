@@ -308,14 +308,16 @@ impl<'a, T: Framebuffer> TextWriter<'a, T> {
         self.carriage_return()
     }
     fn carriage_return(&mut self) {
-        self.x_pos = 0;
         if self.y_pos >= HEIGHT {
-            self.y_pos = 0;
-            self.layer.clear();
+            self.clear();
+        } else {
+            self.x_pos = 0;
         }
     }
     /// Erases all text on the screen
     pub fn clear(&mut self) {
+        self.x_pos = 0;
+        self.y_pos = 0;
         self.layer.clear();
     }
 }
