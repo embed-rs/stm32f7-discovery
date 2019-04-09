@@ -142,7 +142,7 @@ fn main() -> ! {
         ETH_ADDR,
     )
     .map(|device| {
-        let iface = device.into_interface();
+        let iface = device.into_interface(Ipv4Address::new(192, 168, 42, 69));
         let prev_ip_addr = iface.ipv4_addr().unwrap();
         (iface, prev_ip_addr)
     });
