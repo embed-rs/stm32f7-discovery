@@ -308,11 +308,7 @@ impl<'a, T: Framebuffer> TextWriter<'a, T> {
         self.carriage_return()
     }
     fn carriage_return(&mut self) {
-        if self.y_pos >= HEIGHT {
-            self.clear();
-        } else {
-            self.x_pos = 0;
-        }
+        self.x_pos = 0;
     }
     /// Erases all text on the screen
     pub fn clear(&mut self) {
@@ -338,6 +334,9 @@ impl<'a, T: Framebuffer> fmt::Write for TextWriter<'a, T> {
                 ' '..='~' => {
                     if self.x_pos >= WIDTH {
                         self.newline();
+                    }
+                    if self.y_pos >= HEIGHT {
+                        self.clear();
                     }
                     let rendered = font8x8::BASIC_FONTS
                         .get(c)
