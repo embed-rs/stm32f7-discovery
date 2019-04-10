@@ -48,16 +48,13 @@ pub fn init(ethernet_mac: &mut ETHERNET_MAC) -> Result<AutoNegotiationResult, Er
     while phy_read(ethernet_mac, LAN8742A_PHY_ADDRESS, BASIC_CONTROL_REG) & PHY_RESET != 0 {}
 
     // wait for link bit
-    let _ = hprint!("wait for ethernet link");
     let timeout_ticks = system_clock::ms_to_ticks(TIMEOUT_MS);
     let ticks = system_clock::ticks();
     while !phy_read(ethernet_mac, LAN8742A_PHY_ADDRESS, BASIC_STATUS_REG).get_bit(2) {
         if system_clock::ticks() - ticks > timeout_ticks {
-            let _ = hprintln!(" [TIMEOUT]");
             return Err(Error::LinkTimeout); // timeout
         }
     }
-    let _ = hprintln!(" [OK]");
 
     // enable auto-negotiation
     phy_write(
@@ -68,15 +65,12 @@ pub fn init(ethernet_mac: &mut ETHERNET_MAC) -> Result<AutoNegotiationResult, Er
     );
 
     // wait until auto-negotiation complete bit is set
-    let _ = hprint!("wait for auto negotiation of ethernet speed");
     let ticks = system_clock::ticks();
     while !phy_read(ethernet_mac, LAN8742A_PHY_ADDRESS, BASIC_STATUS_REG).get_bit(5) {
         if system_clock::ticks() - ticks > timeout_ticks {
-            let _ = hprintln!(" [TIMEOUT]");
             return Err(Error::AutoNegotiationTimeout); // timeout
         }
     }
-    let _ = hprintln!(" [OK]");
 
     let ssr = phy_read(ethernet_mac, LAN8742A_PHY_ADDRESS, SPECIAL_STATUS_REG);
     // auto-negotiation done bit should be set
