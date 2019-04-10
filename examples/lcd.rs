@@ -100,7 +100,6 @@ interrupt!(EXTI0, exti0, state: Option<HStdout> = None);
 
 fn exti0(_state: &mut Option<HStdout>) {
     println!("Interrupt fired! This means that the button was pressed.");
-    println!("{}", String::from_utf8(vec![b'-'; 60]).unwrap());
 }
 
 #[exception]
