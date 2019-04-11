@@ -1,5 +1,5 @@
 /// Represents a color with alpha, red, green, and blue channels.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Color {
     /// The red channel.
     pub red: u8,
