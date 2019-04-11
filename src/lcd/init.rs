@@ -183,5 +183,7 @@ pub fn init<'a>(ltdc: &'a mut LTDC, rcc: &mut RCC) -> Lcd<'a> {
     // reload shadow registers
     ltdc.srcr.modify(|_, w| w.imr().set_bit()); // IMMEDIATE_RELOAD
 
-    Lcd::new(ltdc)
+    let mut lcd = Lcd::new(ltdc);
+    lcd.set_color_lookup_table(255, super::Color::rgb(255, 255, 255));
+    lcd
 }

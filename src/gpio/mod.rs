@@ -99,7 +99,7 @@ pub enum PinNumber {
 }
 
 /// High level abstraction of a GPIO pin configured as input.
-pub trait InputPin: Sized {
+pub trait InputPin {
     /// Get the current input value of the pin.
     fn get(&self) -> bool;
 }
@@ -132,7 +132,7 @@ unsafe impl<'a, IDR: IdrTrait> Sync for ReadOnlyIdr<'a, IDR> {}
 unsafe impl<'a, IDR: IdrTrait> Send for ReadOnlyIdr<'a, IDR> {}
 
 /// High level abstraction of a GPIO pin configured as output.
-pub trait OutputPin: Sized {
+pub trait OutputPin {
     /// Get the current output value of the pin.
     fn get(&self) -> bool;
 
