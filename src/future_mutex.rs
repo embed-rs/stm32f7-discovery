@@ -53,10 +53,10 @@ where
 {
     type Output = R;
 
-    fn poll(mut self: Pin<&mut Self>, lw: &mut Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Self::Output> {
         match self.mutex.try_lock() {
             None => {
-                self.waker_queue.push(lw.waker().clone());
+                self.waker_queue.push(ctx.waker().clone());
                 Poll::Pending
             }
             Some(mut guard) => {

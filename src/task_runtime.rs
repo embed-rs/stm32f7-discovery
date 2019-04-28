@@ -103,7 +103,7 @@ struct MyWaker {
 
 const MY_WAKER_VTABLE: RawWakerVTable = unsafe { RawWakerVTable::new(
     core::mem::transmute(MyWaker::waker_drop as fn(Box<MyWaker>)),
-    core::mem::transmute(MyWaker::wake as fn(&MyWaker)),
+    core::mem::transmute(MyWaker::wake as fn(Box<MyWaker>)),
     core::mem::transmute(MyWaker::wake_by_ref as fn(&MyWaker)),
     core::mem::transmute(MyWaker::waker_clone as fn(&MyWaker) -> RawWaker),
 )};
@@ -116,7 +116,7 @@ impl MyWaker {
     fn waker_clone(&self) -> RawWaker {
         self.clone().into_raw_waker()
     }
-    fn wake(&self) {
+    fn wake(self: Box<Self>) {
         self.woken_tasks.push(self.task_id);
     }
     fn wake_by_ref(&self) {

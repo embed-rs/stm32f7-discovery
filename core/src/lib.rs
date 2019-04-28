@@ -13,7 +13,7 @@ pub mod future {
         pin::Pin,
         ptr,
         sync::atomic::{AtomicPtr, Ordering},
-        task::{Waker, Poll, Context},
+        task::{Poll, Context},
     };
 
     /// Wrap a future in a generator.
@@ -35,10 +35,10 @@ pub mod future {
 
     impl<T: Generator<Yield = ()>> Future for GenFuture<T> {
         type Output = T::Return;
-        fn poll(self: Pin<&mut Self>, lw: &mut Context) -> Poll<Self::Output> {
+        fn poll(self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Self::Output> {
             // Safe because we're !Unpin + !Drop mapping to a ?Unpin value
             let gen = unsafe { Pin::map_unchecked_mut(self, |s| &mut s.0) };
-            set_task_waker(lw.waker(), || match gen.resume() {
+            set_task_context(ctx, || match gen.resume() {
                 GeneratorState::Yielded(()) => Poll::Pending,
                 GeneratorState::Complete(x) => Poll::Ready(x),
             })
@@ -46,9 +46,9 @@ pub mod future {
     }
 
     // FIXME: Should be thread local, but is currently a static since we only have a single thread
-    static TLS_WAKER: AtomicPtr<Waker> = AtomicPtr::new(ptr::null_mut());
+    static TLS_WAKER: AtomicPtr<Context> = AtomicPtr::new(ptr::null_mut());
 
-    struct SetOnDrop(*mut Waker);
+    struct SetOnDrop(*mut Context<'static>);
 
     impl Drop for SetOnDrop {
         fn drop(&mut self) {
@@ -57,12 +57,12 @@ pub mod future {
     }
 
     /// Sets the thread-local task context used by async/await futures.
-    pub fn set_task_waker<F, R>(lw: &Waker, f: F) -> R
+    pub fn set_task_context<F, R>(ctx: &Context, f: F) -> R
     where
         F: FnOnce() -> R,
     {
-        let old_waker = TLS_WAKER.swap(lw as *const _ as *mut _, Ordering::SeqCst);
-        let _reset_waker = SetOnDrop(old_waker);
+        let old_ctx = TLS_WAKER.swap(ctx as *const _ as *mut _, Ordering::SeqCst);
+        let _reset_ctx = SetOnDrop(old_ctx);
         f()
     }
 
@@ -70,27 +70,27 @@ pub mod future {
     ///
     /// This function acquires exclusive access to the task waker.
     ///
-    /// Panics if no waker has been set or if the waker has already been
-    /// retrieved by a surrounding call to get_task_waker.
-    pub fn get_task_waker<F, R>(f: F) -> R
+    /// Panics if no context has been set or if the context has already been
+    /// retrieved by a surrounding call to get_task_context.
+    pub fn get_task_context<F, R>(f: F) -> R
     where
-        F: FnOnce(&Waker) -> R,
+        F: FnOnce(&mut Context) -> R,
     {
-        // Clear the entry so that nested `get_task_waker` calls
+        // Clear the entry so that nested `get_task_context` calls
         // will fail or set their own value.
-        let waker_ptr = TLS_WAKER.swap(ptr::null_mut(), Ordering::SeqCst);
-        let _reset_waker = SetOnDrop(waker_ptr);
+        let ctx_ptr = TLS_WAKER.swap(ptr::null_mut(), Ordering::SeqCst);
+        let _reset_ctx = SetOnDrop(ctx_ptr);
 
-        let waker_ptr = unsafe { waker_ptr.as_ref() }.expect("TLS Waker not set.");
-        f(waker_ptr)
+        let ctx_ptr = unsafe { ctx_ptr.as_mut() }.expect("TLS Context not set.");
+        f(ctx_ptr)
     }
 
-    /// Polls a future in the current thread-local task waker.
-    pub fn poll_with_tls_waker<F>(f: Pin<&mut F>) -> Poll<F::Output>
+    /// Polls a future in the current thread-local task context.
+    pub fn poll_with_tls_context<F>(f: Pin<&mut F>) -> Poll<F::Output>
     where
         F: Future,
     {
-        get_task_waker(|lw| F::poll(f, &mut Context::from_waker(lw)))
+        get_task_context(|ctx| F::poll(f, ctx))
     }
 
     #[macro_export]
@@ -98,7 +98,7 @@ pub mod future {
         ($e:expr) => {{
             let mut pinned = $e;
             loop {
-                if let core::task::Poll::Ready(x) = $crate::future::poll_with_tls_waker(unsafe {
+                if let core::task::Poll::Ready(x) = $crate::future::poll_with_tls_context(unsafe {
                     core::pin::Pin::new_unchecked(&mut pinned)
                 }) {
                     break x;
