@@ -1,7 +1,7 @@
 //! Provides a non-blocking Mutex based on Futures.
 
 use crate::mpsc_queue::{PopResult, Queue};
-use core::task::Waker;
+use core::task::{Waker, Context};
 use core::{future::Future, mem, pin::Pin};
 use futures::task::Poll;
 use spin::Mutex;
@@ -53,10 +53,10 @@ where
 {
     type Output = R;
 
-    fn poll(mut self: Pin<&mut Self>, lw: &Waker) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, lw: &mut Context) -> Poll<Self::Output> {
         match self.mutex.try_lock() {
             None => {
-                self.waker_queue.push(lw.clone());
+                self.waker_queue.push(lw.waker().clone());
                 Poll::Pending
             }
             Some(mut guard) => {

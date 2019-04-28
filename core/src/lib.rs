@@ -1,4 +1,3 @@
-#![feature(futures_api)]
 #![feature(optin_builtin_traits)]
 #![feature(generator_trait)]
 #![feature(arbitrary_self_types)]
@@ -14,7 +13,7 @@ pub mod future {
         pin::Pin,
         ptr,
         sync::atomic::{AtomicPtr, Ordering},
-        task::{Waker, Poll},
+        task::{Waker, Poll, Context},
     };
 
     /// Wrap a future in a generator.
@@ -36,10 +35,10 @@ pub mod future {
 
     impl<T: Generator<Yield = ()>> Future for GenFuture<T> {
         type Output = T::Return;
-        fn poll(self: Pin<&mut Self>, lw: &Waker) -> Poll<Self::Output> {
+        fn poll(self: Pin<&mut Self>, lw: &mut Context) -> Poll<Self::Output> {
             // Safe because we're !Unpin + !Drop mapping to a ?Unpin value
             let gen = unsafe { Pin::map_unchecked_mut(self, |s| &mut s.0) };
-            set_task_waker(lw, || match gen.resume() {
+            set_task_waker(lw.waker(), || match gen.resume() {
                 GeneratorState::Yielded(()) => Poll::Pending,
                 GeneratorState::Complete(x) => Poll::Ready(x),
             })
@@ -91,7 +90,7 @@ pub mod future {
     where
         F: Future,
     {
-        get_task_waker(|lw| F::poll(f, lw))
+        get_task_waker(|lw| F::poll(f, &mut Context::from_waker(lw)))
     }
 
     #[macro_export]

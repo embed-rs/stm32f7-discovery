@@ -9,9 +9,7 @@
 
 #![no_std]
 #![feature(trusted_len)]
-#![feature(alloc)]
 #![feature(optin_builtin_traits)]
-#![feature(futures_api)]
 #![feature(generator_trait)]
 #![feature(arbitrary_self_types)]
 #![feature(drain_filter)]
