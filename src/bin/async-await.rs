@@ -1,7 +1,5 @@
-#![feature(alloc)]
 #![feature(alloc_error_handler)]
 #![feature(generators, generator_trait)]
-#![feature(futures_api)]
 #![feature(arbitrary_self_types)]
 #![feature(async_await)]
 #![no_main]
@@ -176,7 +174,7 @@ fn run() -> ! {
         &mut nvic_stir,
         |_| {},
         |interrupt_table| {
-            use futures::{task::LocalSpawnExt, StreamExt};
+            use futures::task::LocalSpawnExt;
             use stm32f7_discovery::task_runtime::mpsc;
 
             // Future channels for passing interrupts events. The interrupt handler pushes

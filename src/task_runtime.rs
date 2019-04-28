@@ -11,7 +11,7 @@ use core::pin::Pin;
 use futures::{
     future::{FutureObj, LocalFutureObj},
     prelude::*,
-    task::{LocalSpawn, Poll, Spawn, SpawnError, Waker, RawWaker, RawWakerVTable},
+    task::{LocalSpawn, Poll, Spawn, SpawnError, Waker, RawWaker, RawWakerVTable, Context},
 };
 
 pub mod mpsc;
@@ -78,7 +78,7 @@ impl Executor {
                 };
                 let poll_result = {
                     let task = self.tasks.get_mut(&task_id).unwrap_or_else(|| panic!("task with id {:?} not found", task_id));
-                    task.as_mut().poll(&waker.into_waker())
+                    task.as_mut().poll(&mut Context::from_waker(&waker.into_waker()))
                 };
                 if poll_result.is_ready() {
                     self.tasks.remove(&task_id).unwrap_or_else(|| panic!("Task {:?} not found", task_id));
@@ -90,7 +90,7 @@ impl Executor {
         if let Some(ref mut idle_task) = self.idle_task {
             let _ = idle_task
                 .as_mut()
-                .poll(&NoOpWaker.into_waker());
+                .poll(&mut Context::from_waker(&NoOpWaker.into_waker()));
         };
     }
 }
@@ -101,11 +101,12 @@ struct MyWaker {
     woken_tasks: Arc<Queue<TaskId>>,
 }
 
-const MY_WAKER_VTABLE: RawWakerVTable = unsafe { RawWakerVTable {
-    drop: core::mem::transmute(MyWaker::waker_drop as fn(Box<MyWaker>)),
-    wake: core::mem::transmute(MyWaker::wake as fn(&MyWaker)),
-    clone: core::mem::transmute(MyWaker::waker_clone as fn(&MyWaker) -> RawWaker),
-}};
+const MY_WAKER_VTABLE: RawWakerVTable = unsafe { RawWakerVTable::new(
+    core::mem::transmute(MyWaker::waker_drop as fn(Box<MyWaker>)),
+    core::mem::transmute(MyWaker::wake as fn(&MyWaker)),
+    core::mem::transmute(MyWaker::wake_by_ref as fn(&MyWaker)),
+    core::mem::transmute(MyWaker::waker_clone as fn(&MyWaker) -> RawWaker),
+)};
 
 impl MyWaker {
     fn into_raw_waker(self) -> RawWaker {
@@ -118,9 +119,12 @@ impl MyWaker {
     fn wake(&self) {
         self.woken_tasks.push(self.task_id);
     }
+    fn wake_by_ref(&self) {
+        self.woken_tasks.push(self.task_id);
+    }
     fn into_waker(self) -> Waker {
         unsafe {
-            Waker::new_unchecked(self.into_raw_waker())
+            Waker::from_raw(self.into_raw_waker())
         }
     }
 }
@@ -147,17 +151,18 @@ struct NoOpWaker;
 impl NoOpWaker {
     fn into_waker(self) -> Waker {
         unsafe {
-            Waker::new_unchecked(self.into_raw_waker())
+            Waker::from_raw(self.into_raw_waker())
         }
     }
     fn into_raw_waker(self) -> RawWaker {
         RawWaker::new(
             &NoOpWaker as *const _ as *const (),
-            &RawWakerVTable {
-                drop: (|_| {}) as fn(*const ()),
-                wake: (|_| {}) as fn(*const ()),
-                clone: (|_| NoOpWaker.into_raw_waker()) as fn(*const ()) -> RawWaker,
-            },
+            &RawWakerVTable::new(
+                (|_| NoOpWaker.into_raw_waker()) as fn(*const ()) -> RawWaker,
+                (|_| {}) as fn(*const ()),
+                (|_| {}) as fn(*const ()),
+                (|_| {}) as fn(*const ()),
+            ),
         )
     }
 }
@@ -191,12 +196,12 @@ impl IdleStream {
 impl futures::prelude::Stream for IdleStream {
     type Item = ();
 
-    fn poll_next(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Option<()>> {
+    fn poll_next(mut self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Option<()>> {
         let result = if self.idle {
             Poll::Ready(Some(()))
         } else {
             self.idle_waker_sink
-                .unbounded_send(waker.clone())
+                .unbounded_send(ctx.waker().clone())
                 .expect("sending on idle channel failed");
             Poll::Pending
         };

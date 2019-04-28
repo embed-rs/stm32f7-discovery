@@ -190,8 +190,6 @@ fn get_cmd_resp3(sdmmc: &mut SDMMC1, timeout: u32) -> Result<(), Error> {
 }
 
 fn get_cmd_resp6(sdmmc: &mut SDMMC1, cmd_idx: u8, timeout: u32) -> Result<u16, Error> {
-    use super::error::CardStatusFlags;
-
     wait_resp_crc(sdmmc, timeout)?;
 
     if sdmmc.respcmd.read().respcmd().bits() != cmd_idx {
@@ -281,8 +279,6 @@ pub fn clear_all_static_status_flags(sdmmc: &mut SDMMC1) {
 }
 
 fn check_for_errors(card_status: u32) -> Result<(), Error> {
-    use super::error::CardStatusFlags;
-
     if card_status & CardStatusFlags::OCR_ERROR_BITS.bits() == 0 {
         Ok(())
     } else if card_status & CardStatusFlags::AKE_SEQ_ERROR.bits() != 0 {

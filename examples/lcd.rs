@@ -1,12 +1,7 @@
-#![feature(alloc)]
 #![feature(alloc_error_handler)]
 #![no_main]
 #![no_std]
 
-#[macro_use]
-extern crate alloc;
-
-use alloc::string::String;
 use alloc_cortex_m::CortexMHeap;
 use core::alloc::Layout as AllocLayout;
 use core::fmt::Write;

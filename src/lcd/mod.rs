@@ -320,7 +320,7 @@ impl<'a, T: Framebuffer> TextWriter<'a, T> {
 
 impl<'a, T: Framebuffer> fmt::Write for TextWriter<'a, T> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        use font8x8::{self, UnicodeFonts};
+        use font8x8::UnicodeFonts;
 
         for c in s.chars() {
             if c == '\n' {

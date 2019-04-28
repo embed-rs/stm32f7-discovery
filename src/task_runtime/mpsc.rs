@@ -79,7 +79,7 @@
 // by the queue structure.
 
 use futures::stream::{FusedStream, Stream};
-use futures::task::{Waker, Poll, AtomicWaker};
+use futures::task::{Waker, Poll, AtomicWaker, Context};
 use core::fmt;
 use core::pin::Pin;
 use alloc::sync::Arc;
@@ -905,7 +905,7 @@ impl<T> Stream for Receiver<T> {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        ctx: &mut Context,
     ) -> Poll<Option<T>> {
             // Try to read a message off of the message queue.
         match self.next_message() {
@@ -917,7 +917,7 @@ impl<T> Stream for Receiver<T> {
             },
             Poll::Pending => {
                 // There are no messages to read, in this case, park.
-                self.inner.as_ref().unwrap().recv_task.register(waker);
+                self.inner.as_ref().unwrap().recv_task.register(ctx.waker());
                 // Check queue again after parking to prevent race condition:
                 // a message could be added to the queue after previous `next_message`
                 // before `register` call.
@@ -972,9 +972,9 @@ impl<T> Stream for UnboundedReceiver<T> {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        ctx: &mut Context,
     ) -> Poll<Option<T>> {
-        Pin::new(&mut self.0).poll_next(waker)
+        Pin::new(&mut self.0).poll_next(ctx)
     }
 }
 
