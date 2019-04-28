@@ -1,0 +1,7 @@
+[package]
+name = "interrupture"
+version = "0.1.0"
+authors = ["Oliver Scherer <github35764891676564198441@oli-obk.de>"]
+edition = "2018"
+
+[dependencies]

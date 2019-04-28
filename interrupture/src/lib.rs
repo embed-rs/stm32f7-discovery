@@ -16,6 +16,8 @@
 //! unregistered at the end of the scope. Thus it is safe to access the parent stack in the
 //! interrupt service routine.
 
+#![no_std]
+
 use crate::rt::exception;
 use alloc::boxed::Box;
 use bare_metal::Nr;
@@ -25,8 +27,6 @@ use core::marker::PhantomData;
 use core::{fmt, ptr};
 pub use stm32f7::stm32f7x6::Interrupt as InterruptRequest;
 use stm32f7::stm32f7x6::{NVIC, NVIC_STIR};
-
-pub mod primask_mutex;
 
 /// The default interrupt handler that is called for all uncaught IRQs.
 #[exception]
