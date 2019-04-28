@@ -212,6 +212,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "interrupture"
+version = "0.1.0"
+
+[[package]]
 name = "linked_list_allocator"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -347,6 +351,7 @@ dependencies = [
  "embedded-hal 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "font8x8 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-preview 0.3.0-alpha.15 (git+https://github.com/rust-lang-nursery/futures-rs.git)",
+ "interrupture 0.1.0",
  "pin-utils 0.1.0-alpha.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "smoltcp 0.5.0 (git+https://github.com/astro/smoltcp.git?branch=dhcp)",
  "spin 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
