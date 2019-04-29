@@ -1,6 +1,6 @@
 [package]
 name = "interrupture"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Oliver Scherer <github35764891676564198441@oli-obk.de>"]
 edition = "2018"
 description = "a HAL trait for `crossbeam`-like interrupt handling"
