@@ -214,6 +214,9 @@ dependencies = [
 [[package]]
 name = "interrupture"
 version = "0.1.0"
+dependencies = [
+ "bare-metal 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "linked_list_allocator"

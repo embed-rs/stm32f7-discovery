@@ -17,29 +17,23 @@
 //! interrupt service routine.
 
 #![no_std]
+#![feature(alloc_prelude)]
+#![feature(optin_builtin_traits)]
 
-use crate::rt::exception;
+extern crate alloc;
+
 use alloc::boxed::Box;
-use bare_metal::Nr;
-use core::convert::{TryFrom, TryInto};
 use core::intrinsics::transmute;
 use core::marker::PhantomData;
-use core::{fmt, ptr};
-pub use stm32f7::stm32f7x6::Interrupt as InterruptRequest;
-use stm32f7::stm32f7x6::{NVIC, NVIC_STIR};
+use core::ptr;
+use core::mem;
+use bare_metal::Nr;
 
-/// The default interrupt handler that is called for all uncaught IRQs.
-#[exception]
-fn DefaultHandler(irqn: i16) {
-    if irqn < 0 {
-        panic!("Unhandled exception (IRQn = {})", irqn);
-    } else {
-        unsafe {
-            match ISRS[usize::try_from(irqn).unwrap()] {
-                Some(ref mut isr) => isr(),
-                None => default_interrupt_handler(irqn.try_into().unwrap()),
-            }
-        }
+#[inline(always)]
+pub fn handle_isr(irqn: u8) {
+    match unsafe { &mut ISRS[irqn as usize] } {
+        Some(isr) => isr(),
+        None => default_interrupt_handler(irqn)
     }
 }
 
@@ -68,39 +62,62 @@ fn default_interrupt_handler(irq: u8) {
 }
 
 /// The error type that can occur when handling with interrupts.
+#[derive(Debug)]
 pub enum Error {
     /// The error type which is returned when an interrupt is registered that is already being used.
-    InterruptAlreadyInUse(InterruptRequest),
-}
-
-impl fmt::Debug for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Error::InterruptAlreadyInUse(interrupt_request) => {
-                // fixme: use Debug implementation when available
-                writeln!(
-                    f,
-                    "Error::InterruptAlreadyInUse({})",
-                    interrupt_request.nr()
-                )
-            }
-        }
-    }
+    ///
+    /// Gives you back the index that you used to try to register the interrupt
+    InterruptAlreadyInUse(u8),
 }
 
 /// The `InterruptHandle` is used to access and configure an active interrupt.
-pub struct InterruptHandle<T> {
+pub struct InterruptHandle<T, REQ> {
     _data_type: PhantomData<T>,
-    irq: InterruptRequest,
+    irq: REQ,
 }
 
-impl<T> InterruptHandle<T> {
-    const fn new(irq: InterruptRequest) -> Self {
+impl<T, REQ> InterruptHandle<T, REQ> {
+    const fn new(irq: REQ) -> Self {
         InterruptHandle {
             irq,
             _data_type: PhantomData,
         }
     }
+}
+
+/// A low level API for interrupts. Implement this API
+/// for your hardware in order to get access to the more
+/// convenient `crossbeam`-like API.
+pub trait InterruptController {
+    type Request: Nr;
+    type Priority;
+
+    /// Causes an interrupt routine to be invoked by making the hardware believe the
+    /// interrupt was triggered.
+    ///
+    /// Essentially this is a software interrupt trigger.
+    fn trigger(&mut self, irq: &Self::Request);
+
+    /// Returns the pending state of the interrupt
+    fn is_pending(irq: &Self::Request) -> bool;
+
+    /// Sets the pending state of the interrupt to `true`
+    fn pend(irq: &Self::Request);
+
+    /// Sets the pending state of the interrupt to `false`
+    fn unpend(irq: &Self::Request);
+
+    /// Fetches the priority of the given interrupt
+    fn get_priority(irq: &Self::Request) -> Self::Priority;
+
+    /// Sets a the new priority of the given interrupt
+    fn set_priority(&mut self, irq: &Self::Request, priority: Self::Priority);
+
+    /// Disables the given interrupt
+    fn disable(&mut self, irq: &Self::Request);
+
+    /// Enables the given interrupt
+    fn enable(&mut self, irq: &Self::Request);
 }
 
 /// The `InterruptTable` guarantees safe and 'free of data races' use of interrupts.
@@ -121,27 +138,25 @@ impl<T> InterruptHandle<T> {
 ///     });
 /// });
 /// ```
-pub struct InterruptTable<'a> {
+pub struct InterruptTable<'a, IC: InterruptController> {
     _lifetime: PhantomData<&'a ()>,
-    nvic: &'a mut NVIC,
-    nvic_stir: &'a mut NVIC_STIR,
+    ic: IC,
     data: [*mut (); 98],
 }
 
-impl<'a> !Sync for InterruptTable<'a> {}
+impl<'a, IC> !Sync for InterruptTable<'a, IC> {}
 
-impl<'a> Drop for InterruptTable<'a> {
+impl<'a, IC: InterruptController> Drop for InterruptTable<'a, IC> {
     fn drop(&mut self) {
-        let mut some_left = false;
         unsafe {
             DEFAULT_INTERRUPT_HANDLER = None;
             for (i, isr) in ISRS.iter().enumerate() {
-                some_left = some_left || isr.is_some();
-                self.disable_interrupt(InterruptId(u8::try_from(i).unwrap()));
+                assert!(
+                    isr.is_none(),
+                    "Interrupt {} is still enabled while the InterruptTable is being dropped",
+                    i,
+                );
             }
-        }
-        if some_left {
-            panic!("Disable interrupts first");
         }
     }
 }
@@ -178,15 +193,15 @@ impl<'a> Drop for InterruptTable<'a> {
 ///
 /// # Panics
 /// Panics if an interrupt is enabled and is not disabled after use in `code()`
-pub fn scope<'a, F, C, R>(
-    nvic: &'a mut NVIC,
-    nvic_stir: &'a mut NVIC_STIR,
+pub fn scope<'a, IC, F, C, R>(
+    ic: IC,
     default_handler: F,
     code: C,
 ) -> R
 where
+    IC: InterruptController,
     F: FnMut(u8) + Send,
-    C: FnOnce(&mut InterruptTable<'a>) -> R,
+    C: FnOnce(&mut InterruptTable<'a, IC>) -> R,
 {
     unsafe {
         debug_assert!(DEFAULT_INTERRUPT_HANDLER.is_none());
@@ -198,8 +213,7 @@ where
 
     let mut interrupt_table = InterruptTable {
         _lifetime: PhantomData,
-        nvic,
-        nvic_stir,
+        ic,
         data: [ptr::null_mut(); 98],
     };
     // When the *code(self)* panics, the programm ends in an endless loop with disabled interrupts
@@ -209,7 +223,7 @@ where
     // Drop is called
 }
 
-impl<'a> InterruptTable<'a> {
+impl<'a, IC: InterruptController> InterruptTable<'a, IC> {
     /// Registers an interrupt with the lifetime of the `InterruptTable`.
     ///
     /// # Examples
@@ -232,14 +246,22 @@ impl<'a> InterruptTable<'a> {
     /// ```
     pub fn register<F>(
         &mut self,
-        irq: InterruptRequest,
-        priority: Priority,
+        irq: IC::Request,
+        priority: IC::Priority,
         mut isr: F,
-    ) -> Result<InterruptHandle<()>, Error>
+    ) -> Result<InterruptHandle<(), IC::Request>, Error>
     where
         F: FnMut() + 'a + Send,
     {
         self.register_owned(irq, priority, (), move |_| isr())
+    }
+
+    fn err_if_irq_in_use(&self, irq: u8) -> Result<(), Error> {
+        if unsafe { ISRS[usize::from(irq)].is_some() } {
+            Err(Error::InterruptAlreadyInUse(irq))
+        } else {
+            Ok(())
+        }
     }
 
     /// Registers an interrupt with the lifetime of the `InterruptTable` and pass ownership
@@ -269,35 +291,32 @@ impl<'a> InterruptTable<'a> {
     /// ```
     pub fn register_owned<F, T>(
         &mut self,
-        irq: InterruptRequest,
-        priority: Priority,
+        irq: IC::Request,
+        priority: IC::Priority,
         owned_data: T,
         mut isr: F,
-    ) -> Result<InterruptHandle<T>, Error>
+    ) -> Result<InterruptHandle<T, IC::Request>, Error>
     where
         T: Send,
         F: FnMut(&mut T) + 'a + Send,
     {
-        let irq_number = irq.nr();
-        if unsafe { ISRS[irq_number as usize].is_some() } {
-            return Err(Error::InterruptAlreadyInUse(irq));
-        }
+        self.err_if_irq_in_use(irq.nr())?;
         // Insert data only, when interrupt isn't used, therefore nobody reads the data
         // => no dataraces
-        self.data[irq_number as usize] = Box::into_raw(Box::new(owned_data)) as *mut ();
+        self.data[usize::from(irq.nr())] = Box::into_raw(Box::new(owned_data)) as *mut ();
 
         // transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>> is safe, because of the
         // drop implementation of InterruptTable ('static is not needed for closure)
         // and alway only one isr can access the data (Send is not needed for closure)
         let isr = unsafe {
-            let parameter = &mut *(self.data[irq_number as usize] as *mut T);
+            let parameter = &mut *(self.data[usize::from(irq.nr())] as *mut T);
             transmute::<Box<FnMut()>, Box<FnMut() + 'static + Send>>(Box::new(move || {
                 isr(parameter);
             }))
         };
         let interrupt_handle = self.insert_boxed_isr(irq, isr)?;
         self.set_priority(&interrupt_handle, priority);
-        self.enable_interrupt(InterruptId(irq_number));
+        self.ic.enable(&interrupt_handle.irq);
 
         Ok(interrupt_handle)
     }
@@ -326,22 +345,19 @@ impl<'a> InterruptTable<'a> {
     /// ```
     pub fn with_interrupt<F, C>(
         &mut self,
-        irq: InterruptRequest,
-        priority: Priority,
+        irq: IC::Request,
+        priority: IC::Priority,
         isr: F,
         code: C,
     ) -> Result<(), Error>
     where
         F: FnMut() + Send,
-        C: FnOnce(&mut InterruptTable),
+        C: FnOnce(&mut InterruptTable<IC>),
     {
-        let irq_number = irq.nr();
-        if unsafe { ISRS[irq_number as usize].is_some() } {
-            return Err(Error::InterruptAlreadyInUse(irq));
-        }
+        self.err_if_irq_in_use(irq.nr())?;
 
         // Insert a `()` into data to simplify `unregister`
-        self.data[irq_number as usize] = Box::into_raw(Box::new(())) as *mut ();
+        self.data[usize::from(irq.nr())] = Box::into_raw(Box::new(())) as *mut ();
 
         // Safe: Isr is removed from the static array after the closure *code* is executed.
         // When the *code(self)* panics, the programm ends in an endless loop with disabled
@@ -351,7 +367,7 @@ impl<'a> InterruptTable<'a> {
         };
         let interrupt_handle = self.insert_boxed_isr::<()>(irq, isr)?;
         self.set_priority(&interrupt_handle, priority);
-        self.enable_interrupt(InterruptId(irq_number));
+        self.ic.enable(&interrupt_handle.irq);
 
         code(self);
 
@@ -362,23 +378,15 @@ impl<'a> InterruptTable<'a> {
 
     fn insert_boxed_isr<T>(
         &mut self,
-        irq: InterruptRequest,
+        irq: IC::Request,
         isr_boxed: Box<FnMut() + 'static + Send>,
-    ) -> Result<InterruptHandle<T>, Error> {
-        let irq_number = irq.nr();
-        // Check if interrupt already in use
-        if unsafe { ISRS[irq_number as usize].is_some() } {
-            return Err(Error::InterruptAlreadyInUse(irq));
-        }
+    ) -> Result<InterruptHandle<T, IC::Request>, Error> {
+        self.err_if_irq_in_use(irq.nr())?;
         unsafe {
-            ISRS[irq_number as usize] = Some(isr_boxed);
+            ISRS[usize::from(irq.nr())] = Some(isr_boxed);
         }
 
         Ok(InterruptHandle::new(irq))
-    }
-
-    fn enable_interrupt<I: Nr>(&mut self, irq: I) {
-        self.nvic.enable(irq);
     }
 
     /// Unregisters the interrupt corresponding to the `interrupt_handle`.
@@ -430,160 +438,42 @@ impl<'a> InterruptTable<'a> {
     ///             assert!(data.is_none());
     /// });
     /// ```
-    pub fn unregister<T>(&mut self, interrupt_handle: InterruptHandle<T>) -> T {
-        let irq = InterruptId(interrupt_handle.irq.nr());
-        let irq_number = irq.nr();
-        self.disable_interrupt(irq);
-
-        let data = self.data[irq_number as usize];
-        self.data[irq_number as usize] = ptr::null_mut();
+    pub fn unregister<T>(&mut self, interrupt_handle: InterruptHandle<T, IC::Request>) -> T {
+        self.ic.disable(&interrupt_handle.irq);
+        unsafe {
+            ISRS[usize::from(interrupt_handle.irq.nr())] = None;
+        }
+        let data = mem::replace(&mut self.data[usize::from(interrupt_handle.irq.nr())], ptr::null_mut());
         *unsafe { Box::from_raw(data as *mut T) }
     }
 
-    fn disable_interrupt<I: Nr>(&mut self, irq: I) {
-        let irq_number = irq.nr();
-        self.nvic.disable(irq);
-        unsafe {
-            ISRS[usize::from(irq_number)] = None;
-        }
-    }
-
     /// Sets the priority of the interrupt corresponding to the `interrupt_handle`.
-    pub fn set_priority<T>(&mut self, interrupt_handle: &InterruptHandle<T>, priority: Priority) {
-        let irq = InterruptId(interrupt_handle.irq.nr());
-        // The STM32F7 only supports 16 priority levels
-        // Assert that priority < 16
-        // STM32F7 only uses 4 bits for Priority. priority << 4, because the upper 4 bits are used
-        // for priority.
-        let priority = (priority as u8) << 4;
-
-        unsafe { self.nvic.set_priority(irq, priority) };
+    pub fn set_priority<T>(&mut self, interrupt_handle: &InterruptHandle<T, IC::Request>, priority: IC::Priority) {
+        self.ic.set_priority(&interrupt_handle.irq, priority)
     }
 
     /// Returns the priority of the interrupt corresponding to the `interrupt_handle`.
-    pub fn get_priority<T>(&self, interrupt_handle: &InterruptHandle<T>) -> Priority {
-        let irq = InterruptId(interrupt_handle.irq.nr());
-
-        let res = NVIC::get_priority(irq);
-
-        // STM32F7 only uses 4 bits for Priority. priority << 4, because the upper 4 bits are used
-        // for priority.
-        match Priority::from_u8(res >> 4) {
-            Ok(priority) => priority,
-            Err(PriorityDoesNotExistError(prio_number)) => {
-                unreachable!("Priority {} does not exist", prio_number)
-            }
-        }
+    pub fn get_priority<T>(&self, interrupt_handle: &InterruptHandle<T, IC::Request>) -> IC::Priority {
+        IC::get_priority(&interrupt_handle.irq)
     }
 
     /// Clears the pending state of the interrupt corresponding to the `interrupt_handle`.
-    pub fn clear_pending_state<T>(&mut self, interrupt_handle: &InterruptHandle<T>) {
-        let irq = InterruptId(interrupt_handle.irq.nr());
-        NVIC::unpend(irq);
+    pub fn clear_pending_state<T>(&mut self, interrupt_handle: &InterruptHandle<T, IC::Request>) {
+        IC::unpend(&interrupt_handle.irq);
     }
 
     /// Sets the pending state of the interrupt corresponding to the `interrupt_handle`.
-    pub fn set_pending_state<T>(&mut self, interrupt_handle: &InterruptHandle<T>) {
-        let irq = InterruptId(interrupt_handle.irq.nr());
-        NVIC::pend(irq);
+    pub fn set_pending_state<T>(&mut self, interrupt_handle: &InterruptHandle<T, IC::Request>) {
+        IC::pend(&interrupt_handle.irq);
     }
 
     /// Returns the pending state of the interrupt corresponding to the `interrupt_handle`.
-    pub fn get_pending_state<T>(&self, interrupt_handle: &InterruptHandle<T>) -> bool {
-        let irq = InterruptId(interrupt_handle.irq.nr());
-        NVIC::is_pending(irq)
+    pub fn get_pending_state<T>(&self, interrupt_handle: &InterruptHandle<T, IC::Request>) -> bool {
+        IC::is_pending(&interrupt_handle.irq)
     }
 
     /// Triggers the given interrupt `irq`.
-    pub fn trigger(&mut self, irq: InterruptRequest) {
-        self.nvic_stir
-            .stir
-            .write(|w| unsafe { w.intid().bits(irq.nr().into()) });
-    }
-}
-
-/// Possible interrupt priorities of the stm32f7.
-///
-/// Lower number means higher priority:
-/// `P1` has a higher priority than e.g. `P2`, `P5`, ...
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum Priority {
-    /// Priority 0
-    P0 = 0,
-    /// Priority 1
-    P1,
-    /// Priority 2
-    P2,
-    /// Priority 3
-    P3,
-    /// Priority 4
-    P4,
-    /// Priority 5
-    P5,
-    /// Priority 6
-    P6,
-    /// Priority 7
-    P7,
-    /// Priority 8
-    P8,
-    /// Priority 9
-    P9,
-    /// Priority 10
-    P10,
-    /// Priority 11
-    P11,
-    /// Priority 12
-    P12,
-    /// Priority 13
-    P13,
-    /// Priority 14
-    P14,
-    /// Priority 15
-    P15,
-}
-struct PriorityDoesNotExistError(u8);
-
-impl Priority {
-    /// Converts a u8 to a Priority.
-    ///
-    /// Returns an `Err` when no variant with the given `priority` exists.
-    // use FromPrimitive?
-    fn from_u8(priority: u8) -> Result<Priority, PriorityDoesNotExistError> {
-        use self::Priority::*;
-        match priority {
-            0 => Ok(P0),
-            1 => Ok(P1),
-            2 => Ok(P2),
-            3 => Ok(P3),
-            4 => Ok(P4),
-            5 => Ok(P5),
-            6 => Ok(P6),
-            7 => Ok(P7),
-            8 => Ok(P8),
-            9 => Ok(P9),
-            10 => Ok(P10),
-            11 => Ok(P11),
-            12 => Ok(P12),
-            13 => Ok(P13),
-            14 => Ok(P14),
-            15 => Ok(P15),
-            _ => Err(PriorityDoesNotExistError(priority)),
-        }
-    }
-}
-
-/// Wait for interrupt.
-///
-/// This function calls the `wfi` assembler command of the cortex-m processors.
-pub unsafe fn wfi() {
-    ::cortex_m::asm::wfi();
-}
-
-struct InterruptId(u8);
-
-unsafe impl Nr for InterruptId {
-    fn nr(&self) -> u8 {
-        self.0
+    pub fn trigger(&mut self, irq: IC::Request) {
+        self.ic.trigger(&irq)
     }
 }

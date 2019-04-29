@@ -5,3 +5,4 @@ authors = ["Oliver Scherer <github35764891676564198441@oli-obk.de>"]
 edition = "2018"
 
 [dependencies]
+bare-metal = "0.2.3"
