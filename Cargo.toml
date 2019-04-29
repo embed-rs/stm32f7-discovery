@@ -37,8 +37,8 @@ default-features = false
 
 [dependencies.smoltcp]
 #version = "0.5.0"
-git = "https://github.com/astro/smoltcp.git"
-branch = "dhcp"
+git = "https://github.com/oli-obk/smoltcp.git"
+branch = "patch-2"
 default-features = false
 features = ["alloc", "socket-raw", "socket-udp", "socket-tcp", "socket-icmp", "proto-ipv4", "proto-dhcpv4"]
 

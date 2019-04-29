@@ -26,6 +26,7 @@ use cortex_m_semihosting::hio::{self, HStdout};
 use smoltcp::{
     socket::{Socket, TcpSocket, TcpSocketBuffer, UdpPacketMetadata, UdpSocket, UdpSocketBuffer},
     time::Instant,
+    storage::{PacketBuffer, PacketMetadata},
     wire::{EthernetAddress, IpEndpoint},
 };
 use stm32f7::stm32f7x6::{
@@ -509,14 +510,14 @@ where
 
         let mut sockets = SocketSet::new(Vec::new());
 
-        let dhcp_rx_buffer = UdpSocketBuffer::new([UdpPacketMetadata::EMPTY; 1], vec![0; 1500]);
-        let dhcp_tx_buffer = UdpSocketBuffer::new([UdpPacketMetadata::EMPTY; 1], vec![0; 3000]);
+        let dhcp_rx_buffer = PacketBuffer::new([PacketMetadata::EMPTY; 1], vec![0; 1500]);
+        let dhcp_tx_buffer = PacketBuffer::new([PacketMetadata::EMPTY; 1], vec![0; 3000]);
         let mut dhcp = Dhcpv4Client::new(
             &mut sockets,
             dhcp_rx_buffer,
             dhcp_tx_buffer,
             Instant::from_millis(system_clock::ms() as i64),
-        ).expect("could not bind udp socket for dhcp");
+        );
         let mut prev_ip_addr = iface.ipv4_addr().unwrap();
 
         // handle new ethernet packets
