@@ -18,6 +18,7 @@
 
 #![no_std]
 #![warn(missing_docs)]
+#![deny(clippy::all)]
 #![feature(alloc_prelude)]
 #![feature(optin_builtin_traits)]
 
