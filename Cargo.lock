@@ -76,7 +76,7 @@ dependencies = [
 
 [[package]]
 name = "cortex-m"
-version = "0.5.9"
+version = "0.5.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "aligned 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -109,7 +109,7 @@ name = "cortex-m-rt-macros"
 version = "0.1.5"
 source = "git+https://github.com/rust-embedded/cortex-m-rt.git#9859fa1607f90a29a4bf2ee7afd49e576b806a16"
 dependencies = [
- "proc-macro2 0.4.28 (registry+https://github.com/rust-lang/crates.io-index)",
+ "proc-macro2 0.4.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 0.6.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.5.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "syn 0.15.33 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -140,7 +140,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "futures-channel-preview"
 version = "0.3.0-alpha.15"
-source = "git+https://github.com/rust-lang-nursery/futures-rs.git#3872328c419e9fdd8d074c23e738fa2eef5d1b4a"
+source = "git+https://github.com/rust-lang-nursery/futures-rs.git#50f3f71758bc295cff76d157b909eba058efde3d"
 dependencies = [
  "futures-core-preview 0.3.0-alpha.15 (git+https://github.com/rust-lang-nursery/futures-rs.git)",
 ]
@@ -148,12 +148,12 @@ dependencies = [
 [[package]]
 name = "futures-core-preview"
 version = "0.3.0-alpha.15"
-source = "git+https://github.com/rust-lang-nursery/futures-rs.git#3872328c419e9fdd8d074c23e738fa2eef5d1b4a"
+source = "git+https://github.com/rust-lang-nursery/futures-rs.git#50f3f71758bc295cff76d157b909eba058efde3d"
 
 [[package]]
 name = "futures-executor-preview"
 version = "0.3.0-alpha.15"
-source = "git+https://github.com/rust-lang-nursery/futures-rs.git#3872328c419e9fdd8d074c23e738fa2eef5d1b4a"
+source = "git+https://github.com/rust-lang-nursery/futures-rs.git#50f3f71758bc295cff76d157b909eba058efde3d"
 dependencies = [
  "futures-channel-preview 0.3.0-alpha.15 (git+https://github.com/rust-lang-nursery/futures-rs.git)",
  "futures-core-preview 0.3.0-alpha.15 (git+https://github.com/rust-lang-nursery/futures-rs.git)",
@@ -164,7 +164,7 @@ dependencies = [
 [[package]]
 name = "futures-io-preview"
 version = "0.3.0-alpha.15"
-source = "git+https://github.com/rust-lang-nursery/futures-rs.git#3872328c419e9fdd8d074c23e738fa2eef5d1b4a"
+source = "git+https://github.com/rust-lang-nursery/futures-rs.git#50f3f71758bc295cff76d157b909eba058efde3d"
 dependencies = [
  "futures-core-preview 0.3.0-alpha.15 (git+https://github.com/rust-lang-nursery/futures-rs.git)",
 ]
@@ -172,7 +172,7 @@ dependencies = [
 [[package]]
 name = "futures-preview"
 version = "0.3.0-alpha.15"
-source = "git+https://github.com/rust-lang-nursery/futures-rs.git#3872328c419e9fdd8d074c23e738fa2eef5d1b4a"
+source = "git+https://github.com/rust-lang-nursery/futures-rs.git#50f3f71758bc295cff76d157b909eba058efde3d"
 dependencies = [
  "futures-channel-preview 0.3.0-alpha.15 (git+https://github.com/rust-lang-nursery/futures-rs.git)",
  "futures-core-preview 0.3.0-alpha.15 (git+https://github.com/rust-lang-nursery/futures-rs.git)",
@@ -185,7 +185,7 @@ dependencies = [
 [[package]]
 name = "futures-sink-preview"
 version = "0.3.0-alpha.15"
-source = "git+https://github.com/rust-lang-nursery/futures-rs.git#3872328c419e9fdd8d074c23e738fa2eef5d1b4a"
+source = "git+https://github.com/rust-lang-nursery/futures-rs.git#50f3f71758bc295cff76d157b909eba058efde3d"
 dependencies = [
  "futures-channel-preview 0.3.0-alpha.15 (git+https://github.com/rust-lang-nursery/futures-rs.git)",
  "futures-core-preview 0.3.0-alpha.15 (git+https://github.com/rust-lang-nursery/futures-rs.git)",
@@ -194,7 +194,7 @@ dependencies = [
 [[package]]
 name = "futures-util-preview"
 version = "0.3.0-alpha.15"
-source = "git+https://github.com/rust-lang-nursery/futures-rs.git#3872328c419e9fdd8d074c23e738fa2eef5d1b4a"
+source = "git+https://github.com/rust-lang-nursery/futures-rs.git#50f3f71758bc295cff76d157b909eba058efde3d"
 dependencies = [
  "futures-channel-preview 0.3.0-alpha.15 (git+https://github.com/rust-lang-nursery/futures-rs.git)",
  "futures-core-preview 0.3.0-alpha.15 (git+https://github.com/rust-lang-nursery/futures-rs.git)",
@@ -254,7 +254,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "proc-macro2"
-version = "0.4.28"
+version = "0.4.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "unicode-xid 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -265,7 +265,7 @@ name = "quote"
 version = "0.6.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "proc-macro2 0.4.28 (registry+https://github.com/rust-lang/crates.io-index)",
+ "proc-macro2 0.4.29 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -318,7 +318,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "smoltcp"
 version = "0.5.0"
-source = "git+https://github.com/astro/smoltcp.git?branch=dhcp#93293918ccc5cc719a6b31b84e4a95bd6be36e72"
+source = "git+https://github.com/oli-obk/smoltcp.git?branch=patch-2#5b4277cdd1e26d82c46c8642ceda3c1b597f087b"
 dependencies = [
  "bitflags 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -341,7 +341,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bare-metal 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "cortex-m 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cortex-m 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m-rt 0.6.8 (git+https://github.com/rust-embedded/cortex-m-rt.git)",
  "vcell 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -357,7 +357,7 @@ dependencies = [
  "bitflags 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "core 0.1.0",
- "cortex-m 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cortex-m 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m-rt 0.6.8 (git+https://github.com/rust-embedded/cortex-m-rt.git)",
  "cortex-m-semihosting 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "embedded-hal 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -365,7 +365,7 @@ dependencies = [
  "futures-preview 0.3.0-alpha.15 (git+https://github.com/rust-lang-nursery/futures-rs.git)",
  "interrupture-stm32f7x6 0.1.0",
  "pin-utils 0.1.0-alpha.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "smoltcp 0.5.0 (git+https://github.com/astro/smoltcp.git?branch=dhcp)",
+ "smoltcp 0.5.0 (git+https://github.com/oli-obk/smoltcp.git?branch=patch-2)",
  "spin 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "stm32f7 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "volatile 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -376,7 +376,7 @@ name = "syn"
 version = "0.15.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "proc-macro2 0.4.28 (registry+https://github.com/rust-lang/crates.io-index)",
+ "proc-macro2 0.4.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 0.6.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "unicode-xid 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -430,7 +430,7 @@ dependencies = [
 "checksum bitflags 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)" = "228047a76f468627ca71776ecdebd732a3423081fcf5125585bcd7c49886ce12"
 "checksum byteorder 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "a019b10a2a7cdeb292db131fc8113e57ea2a908f6e7894b0c3c671893b65dbeb"
 "checksum cortex-m 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "3df5de9a9829f2ccb7defa8945fa020c6614cd2f6ba9b5f33db9241dcc01985e"
-"checksum cortex-m 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)" = "30ee4e94b4f9507adf93a1ae072a4299c23b72c6b93ff74b4ca0065a25b1100d"
+"checksum cortex-m 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)" = "3c0b159a1e8306949579de3698c841dba58058197b65c60807194e4fa1e7a554"
 "checksum cortex-m 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f3c18719fdc57db65668bfc977db9a0fa1a41d718c5d9cd4f652c9d4b0e0956a"
 "checksum cortex-m-rt 0.6.8 (git+https://github.com/rust-embedded/cortex-m-rt.git)" = "<none>"
 "checksum cortex-m-rt-macros 0.1.5 (git+https://github.com/rust-embedded/cortex-m-rt.git)" = "<none>"
@@ -450,7 +450,7 @@ dependencies = [
 "checksum nb 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b1411551beb3c11dedfb0a90a0fa256b47d28b9ec2cdff34c25a2fa59e45dbdc"
 "checksum nodrop 0.1.13 (registry+https://github.com/rust-lang/crates.io-index)" = "2f9667ddcc6cc8a43afc9b7917599d7216aa09c463919ea32c59ed6cac8bc945"
 "checksum pin-utils 0.1.0-alpha.4 (registry+https://github.com/rust-lang/crates.io-index)" = "5894c618ce612a3fa23881b152b608bafb8c56cfc22f434a3ba3120b40f7b587"
-"checksum proc-macro2 0.4.28 (registry+https://github.com/rust-lang/crates.io-index)" = "ba92c84f814b3f9a44c5cfca7d2ad77fa10710867d2bbb1b3d175ab5f47daa12"
+"checksum proc-macro2 0.4.29 (registry+https://github.com/rust-lang/crates.io-index)" = "64c827cea7a7ab30ce4593e5e04d7a11617ad6ece2fa230605a78b00ff965316"
 "checksum quote 0.6.12 (registry+https://github.com/rust-lang/crates.io-index)" = "faf4799c5d274f3868a4aae320a0a182cbd2baee377b378f080e16a23e9d80db"
 "checksum r0 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e2a38df5b15c8d5c7e8654189744d8e396bddc18ad48041a500ce52d6948941f"
 "checksum rand 0.5.6 (registry+https://github.com/rust-lang/crates.io-index)" = "c618c47cd3ebd209790115ab837de41425723956ad3ce2e6a7f09890947cacb9"
@@ -459,7 +459,7 @@ dependencies = [
 "checksum rustc_version 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "138e3e0acb6c9fb258b19b67cb8abd63c00679d2851805ea151465464fe9030a"
 "checksum semver 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
 "checksum semver-parser 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
-"checksum smoltcp 0.5.0 (git+https://github.com/astro/smoltcp.git?branch=dhcp)" = "<none>"
+"checksum smoltcp 0.5.0 (git+https://github.com/oli-obk/smoltcp.git?branch=patch-2)" = "<none>"
 "checksum spin 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)" = "ceac490aa12c567115b40b7b7fceca03a6c9d53d5defea066123debc83c5dc1f"
 "checksum stable_deref_trait 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "dba1a27d3efae4351c8051072d619e3ade2820635c3958d826bfea39d59b54c8"
 "checksum stm32f7 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "d0cd6ef1ebfd3235d51c275008de5318505403cdbef9267516b2a82895b10e50"

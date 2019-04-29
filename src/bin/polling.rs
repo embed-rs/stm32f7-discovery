@@ -23,6 +23,7 @@ use smoltcp::{
         Socket, SocketSet, TcpSocket, TcpSocketBuffer,
         UdpPacketMetadata, UdpSocket, UdpSocketBuffer,
     },
+    storage::{PacketBuffer, PacketMetadata},
     time::Instant,
     wire::{EthernetAddress, IpCidr, IpEndpoint, Ipv4Address},
 };
@@ -150,14 +151,14 @@ fn main() -> ! {
     };
 
     let mut sockets = SocketSet::new(Vec::new());
-    let dhcp_rx_buffer = UdpSocketBuffer::new([UdpPacketMetadata::EMPTY; 1], vec![0; 1500]);
-    let dhcp_tx_buffer = UdpSocketBuffer::new([UdpPacketMetadata::EMPTY; 1], vec![0; 3000]);
+    let dhcp_rx_buffer = PacketBuffer::new([PacketMetadata::EMPTY; 1], vec![0; 1500]);
+    let dhcp_tx_buffer = PacketBuffer::new([PacketMetadata::EMPTY; 1], vec![0; 3000]);
     let mut dhcp = Dhcpv4Client::new(
         &mut sockets,
         dhcp_rx_buffer,
         dhcp_tx_buffer,
         Instant::from_millis(system_clock::ms() as i64),
-    ).expect("could not bind udp socket");
+    );
 
     let mut previous_button_state = pins.button.get();
     let mut audio_writer = AudioWriter::new();
