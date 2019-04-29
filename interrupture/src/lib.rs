@@ -17,6 +17,7 @@
 //! interrupt service routine.
 
 #![no_std]
+#![warn(missing_docs)]
 #![feature(alloc_prelude)]
 #![feature(optin_builtin_traits)]
 
@@ -30,6 +31,8 @@ use core::mem;
 use bare_metal::Nr;
 
 #[inline(always)]
+/// Call this function from your `#[exception]` default handler in order to thread the
+/// interrupts through to this crate's handler code.
 pub fn handle_isr(irqn: u8) {
     match unsafe { &mut ISRS[irqn as usize] } {
         Some(isr) => isr(),
@@ -89,7 +92,9 @@ impl<T, REQ> InterruptHandle<T, REQ> {
 /// for your hardware in order to get access to the more
 /// convenient `crossbeam`-like API.
 pub trait InterruptController {
+    /// An interrupt identifier. Should never contain values that can't be represented as a `u8`.
     type Request: Nr;
+    /// A priority identifier. Opaquely used by `interrupture` and just forwarded back to you.
     type Priority;
 
     /// Causes an interrupt routine to be invoked by making the hardware believe the
