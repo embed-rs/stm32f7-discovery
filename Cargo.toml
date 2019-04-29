@@ -62,6 +62,6 @@ incremental = false # TODO: remove after https://github.com/rust-lang/cargo/pull
 # TODO: replace with crates.io version when new version is released
 git = "https://github.com/rust-embedded/cortex-m-rt.git"
 
-[dependencies.interrupture]
-path = "interrupture"
+[dependencies.interrupture-stm32f7x6]
+path = "interrupture-stm32f7x6"
 version = "0.1.0"

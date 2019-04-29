@@ -29,7 +29,8 @@ use core::intrinsics::transmute;
 use core::marker::PhantomData;
 use core::ptr;
 use core::mem;
-use bare_metal::Nr;
+
+pub use bare_metal::Nr;
 
 #[inline(always)]
 /// Call this function from your `#[exception]` default handler in order to thread the
