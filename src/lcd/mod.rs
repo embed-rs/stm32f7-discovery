@@ -7,7 +7,7 @@ pub use self::color::Color;
 pub use self::init::init;
 pub use self::stdout::init as init_stdout;
 
-use core::{fmt, ptr};
+use core::fmt;
 use stm32f7::stm32f7x6::LTDC;
 
 #[macro_use]
@@ -29,26 +29,31 @@ pub const LAYER_2_OCTETS_PER_PIXEL: usize = 2;
 /// The length of the layer 1 buffer in bytes.
 pub const LAYER_2_LENGTH: usize = HEIGHT * WIDTH * LAYER_2_OCTETS_PER_PIXEL;
 
-/// Start address of the SDRAM where the framebuffers live.
-pub const SDRAM_START: usize = 0xC000_0000;
-/// Start address of the layer 1 framebuffer.
-pub const LAYER_1_START: usize = SDRAM_START;
-/// Start address of the layer 2 framebuffer.
-pub const LAYER_2_START: usize = SDRAM_START + LAYER_1_LENGTH;
-
 /// Represents the LCD and provides methods to access both layers.
 pub struct Lcd<'a> {
     controller: &'a mut LTDC,
-    layer_1_in_use: bool,
-    layer_2_in_use: bool,
+
+    /// A layer with RGB + alpha value
+    ///
+    /// Use `.take()` to get an owned version of this layer.
+    pub layer_1: Option<Layer<FramebufferArgb8888>>,
+
+    /// A layer with alpha + color lookup table index
+    ///
+    /// Use `.take()` to get an owned version of this layer.
+    pub layer_2: Option<Layer<FramebufferAl88>>,
 }
 
 impl<'a> Lcd<'a> {
-    fn new(ltdc: &'a mut LTDC) -> Self {
+    fn new(
+        ltdc: &'a mut LTDC,
+        layer_1: &'static mut [volatile::Volatile<u8>],
+        layer_2: &'static mut [volatile::Volatile<u8>],
+    ) -> Self {
         Self {
             controller: ltdc,
-            layer_1_in_use: false,
-            layer_2_in_use: false,
+            layer_1: Some(Layer { framebuffer: FramebufferArgb8888::new(layer_1) } ),
+            layer_2: Some(Layer { framebuffer: FramebufferAl88::new(layer_2) } ),
         }
     }
 
@@ -71,26 +76,8 @@ impl<'a> Lcd<'a> {
             });
     }
 
-    /// Returns a reference to layer 1.
-    pub fn layer_1(&mut self) -> Option<Layer<FramebufferArgb8888>> {
-        if self.layer_1_in_use {
-            None
-        } else {
-            Some(Layer {
-                framebuffer: FramebufferArgb8888::new(LAYER_1_START),
-            })
-        }
-    }
-
-    /// Returns a reference to layer 2.
-    pub fn layer_2(&mut self) -> Option<Layer<FramebufferAl88>> {
-        if self.layer_2_in_use {
-            None
-        } else {
-            Some(Layer {
-                framebuffer: FramebufferAl88::new(LAYER_2_START),
-            })
-        }
+    fn reload_shadow_registers(&mut self) {
+        self.controller.srcr.modify(|_, w| w.imr().set_bit()); // IMMEDIATE_RELOAD
     }
 }
 
@@ -104,20 +91,23 @@ pub trait Framebuffer {
 ///
 /// It uses 8bits for alpha, red, green, and black respectively, totaling in 32bits per pixel.
 pub struct FramebufferArgb8888 {
-    base_addr: usize,
+    mem: &'static mut [volatile::Volatile<u8>],
 }
 
 impl FramebufferArgb8888 {
-    const fn new(base_addr: usize) -> Self {
-        Self { base_addr }
+    fn new(mem: &'static mut [volatile::Volatile<u8>]) -> Self {
+        Self { mem }
     }
 }
 
 impl Framebuffer for FramebufferArgb8888 {
     fn set_pixel(&mut self, x: usize, y: usize, color: Color) {
         let pixel = y * WIDTH + x;
-        let pixel_ptr = (self.base_addr + pixel * LAYER_1_OCTETS_PER_PIXEL) as *mut u32;
-        unsafe { ptr::write_volatile(pixel_ptr, color.to_argb8888()) };
+        let pixel_idx = pixel * LAYER_1_OCTETS_PER_PIXEL;
+        self.mem[pixel_idx].write(color.alpha);
+        self.mem[pixel_idx + 1].write(color.red);
+        self.mem[pixel_idx + 2].write(color.green);
+        self.mem[pixel_idx + 3].write(color.blue);
     }
 }
 
@@ -126,20 +116,21 @@ impl Framebuffer for FramebufferArgb8888 {
 /// There are 8bits for the alpha channel and 8 bits for specifying a color using a
 /// lookup table. Thus, each pixel is represented by 16bits.
 pub struct FramebufferAl88 {
-    base_addr: usize,
+    mem: &'static mut [volatile::Volatile<u8>],
 }
 
 impl FramebufferAl88 {
-    const fn new(base_addr: usize) -> Self {
-        Self { base_addr }
+    fn new(mem: &'static mut [volatile::Volatile<u8>]) -> Self {
+        Self { mem }
     }
 }
 
 impl Framebuffer for FramebufferAl88 {
     fn set_pixel(&mut self, x: usize, y: usize, color: Color) {
         let pixel = y * WIDTH + x;
-        let pixel_ptr = (self.base_addr + pixel * LAYER_2_OCTETS_PER_PIXEL) as *mut u16;
-        unsafe { ptr::write_volatile(pixel_ptr, u16::from(color.alpha) << 8 | u16::from(color.red)) };
+        let pixel_idx = pixel * LAYER_2_OCTETS_PER_PIXEL;
+        self.mem[pixel_idx].write(color.alpha);
+        self.mem[pixel_idx + 1].write(color.red);
     }
 }
 

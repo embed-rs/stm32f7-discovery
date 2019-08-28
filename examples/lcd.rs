@@ -55,13 +55,13 @@ fn main() -> ! {
         gpio_a, gpio_b, gpio_c, gpio_d, gpio_e, gpio_f, gpio_g, gpio_h, gpio_i, gpio_j, gpio_k,
     );
 
-    init::init_sdram(&mut rcc, &mut fmc);
-    let mut lcd = init::init_lcd(&mut ltdc, &mut rcc);
+    let mut sdram = init::init_sdram(&mut rcc, &mut fmc);
+    let mut lcd = lcd::init(&mut ltdc, &mut rcc, &mut sdram);
     pins.display_enable.set(true);
     pins.backlight.set(true);
 
-    let mut layer_1 = lcd.layer_1().unwrap();
-    let mut layer_2 = lcd.layer_2().unwrap();
+    let mut layer_1 = lcd.layer_1.take().unwrap();
+    let mut layer_2 = lcd.layer_2.take().unwrap();
 
     layer_1.clear();
     layer_2.clear();
