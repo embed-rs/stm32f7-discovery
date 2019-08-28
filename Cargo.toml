@@ -43,7 +43,7 @@ default-features = false
 features = ["alloc", "socket-raw", "socket-udp", "socket-tcp", "socket-icmp", "proto-ipv4", "proto-dhcpv4"]
 
 [dependencies.font8x8]
-version = "0.2.4"
+version = "0.2.5"
 default-features = false
 features = ["unicode"]
 
