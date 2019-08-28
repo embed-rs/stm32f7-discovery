@@ -1,3 +1,4 @@
+use crate::init::SdRam;
 use super::Lcd;
 use stm32f7::stm32f7x6::{LTDC, RCC};
 
@@ -10,8 +11,8 @@ use stm32f7::stm32f7x6::{LTDC, RCC};
 pub fn init<'a>(
     ltdc: &'a mut LTDC,
     rcc: &mut RCC,
-    mem: &'static mut [volatile::Volatile<u8>],
-) -> (Lcd<'a>, &'static mut [volatile::Volatile<u8>]) {
+    mem: &mut SdRam,
+) -> Lcd<'a> {
     use crate::lcd;
     const HEIGHT: u16 = lcd::HEIGHT as u16;
     const WIDTH: u16 = lcd::WIDTH as u16;
@@ -156,8 +157,8 @@ pub fn init<'a>(
         w
     });
 
-    let (layer1, mem) = mem.split_at_mut(lcd::LAYER_1_LENGTH);
-    let (layer2, mem) = mem.split_at_mut(lcd::LAYER_2_LENGTH);
+    let layer1 = mem.allocate(lcd::LAYER_1_LENGTH);
+    let layer2 = mem.allocate(lcd::LAYER_2_LENGTH);
 
     // configure color frame buffer start address
     ltdc.l1cfbar
@@ -193,5 +194,5 @@ pub fn init<'a>(
 
     lcd.reload_shadow_registers(); // IMMEDIATE_RELOAD
 
-    (lcd, mem)
+    lcd
 }

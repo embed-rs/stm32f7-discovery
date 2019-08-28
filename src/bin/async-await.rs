@@ -102,8 +102,8 @@ fn run() -> ! {
     init::init_systick(Hz(100), &mut systick, &rcc);
     systick.enable_interrupt();
 
-    let sdram = init::init_sdram(&mut rcc, &mut fmc);
-    let (mut lcd, _sdram) = lcd::init(&mut ltdc, &mut rcc, sdram);
+    let mut sdram = init::init_sdram(&mut rcc, &mut fmc);
+    let mut lcd = lcd::init(&mut ltdc, &mut rcc, &mut sdram);
     pins.display_enable.set(true);
     pins.backlight.set(true);
 

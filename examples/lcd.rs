@@ -55,8 +55,8 @@ fn main() -> ! {
         gpio_a, gpio_b, gpio_c, gpio_d, gpio_e, gpio_f, gpio_g, gpio_h, gpio_i, gpio_j, gpio_k,
     );
 
-    let sdram = init::init_sdram(&mut rcc, &mut fmc);
-    let (mut lcd, _sdram) = lcd::init(&mut ltdc, &mut rcc, sdram);
+    let mut sdram = init::init_sdram(&mut rcc, &mut fmc);
+    let mut lcd = lcd::init(&mut ltdc, &mut rcc, &mut sdram);
     pins.display_enable.set(true);
     pins.backlight.set(true);
 

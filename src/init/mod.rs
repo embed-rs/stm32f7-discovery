@@ -6,6 +6,7 @@ use stm32f7::stm32f7x6::{self as device, FLASH, FMC, PWR, RCC, SAI2, SYST};
 
 pub use self::pins::init as pins;
 pub use self::pins::Pins;
+use core::mem;
 
 mod pins;
 
@@ -147,10 +148,30 @@ pub fn enable_syscfg(rcc: &mut RCC) {
 
 static mut SDRAM_INITIALIZED: bool = false;
 
+/// SdRam allocator helper with some convenience methods
+pub struct SdRam(&'static mut [volatile::Volatile<u8>]);
+
+impl SdRam {
+    /// Allocates `size` bytes or panics if not enough memory available
+    ///
+    /// Note: it is not possible to free any memory
+    pub fn allocate(&mut self, size: usize) -> &'static mut [volatile::Volatile<u8>] {
+        let memory = mem::replace(&mut self.0, &mut []);
+        let (ret, rest) = memory.split_at_mut(size);
+        mem::replace(&mut self.0, rest);
+        ret
+    }
+
+    /// Yields the rest of the available memory
+    pub fn all(self) -> &'static mut [volatile::Volatile<u8>] {
+        self.0
+    }
+}
+
 /// Initializes the SDRAM, which makes more memory accessible.
 ///
 /// This is a prerequisite for using the LCD.
-pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) -> &'static mut [volatile::Volatile<u8>] {
+pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) -> SdRam {
 
     // ensures that we don't do this twice and end up with two `&'static mut` to the same memory
     unsafe {
@@ -302,7 +323,7 @@ pub fn init_sdram(rcc: &mut RCC, fmc: &mut FMC) -> &'static mut [volatile::Volat
     }
     // this block's safety is guaranteed by SDRAM_INITIALIZED check at the start of this function
     unsafe {
-        core::slice::from_raw_parts_mut(sdram_start as *mut volatile::Volatile<u8>, sdram_len)
+        SdRam(core::slice::from_raw_parts_mut(sdram_start as *mut volatile::Volatile<u8>, sdram_len))
     }
 }
 
